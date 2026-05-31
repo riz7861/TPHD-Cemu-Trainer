@@ -11,20 +11,47 @@ This trainer is external only. It does not inject DLLs, install drivers, hook em
 - Process name: `Cemu.exe`
 - Source table: `Zelda_TP_HD_Mega_Trainer (by toto621).ct`
 
-## Implemented Cheats
+## Current Features
 
+The UI is organized as a tabbed trainer/save-editor hybrid so new systems can be added without crowding one large grid.
+
+- **General**: health, max health, heart container summary, lantern oil, wallet, rupees, Poe Souls, Golden Bugs count
+- **Inventory**: reserved item ownership checklist for inventory-screen items
+- **Equipment**: reserved weapons, shields, armor, and equipment groups
+- **Ammo & Upgrades**: wallet, quiver, bomb bag, and seed capacity-aware edits
+- **Collectibles**: Poe Souls, Golden Bugs summary, heart containers, future heart-piece tracking
+- **Story Flags**: reserved progression flags
+- **Hidden Skills**: reserved hidden-skill tracking
+- **Quest Items**: reserved quest item/progression tracking
+- **Debug**: player base, AOB pattern, raw CT-backed values, and future memory tools
+
+## Implemented Memory Edits
+
+- Current health
+- Maximum health
 - Rupees
-- Hearts
-- Max hearts
 - Lantern oil
 - Arrows
 - Bomb slots 1-3
 - Seeds
-- Quiver size
-- Bomb bag size
 - Poe souls
+- Wallet capacity
+- Quiver capacity
+- Bomb bag capacity
+- Golden Bugs count display from the CT bitfield
 
-Lockable cheats follow the CT table's "Allow Increase" style behavior: the trainer restores the target value if it drops, but lets the displayed target rise when the in-game value increases.
+## Capacity System
+
+Capacity-limited values are clamped before every write. The **Max** button means the currently selected capacity, not a global maximum.
+
+- Wallet: 500, 1000, 2000, 9999
+- Quiver: 30, 60, 100
+- Bomb Bags: 30, 60
+- Seed Bag: 50
+
+The CT exposes one bomb bag capacity byte, so all three bomb slots currently share that CT-backed capacity selector. The seed bag capacity is fixed because the CT table does not expose a separate seed capacity offset.
+
+Targets initialize from the current in-memory value after a successful scan. Lock mode writes only clamped values. Current health is also clamped to maximum health.
 
 ## Requirements
 
@@ -48,7 +75,7 @@ TphdCemuTrainer\bin\Debug\net9.0-windows\
 
 ## How to Run
 
-Start Cemu, load Twilight Princess HD, and load a save file before attaching. Then run:
+Start Cemu, load Twilight Princess HD, and load into gameplay before attaching. Then run:
 
 ```powershell
 dotnet run --project TphdCemuTrainer\TphdCemuTrainer.csproj
@@ -58,27 +85,31 @@ In the app, click **Attach / Rescan**. If the AOB scan succeeds, the trainer sho
 
 ## How the CT File Is Used
 
-The Cheat Engine table is treated as the source of truth for the initial implementation:
+The Cheat Engine table is treated as the source of truth:
 
 - Player base AOB: `10 08 9B CC 00 00 00 01 18 3A ?? F0 10 08 9B C4`
 - Cheat offsets are copied from `_playerbase+...` entries in the CT file.
-- CT custom types marked `2 Byte Big Endian` are read and written as big-endian values.
+- CT custom types marked `2 Byte Big Endian` and `4 Byte Big Endian` are read as big-endian values.
 - Byte entries are read and written as single-byte values.
+- Capacity dropdowns use the CT-backed capacity offsets where they exist.
 
-The app does not parse or execute Cheat Engine scripts at runtime. The relevant AOB, offsets, and value formats are documented in `TphdCemuTrainer/Cheats/CheatCatalog.cs`.
+The app does not parse or execute Cheat Engine scripts at runtime. The relevant AOB, offsets, capacities, and value formats are documented in `TphdCemuTrainer/Cheats/CheatCatalog.cs`.
 
 ## Project Structure
 
 - `TphdCemuTrainer/Memory/ProcessMemory.cs`: process attach plus `ReadProcessMemory` / `WriteProcessMemory` wrappers
 - `TphdCemuTrainer/Memory/AobScanner.cs`: external AOB scanner with wildcard-byte support
 - `TphdCemuTrainer/Memory/BigEndianMemory.cs`: big-endian read/write helpers
-- `TphdCemuTrainer/Cheats/CheatCatalog.cs`: CT-derived cheat definitions
-- `TphdCemuTrainer/MainWindow.xaml`: WPF trainer UI
+- `TphdCemuTrainer/Cheats/CheatCatalog.cs`: CT-derived cheat and capacity definitions
+- `TphdCemuTrainer/Cheats/FutureFeatureCatalog.cs`: reserved trainer/save-editor feature groups
+- `TphdCemuTrainer/ViewModels/`: UI-facing value and capacity models
+- `TphdCemuTrainer/MainWindow.xaml`: tabbed WPF trainer UI
 
 ## Known Limitations
 
-- The player base scan depends on the CT table AOB. It may fail on unsupported game revisions, different memory layouts, or if a save is not loaded.
-- The trainer currently scans all committed readable process regions and uses the first AOB match.
+- The player base scan depends on the CT table AOB. It may fail on unsupported game revisions, different memory layouts, or if gameplay is not loaded.
+- Missing player data is handled as a rescan state, not an application failure.
+- Inventory, equipment, story flags, hidden skills, and quest items are laid out for future expansion but not yet written.
 - Values are simple external memory edits. They do not patch game logic.
 - If Cemu runs as administrator, the trainer may also need to run as administrator.
 
@@ -88,9 +119,13 @@ The app does not parse or execute Cheat Engine scripts at runtime. The relevant 
 
 Start Cemu before clicking **Attach / Rescan**.
 
-**AOB was not found**
+**Load into gameplay and rescan**
 
-Load Twilight Princess HD and enter a save file, then click **Attach / Rescan** again. If it still fails, the game/emulator version may not match the CT table's memory pattern.
+Cemu was found, but the player data AOB was not. Load Twilight Princess HD into active gameplay, then click **Attach / Rescan** again.
+
+**Values clamp lower than expected**
+
+Check the selected capacity dropdown. Ammo, bombs, seeds, rupees, and health are clamped to the active capacity or maximum health before writing.
 
 **Values do not change**
 

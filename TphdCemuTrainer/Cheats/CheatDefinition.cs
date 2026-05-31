@@ -3,33 +3,46 @@ namespace TphdCemuTrainer.Cheats;
 public enum CheatValueKind
 {
     Byte,
-    UInt16BigEndian
+    UInt16BigEndian,
+    UInt32BigEndian
 }
 
-public sealed record CheatOption(int Value, string Label);
+public enum CheatId
+{
+    CurrentHealth,
+    MaximumHealth,
+    LanternOil,
+    Rupees,
+    Arrows,
+    BombSlot1,
+    BombSlot2,
+    BombSlot3,
+    Seeds,
+    PoeSouls,
+    GoldenBugsFlags
+}
 
 public sealed record CheatDefinition(
+    CheatId Id,
     string Name,
     uint Offset,
     CheatValueKind ValueKind,
-    int DefaultValue,
-    int? MaxValue,
+    int HardMaximum,
     bool CanLock,
     string Source,
-    IReadOnlyList<CheatOption>? Options = null)
+    string? CapacityId = null)
 {
-    public int MinimumValue => 0;
-
-    public int MaximumValue => ValueKind switch
+    public int StorageMaximum => ValueKind switch
     {
         CheatValueKind.Byte => byte.MaxValue,
         CheatValueKind.UInt16BigEndian => ushort.MaxValue,
+        CheatValueKind.UInt32BigEndian => int.MaxValue,
         _ => int.MaxValue
     };
 
-    public int Clamp(int value)
+    public int Clamp(int value, int effectiveMaximum)
     {
-        var upperBound = Math.Min(MaxValue ?? MaximumValue, MaximumValue);
-        return Math.Clamp(value, MinimumValue, upperBound);
+        var upperBound = Math.Min(Math.Min(HardMaximum, StorageMaximum), effectiveMaximum);
+        return Math.Clamp(value, 0, upperBound);
     }
 }

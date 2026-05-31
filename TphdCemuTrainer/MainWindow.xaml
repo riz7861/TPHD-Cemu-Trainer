@@ -5,101 +5,188 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         mc:Ignorable="d"
         Title="TPHD Cemu Trainer"
-        Height="690"
-        MinHeight="620"
-        Width="1040"
-        MinWidth="920"
-        Background="#F5F7FA"
+        Height="760"
+        MinHeight="680"
+        Width="1120"
+        MinWidth="980"
+        Background="#F0F0F0"
         FontFamily="Segoe UI">
     <Window.Resources>
         <Style TargetType="Button">
-            <Setter Property="MinHeight" Value="32" />
-            <Setter Property="Padding" Value="14,5" />
-            <Setter Property="Margin" Value="4,0" />
-        </Style>
-        <Style TargetType="ToggleButton">
-            <Setter Property="MinHeight" Value="32" />
-            <Setter Property="MinWidth" Value="60" />
-            <Setter Property="Padding" Value="12,5" />
-            <Setter Property="Margin" Value="4,0" />
+            <Setter Property="MinHeight" Value="26" />
+            <Setter Property="Padding" Value="10,3" />
+            <Setter Property="Margin" Value="3,0" />
         </Style>
         <Style TargetType="TextBox">
-            <Setter Property="MinHeight" Value="30" />
-            <Setter Property="Padding" Value="7,4" />
+            <Setter Property="MinHeight" Value="25" />
+            <Setter Property="Padding" Value="5,2" />
             <Setter Property="VerticalContentAlignment" Value="Center" />
         </Style>
+        <Style TargetType="ComboBox">
+            <Setter Property="MinHeight" Value="25" />
+            <Setter Property="MinWidth" Value="98" />
+            <Setter Property="Margin" Value="0" />
+            <Setter Property="VerticalContentAlignment" Value="Center" />
+        </Style>
+        <Style TargetType="GroupBox">
+            <Setter Property="Margin" Value="7" />
+            <Setter Property="Padding" Value="9" />
+        </Style>
+        <Style TargetType="TabItem">
+            <Setter Property="Padding" Value="12,5" />
+        </Style>
+
+        <DataTemplate x:Key="EditableValueTemplate">
+            <Grid Margin="0,4" ToolTip="{Binding Source}">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" MinWidth="135" />
+                    <ColumnDefinition Width="76" />
+                    <ColumnDefinition Width="88" />
+                    <ColumnDefinition Width="50" />
+                    <ColumnDefinition Width="50" />
+                    <ColumnDefinition Width="82" />
+                </Grid.ColumnDefinitions>
+
+                <TextBlock Text="{Binding Name}"
+                           VerticalAlignment="Center"
+                           Margin="0,0,8,0" />
+                <TextBox Grid.Column="1"
+                         Text="{Binding CurrentValue, Mode=OneWay}"
+                         IsReadOnly="True"
+                         Background="#F7F7F7" />
+                <TextBox Grid.Column="2"
+                         Text="{Binding TargetValue, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                         Margin="6,0,0,0" />
+                <Button Grid.Column="3"
+                        Content="Set"
+                        Tag="{Binding}"
+                        Click="SetValue_Click" />
+                <Button Grid.Column="4"
+                        Content="Max"
+                        Tag="{Binding}"
+                        Click="MaxValue_Click" />
+                <CheckBox Grid.Column="5"
+                          Content="{Binding LockText}"
+                          IsChecked="{Binding IsLocked, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                          IsEnabled="{Binding CanLock}"
+                          VerticalAlignment="Center"
+                          Margin="6,0,0,0" />
+            </Grid>
+        </DataTemplate>
+
+        <DataTemplate x:Key="ReadOnlyRawValueTemplate">
+            <Grid Margin="0,3" ToolTip="{Binding Source}">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" MinWidth="135" />
+                    <ColumnDefinition Width="76" />
+                    <ColumnDefinition Width="112" />
+                </Grid.ColumnDefinitions>
+                <TextBlock Text="{Binding Name}" VerticalAlignment="Center" />
+                <TextBlock Grid.Column="1"
+                           Text="{Binding Offset}"
+                           FontFamily="Consolas"
+                           VerticalAlignment="Center" />
+                <TextBox Grid.Column="2"
+                         Text="{Binding CurrentValue, Mode=OneWay}"
+                         IsReadOnly="True"
+                         Background="#F7F7F7" />
+            </Grid>
+        </DataTemplate>
+
+        <DataTemplate x:Key="CapacityTemplate">
+            <Grid Margin="0,4" ToolTip="{Binding Source}">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" MinWidth="135" />
+                    <ColumnDefinition Width="110" />
+                    <ColumnDefinition Width="130" />
+                </Grid.ColumnDefinitions>
+                <TextBlock Text="{Binding Name}"
+                           VerticalAlignment="Center"
+                           Margin="0,0,8,0" />
+                <ComboBox Grid.Column="1"
+                          ItemsSource="{Binding Options}"
+                          DisplayMemberPath="Label"
+                          SelectedItem="{Binding SelectedOption, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                          SelectionChanged="CapacityCombo_SelectionChanged"
+                          Tag="{Binding}" />
+                <TextBlock Grid.Column="2"
+                           VerticalAlignment="Center"
+                           Margin="8,0,0,0"
+                           Foreground="#555">
+                    <Run Text="Stored:" />
+                    <Run Text="{Binding CurrentStoredValue, Mode=OneWay}" />
+                </TextBlock>
+            </Grid>
+        </DataTemplate>
+
+        <DataTemplate x:Key="FutureCheckTemplate">
+            <CheckBox Content="{Binding Name}"
+                      IsEnabled="False"
+                      ToolTip="{Binding Notes}"
+                      Margin="0,3" />
+        </DataTemplate>
+
+        <DataTemplate x:Key="FutureTextTemplate">
+            <TextBlock Text="{Binding Name}"
+                       ToolTip="{Binding Notes}"
+                       Margin="0,3"
+                       Foreground="#555" />
+        </DataTemplate>
     </Window.Resources>
 
-    <Grid Margin="22">
+    <Grid Margin="10">
         <Grid.RowDefinitions>
-            <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
             <RowDefinition Height="*" />
         </Grid.RowDefinitions>
 
-        <DockPanel Grid.Row="0" LastChildFill="False">
-            <StackPanel DockPanel.Dock="Left">
-                <TextBlock Text="Twilight Princess HD Trainer"
-                           FontSize="26"
-                           FontWeight="SemiBold"
-                           Foreground="#152034" />
-                <TextBlock Text="External memory editor for Cemu.exe"
-                           Margin="0,4,0,0"
-                           FontSize="13"
-                           Foreground="#657186" />
-            </StackPanel>
-
-            <StackPanel DockPanel.Dock="Right"
-                        Orientation="Horizontal"
-                        VerticalAlignment="Center">
-                <Button x:Name="AttachButton"
-                        Content="Attach / Rescan"
-                        Click="AttachButton_Click" />
-                <Button x:Name="DetachButton"
-                        Content="Detach"
-                        IsEnabled="False"
-                        Click="DetachButton_Click" />
-            </StackPanel>
-        </DockPanel>
-
-        <Border Grid.Row="1"
-                Margin="0,18,0,16"
-                Padding="14"
-                CornerRadius="8"
-                Background="White"
-                BorderBrush="#D9E0EA"
-                BorderThickness="1">
+        <Border Grid.Row="0"
+                BorderBrush="#B8B8B8"
+                BorderThickness="1"
+                Background="#FAFAFA"
+                Padding="9"
+                Margin="0,0,0,8">
             <Grid>
                 <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto" />
                     <ColumnDefinition Width="*" />
                     <ColumnDefinition Width="Auto" />
                 </Grid.ColumnDefinitions>
 
-                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                    <Ellipse x:Name="StatusDot"
-                             Width="11"
-                             Height="11"
-                             Fill="#A0A8B5"
-                             Margin="0,0,10,0" />
-                    <TextBlock x:Name="StatusText"
-                               Text="Not attached"
-                               FontWeight="SemiBold"
-                               Foreground="#24324A" />
+                <StackPanel Orientation="Horizontal">
+                    <Button x:Name="AttachButton"
+                            Content="Attach / Rescan"
+                            Click="AttachButton_Click" />
+                    <Button x:Name="DetachButton"
+                            Content="Detach"
+                            IsEnabled="False"
+                            Click="DetachButton_Click" />
                 </StackPanel>
 
                 <StackPanel Grid.Column="1"
                             Orientation="Horizontal"
+                            VerticalAlignment="Center"
+                            Margin="18,0">
+                    <Ellipse x:Name="StatusDot"
+                             Width="10"
+                             Height="10"
+                             Fill="#808080"
+                             Margin="0,0,8,0" />
+                    <TextBlock x:Name="StatusText"
+                               Text="Not attached"
+                               FontWeight="SemiBold"
+                               VerticalAlignment="Center" />
+                </StackPanel>
+
+                <StackPanel Grid.Column="2"
+                            Orientation="Horizontal"
                             VerticalAlignment="Center">
-                    <TextBlock Text="PID"
-                               Foreground="#657186"
-                               Margin="0,0,6,0" />
+                    <TextBlock Text="PID:" Margin="0,0,4,0" />
                     <TextBlock x:Name="PidText"
                                Text="-"
                                FontWeight="SemiBold"
-                               Margin="0,0,18,0" />
-                    <TextBlock Text="Player base"
-                               Foreground="#657186"
-                               Margin="0,0,6,0" />
+                               Margin="0,0,16,0" />
+                    <TextBlock Text="Player base:" Margin="0,0,4,0" />
                     <TextBlock x:Name="PlayerBaseText"
                                Text="-"
                                FontFamily="Consolas"
@@ -108,102 +195,313 @@
             </Grid>
         </Border>
 
-        <DataGrid Grid.Row="2"
-                  x:Name="CheatsGrid"
-                  ItemsSource="{Binding Cheats}"
-                  AutoGenerateColumns="False"
-                  CanUserAddRows="False"
-                  CanUserDeleteRows="False"
-                  HeadersVisibility="Column"
-                  GridLinesVisibility="None"
-                  RowHeaderWidth="0"
-                  AlternatingRowBackground="#F9FBFD"
-                  Background="White"
-                  BorderBrush="#D9E0EA"
-                  BorderThickness="1"
-                  IsReadOnly="False"
-                  SelectionMode="Single">
-            <DataGrid.Resources>
-                <Style TargetType="DataGridColumnHeader">
-                    <Setter Property="Padding" Value="12,10" />
-                    <Setter Property="FontWeight" Value="SemiBold" />
-                    <Setter Property="Foreground" Value="#40506A" />
-                    <Setter Property="Background" Value="#EEF3F8" />
-                    <Setter Property="BorderBrush" Value="#D9E0EA" />
-                </Style>
-                <Style TargetType="DataGridCell">
-                    <Setter Property="Padding" Value="10,6" />
-                    <Setter Property="BorderThickness" Value="0" />
-                    <Setter Property="VerticalAlignment" Value="Center" />
-                </Style>
-            </DataGrid.Resources>
-            <DataGrid.Columns>
-                <DataGridTemplateColumn Header="Cheat" Width="2.2*">
-                    <DataGridTemplateColumn.CellTemplate>
-                        <DataTemplate>
-                            <TextBlock Text="{Binding Name}"
-                                       ToolTip="{Binding Source}"
-                                       FontWeight="SemiBold"
-                                       Foreground="#152034" />
-                        </DataTemplate>
-                    </DataGridTemplateColumn.CellTemplate>
-                </DataGridTemplateColumn>
-
-                <DataGridTextColumn Header="Offset"
-                                    Binding="{Binding Offset}"
-                                    Width="95"
-                                    IsReadOnly="True" />
-
-                <DataGridTextColumn Header="Current"
-                                    Binding="{Binding CurrentValue}"
-                                    Width="95"
-                                    IsReadOnly="True" />
-
-                <DataGridTemplateColumn Header="Target" Width="150">
-                    <DataGridTemplateColumn.CellTemplate>
-                        <DataTemplate>
+        <TabControl Grid.Row="1"
+                    x:Name="TrainerTabs"
+                    Background="#F0F0F0">
+            <TabItem Header="General">
+                <ScrollViewer VerticalScrollBarVisibility="Auto">
+                    <UniformGrid Columns="2" Margin="6">
+                        <GroupBox Header="Player">
                             <StackPanel>
-                                <TextBox Text="{Binding DesiredValue, UpdateSourceTrigger=PropertyChanged}" />
-                                <TextBlock Text="{Binding OptionHint}"
-                                           Margin="1,3,0,0"
-                                           FontSize="10"
-                                           Foreground="#778398"
-                                           TextTrimming="CharacterEllipsis" />
+                                <ContentControl Content="{Binding CurrentHealth}"
+                                                ContentTemplate="{StaticResource EditableValueTemplate}" />
+                                <ContentControl Content="{Binding MaximumHealth}"
+                                                ContentTemplate="{StaticResource EditableValueTemplate}" />
+                                <Grid Margin="0,4">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="180" />
+                                        <ColumnDefinition Width="140" />
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Text="Heart containers" VerticalAlignment="Center" />
+                                    <TextBox Grid.Column="1"
+                                             x:Name="HeartContainersText"
+                                             Text="Not read"
+                                             IsReadOnly="True"
+                                             Background="#F7F7F7" />
+                                </Grid>
+                                <Grid Margin="0,4">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="180" />
+                                        <ColumnDefinition Width="140" />
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Text="Heart pieces" VerticalAlignment="Center" />
+                                    <TextBox Grid.Column="1"
+                                             x:Name="TotalHeartPiecesText"
+                                             Text="Not mapped in CT"
+                                             IsReadOnly="True"
+                                             Background="#F7F7F7" />
+                                </Grid>
+                                <ContentControl Content="{Binding LanternOil}"
+                                                ContentTemplate="{StaticResource EditableValueTemplate}" />
                             </StackPanel>
-                        </DataTemplate>
-                    </DataGridTemplateColumn.CellTemplate>
-                </DataGridTemplateColumn>
+                        </GroupBox>
 
-                <DataGridTemplateColumn Header="Set" Width="82">
-                    <DataGridTemplateColumn.CellTemplate>
-                        <DataTemplate>
-                            <Button Content="Set"
-                                    Click="SetCheat_Click"
-                                    Tag="{Binding}" />
-                        </DataTemplate>
-                    </DataGridTemplateColumn.CellTemplate>
-                </DataGridTemplateColumn>
+                        <GroupBox Header="Wallet">
+                            <StackPanel>
+                                <ContentControl Content="{Binding WalletCapacity}"
+                                                ContentTemplate="{StaticResource CapacityTemplate}" />
+                                <ContentControl Content="{Binding Rupees}"
+                                                ContentTemplate="{StaticResource EditableValueTemplate}" />
+                            </StackPanel>
+                        </GroupBox>
 
-                <DataGridTemplateColumn Header="Max" Width="82">
-                    <DataGridTemplateColumn.CellTemplate>
-                        <DataTemplate>
-                            <Button Content="Max"
-                                    Click="MaxCheat_Click"
-                                    Tag="{Binding}" />
-                        </DataTemplate>
-                    </DataGridTemplateColumn.CellTemplate>
-                </DataGridTemplateColumn>
+                        <GroupBox Header="Collectibles Summary">
+                            <StackPanel>
+                                <ContentControl Content="{Binding PoeSouls}"
+                                                ContentTemplate="{StaticResource EditableValueTemplate}" />
+                                <Grid Margin="0,4">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="180" />
+                                        <ColumnDefinition Width="140" />
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Text="Golden Bugs count" VerticalAlignment="Center" />
+                                    <TextBox Grid.Column="1"
+                                             x:Name="GoldenBugsCountText"
+                                             Text="Not read"
+                                             IsReadOnly="True"
+                                             Background="#F7F7F7" />
+                                </Grid>
+                                <Grid Margin="0,4">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="180" />
+                                        <ColumnDefinition Width="140" />
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Text="Total Heart Pieces" VerticalAlignment="Center" />
+                                    <TextBox Grid.Column="1"
+                                             Text="{Binding ElementName=TotalHeartPiecesText, Path=Text, Mode=OneWay}"
+                                             IsReadOnly="True"
+                                             Background="#F7F7F7" />
+                                </Grid>
+                            </StackPanel>
+                        </GroupBox>
 
-                <DataGridTemplateColumn Header="Lock" Width="88">
-                    <DataGridTemplateColumn.CellTemplate>
-                        <DataTemplate>
-                            <ToggleButton Content="{Binding LockText}"
-                                          IsChecked="{Binding IsLocked, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                                          IsEnabled="{Binding CanLock}" />
-                        </DataTemplate>
-                    </DataGridTemplateColumn.CellTemplate>
-                </DataGridTemplateColumn>
-            </DataGrid.Columns>
-        </DataGrid>
+                        <GroupBox Header="Notes">
+                            <TextBlock TextWrapping="Wrap"
+                                       Foreground="#555"
+                                       Text="Capacity-limited edits are clamped to the selected capacity before writing. If player data is not found, load into gameplay and rescan." />
+                        </GroupBox>
+                    </UniformGrid>
+                </ScrollViewer>
+            </TabItem>
+
+            <TabItem Header="Inventory">
+                <ScrollViewer VerticalScrollBarVisibility="Auto">
+                    <UniformGrid Columns="2" Margin="6">
+                        <GroupBox Header="Inventory-screen Items">
+                            <ItemsControl ItemsSource="{Binding InventoryItems}"
+                                          ItemTemplate="{StaticResource FutureCheckTemplate}" />
+                        </GroupBox>
+                        <GroupBox Header="Implementation Notes">
+                            <TextBlock TextWrapping="Wrap"
+                                       Foreground="#555"
+                                       Text="The CT exposes inventory slots as item IDs. Dedicated item ownership toggles are reserved until each item slot behavior can be mapped safely." />
+                        </GroupBox>
+                    </UniformGrid>
+                </ScrollViewer>
+            </TabItem>
+
+            <TabItem Header="Equipment">
+                <ScrollViewer VerticalScrollBarVisibility="Auto">
+                    <UniformGrid Columns="2" Margin="6">
+                        <GroupBox Header="Weapons">
+                            <ItemsControl ItemsSource="{Binding Weapons}"
+                                          ItemTemplate="{StaticResource FutureCheckTemplate}" />
+                        </GroupBox>
+                        <GroupBox Header="Shields">
+                            <ItemsControl ItemsSource="{Binding Shields}"
+                                          ItemTemplate="{StaticResource FutureCheckTemplate}" />
+                        </GroupBox>
+                        <GroupBox Header="Armor">
+                            <ItemsControl ItemsSource="{Binding Armor}"
+                                          ItemTemplate="{StaticResource FutureCheckTemplate}" />
+                        </GroupBox>
+                        <GroupBox Header="Equipment">
+                            <ItemsControl ItemsSource="{Binding Equipment}"
+                                          ItemTemplate="{StaticResource FutureCheckTemplate}" />
+                        </GroupBox>
+                    </UniformGrid>
+                </ScrollViewer>
+            </TabItem>
+
+            <TabItem Header="Ammo &amp; Upgrades">
+                <ScrollViewer VerticalScrollBarVisibility="Auto">
+                    <UniformGrid Columns="2" Margin="6">
+                        <GroupBox Header="Wallet">
+                            <StackPanel>
+                                <ContentControl Content="{Binding WalletCapacity}"
+                                                ContentTemplate="{StaticResource CapacityTemplate}" />
+                                <ContentControl Content="{Binding Rupees}"
+                                                ContentTemplate="{StaticResource EditableValueTemplate}" />
+                            </StackPanel>
+                        </GroupBox>
+
+                        <GroupBox Header="Quiver">
+                            <StackPanel>
+                                <ContentControl Content="{Binding QuiverCapacity}"
+                                                ContentTemplate="{StaticResource CapacityTemplate}" />
+                                <ContentControl Content="{Binding Arrows}"
+                                                ContentTemplate="{StaticResource EditableValueTemplate}" />
+                            </StackPanel>
+                        </GroupBox>
+
+                        <GroupBox Header="Bomb Bag 1">
+                            <StackPanel>
+                                <ContentControl Content="{Binding BombBagCapacity}"
+                                                ContentTemplate="{StaticResource CapacityTemplate}" />
+                                <ContentControl Content="{Binding BombSlot1}"
+                                                ContentTemplate="{StaticResource EditableValueTemplate}" />
+                            </StackPanel>
+                        </GroupBox>
+
+                        <GroupBox Header="Bomb Bag 2">
+                            <StackPanel>
+                                <ContentControl Content="{Binding BombBagCapacity}"
+                                                ContentTemplate="{StaticResource CapacityTemplate}" />
+                                <ContentControl Content="{Binding BombSlot2}"
+                                                ContentTemplate="{StaticResource EditableValueTemplate}" />
+                            </StackPanel>
+                        </GroupBox>
+
+                        <GroupBox Header="Bomb Bag 3">
+                            <StackPanel>
+                                <ContentControl Content="{Binding BombBagCapacity}"
+                                                ContentTemplate="{StaticResource CapacityTemplate}" />
+                                <ContentControl Content="{Binding BombSlot3}"
+                                                ContentTemplate="{StaticResource EditableValueTemplate}" />
+                            </StackPanel>
+                        </GroupBox>
+
+                        <GroupBox Header="Seed Bag">
+                            <StackPanel>
+                                <ContentControl Content="{Binding SeedBagCapacity}"
+                                                ContentTemplate="{StaticResource CapacityTemplate}" />
+                                <ContentControl Content="{Binding Seeds}"
+                                                ContentTemplate="{StaticResource EditableValueTemplate}" />
+                            </StackPanel>
+                        </GroupBox>
+                    </UniformGrid>
+                </ScrollViewer>
+            </TabItem>
+
+            <TabItem Header="Collectibles">
+                <ScrollViewer VerticalScrollBarVisibility="Auto">
+                    <UniformGrid Columns="2" Margin="6">
+                        <GroupBox Header="Poe Souls">
+                            <ContentControl Content="{Binding PoeSouls}"
+                                            ContentTemplate="{StaticResource EditableValueTemplate}" />
+                        </GroupBox>
+                        <GroupBox Header="Golden Bugs">
+                            <StackPanel>
+                                <Grid Margin="0,4">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="180" />
+                                        <ColumnDefinition Width="140" />
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Text="Collected" VerticalAlignment="Center" />
+                                    <TextBox Grid.Column="1"
+                                             Text="{Binding ElementName=GoldenBugsCountText, Path=Text, Mode=OneWay}"
+                                             IsReadOnly="True"
+                                             Background="#F7F7F7" />
+                                </Grid>
+                                <TextBlock TextWrapping="Wrap"
+                                           Foreground="#555"
+                                           Text="Individual bug tracking is reserved for a future save-editor pass." />
+                            </StackPanel>
+                        </GroupBox>
+                        <GroupBox Header="Heart Pieces">
+                            <TextBox Text="{Binding ElementName=TotalHeartPiecesText, Path=Text, Mode=OneWay}"
+                                     IsReadOnly="True"
+                                     Background="#F7F7F7" />
+                        </GroupBox>
+                        <GroupBox Header="Heart Containers">
+                            <TextBox x:Name="CollectiblesHeartContainersText"
+                                     Text="Not read"
+                                     IsReadOnly="True"
+                                     Background="#F7F7F7" />
+                        </GroupBox>
+                    </UniformGrid>
+                </ScrollViewer>
+            </TabItem>
+
+            <TabItem Header="Story Flags">
+                <ScrollViewer VerticalScrollBarVisibility="Auto">
+                    <UniformGrid Columns="2" Margin="6">
+                        <GroupBox Header="Story Progression">
+                            <ItemsControl ItemsSource="{Binding StoryFlags}"
+                                          ItemTemplate="{StaticResource FutureCheckTemplate}" />
+                        </GroupBox>
+                        <GroupBox Header="Warning">
+                            <TextBlock TextWrapping="Wrap"
+                                       Foreground="#555"
+                                       Text="Story flags can affect progression and event state. This area is intentionally reserved until flag behavior is verified." />
+                        </GroupBox>
+                    </UniformGrid>
+                </ScrollViewer>
+            </TabItem>
+
+            <TabItem Header="Hidden Skills">
+                <ScrollViewer VerticalScrollBarVisibility="Auto">
+                    <GroupBox Header="Skills" Margin="13">
+                        <ItemsControl ItemsSource="{Binding HiddenSkills}"
+                                      ItemTemplate="{StaticResource FutureCheckTemplate}" />
+                    </GroupBox>
+                </ScrollViewer>
+            </TabItem>
+
+            <TabItem Header="Quest Items">
+                <ScrollViewer VerticalScrollBarVisibility="Auto">
+                    <UniformGrid Columns="2" Margin="6">
+                        <GroupBox Header="Quest Items">
+                            <ItemsControl ItemsSource="{Binding QuestItems}"
+                                          ItemTemplate="{StaticResource FutureCheckTemplate}" />
+                        </GroupBox>
+                        <GroupBox Header="Progression Notes">
+                            <TextBlock TextWrapping="Wrap"
+                                       Foreground="#555"
+                                       Text="Quest item editing will be added after item state, event flags, and save compatibility are mapped." />
+                        </GroupBox>
+                    </UniformGrid>
+                </ScrollViewer>
+            </TabItem>
+
+            <TabItem Header="Debug">
+                <ScrollViewer VerticalScrollBarVisibility="Auto">
+                    <UniformGrid Columns="2" Margin="6">
+                        <GroupBox Header="Current Player Base">
+                            <StackPanel>
+                                <TextBox x:Name="DebugPlayerBaseText"
+                                         Text="-"
+                                         IsReadOnly="True"
+                                         FontFamily="Consolas"
+                                         Background="#F7F7F7" />
+                                <TextBlock Text="AOB pattern"
+                                           Margin="0,10,0,2" />
+                                <TextBox x:Name="AobPatternText"
+                                         IsReadOnly="True"
+                                         FontFamily="Consolas"
+                                         TextWrapping="Wrap"
+                                         Background="#F7F7F7" />
+                            </StackPanel>
+                        </GroupBox>
+
+                        <GroupBox Header="Raw Memory Values">
+                            <ItemsControl ItemsSource="{Binding RawMemoryValues}"
+                                          ItemTemplate="{StaticResource ReadOnlyRawValueTemplate}" />
+                        </GroupBox>
+
+                        <GroupBox Header="Advanced Tools">
+                            <ItemsControl ItemsSource="{Binding DebugTools}"
+                                          ItemTemplate="{StaticResource FutureTextTemplate}" />
+                        </GroupBox>
+
+                        <GroupBox Header="Coordinate Display">
+                            <TextBlock TextWrapping="Wrap"
+                                       Foreground="#555"
+                                       Text="Coordinate display and teleport tools are reserved for a future coordinate-base scan implementation." />
+                        </GroupBox>
+                    </UniformGrid>
+                </ScrollViewer>
+            </TabItem>
+        </TabControl>
     </Grid>
 </Window>
