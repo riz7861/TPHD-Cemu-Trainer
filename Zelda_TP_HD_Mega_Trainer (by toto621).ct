@@ -1,0 +1,4094 @@
+<?xml version="1.0" encoding="utf-8"?>
+<CheatTable CheatEngineTableVersion="34">
+  <CheatEntries>
+    <CheatEntry>
+      <ID>2</ID>
+      <Description>"Activate (Press END and Wait a Little)"</Description>
+      <Options moHideChildren="1"/>
+      <LastState/>
+      <VariableType>Auto Assembler Script</VariableType>
+      <AssemblerScript>[ENABLE]
+aobscan(arraystart,10 08 9B CC 00 00 00 01 18 3A ?? F0 10 08 9B C4)
+// module/region would take info to narrow the scan
+label(_playerbase)
+registersymbol(_playerbase)
+
+//arraystart:
+arraystart:
+_playerbase:
+
+[DISABLE]
+unregistersymbol(_playerbase)
+</AssemblerScript>
+      <Hotkeys>
+        <Hotkey>
+          <Action>Toggle Activation</Action>
+          <Keys>
+            <Key>35</Key>
+          </Keys>
+          <ID>0</ID>
+          <ActivateSound>Activate</ActivateSound>
+          <DeactivateSound>Deactivate</DeactivateSound>
+        </Hotkey>
+      </Hotkeys>
+      <CheatEntries>
+        <CheatEntry>
+          <ID>3</ID>
+          <Description>"_Reference (DO NOT TOUCH)"</Description>
+          <VariableType>Custom</VariableType>
+          <CustomType>2 Byte Big Endian</CustomType>
+          <Address>_playerbase</Address>
+        </CheatEntry>
+        <CheatEntry>
+          <ID>214</ID>
+          <Description>"Link's Name"</Description>
+          <VariableType>String</VariableType>
+          <Length>16</Length>
+          <Unicode>0</Unicode>
+          <CodePage>0</CodePage>
+          <ZeroTerminate>1</ZeroTerminate>
+          <Address>_playerbase+370</Address>
+        </CheatEntry>
+        <CheatEntry>
+          <ID>215</ID>
+          <Description>"Epona's Name"</Description>
+          <VariableType>String</VariableType>
+          <Length>16</Length>
+          <Unicode>0</Unicode>
+          <CodePage>0</CodePage>
+          <ZeroTerminate>1</ZeroTerminate>
+          <Address>_playerbase+381</Address>
+        </CheatEntry>
+        <CheatEntry>
+          <ID>111</ID>
+          <Description>"Wallet Size"</Description>
+          <DropDownList ReadOnly="1" DescriptionOnly="1" DisplayValueAsItem="1">0:Default Wallet
+1:Big Wallet
+2:Giant Wallet
+3:Colossal Wallet
+</DropDownList>
+          <VariableType>Byte</VariableType>
+          <Address>_playerbase+1d7</Address>
+        </CheatEntry>
+        <CheatEntry>
+          <ID>5</ID>
+          <Description>"Rupees (Press Numpad 0 and Rupees will never decrease)"</Description>
+          <VariableType>Custom</VariableType>
+          <CustomType>2 Byte Big Endian</CustomType>
+          <Address>_playerbase+1c2</Address>
+          <Hotkeys>
+            <Hotkey>
+              <Action>Toggle Activation Allow Increase</Action>
+              <Keys>
+                <Key>96</Key>
+              </Keys>
+              <ID>0</ID>
+              <ActivateSound>Activate</ActivateSound>
+              <DeactivateSound>Deactivate</DeactivateSound>
+            </Hotkey>
+          </Hotkeys>
+        </CheatEntry>
+        <CheatEntry>
+          <ID>134</ID>
+          <Description>"Hearts (in Quarters)"</Description>
+          <VariableType>Custom</VariableType>
+          <CustomType>2 Byte Big Endian</CustomType>
+          <Address>_playerbase+1BE</Address>
+        </CheatEntry>
+        <CheatEntry>
+          <ID>216</ID>
+          <Description>"Have All Hearts (Activate then Heal Yourself)"</Description>
+          <DropDownList ReadOnly="1" DescriptionOnly="1" DisplayValueAsItem="1">*:Disabled
+80:Enabled
+</DropDownList>
+          <VariableType>Byte</VariableType>
+          <Address>_playerbase+1BF</Address>
+        </CheatEntry>
+        <CheatEntry>
+          <ID>71</ID>
+          <Description>"Hearts (Press Numpad 1 for Infinite HP)"</Description>
+          <VariableType>Custom</VariableType>
+          <CustomType>2 Byte Big Endian</CustomType>
+          <Address>_playerbase+1c0</Address>
+          <Hotkeys>
+            <Hotkey>
+              <Action>Toggle Activation Allow Increase</Action>
+              <Keys>
+                <Key>97</Key>
+              </Keys>
+              <ID>0</ID>
+              <ActivateSound>Activate</ActivateSound>
+              <DeactivateSound>Deactivate</DeactivateSound>
+            </Hotkey>
+          </Hotkeys>
+        </CheatEntry>
+        <CheatEntry>
+          <ID>119</ID>
+          <Description>"Breath (Press Numpad 2 for Infinite Breath)"</Description>
+          <VariableType>Custom</VariableType>
+          <CustomType>2 Byte Big Endian</CustomType>
+          <Address>_playerbase+645a</Address>
+          <Hotkeys>
+            <Hotkey>
+              <Action>Toggle Activation Allow Increase</Action>
+              <Keys>
+                <Key>98</Key>
+              </Keys>
+              <ID>0</ID>
+              <ActivateSound>Activate</ActivateSound>
+              <DeactivateSound>Deactivate</DeactivateSound>
+            </Hotkey>
+          </Hotkeys>
+        </CheatEntry>
+        <CheatEntry>
+          <ID>162</ID>
+          <Description>"Epona's Dashes (Press Numpad 3 for Infinite Dashes)"</Description>
+          <LastState/>
+          <VariableType>Auto Assembler Script</VariableType>
+          <AssemblerScript>//66 45 89 B4 15 ?? ?? ?? ?? 89 44 24 30 ?? ?? ?? ?? ?? ?? ?? ?? 00 ?? ?? ?? ?? ?? ?? 83 AC 24 ?? ?? ?? ?? 03 BB ?? ?? ?? ?? 49 89 DE
+// switch parser to lua
+{$lua}
+if syntaxcheck then return end -- don't run past this point when adding to table/editing
+[ENABLE]
+resultList = AOBScan("66 45 89 B4 15 ?? ?? ?? ?? 89 44 24 30 ?? ?? ?? ?? ?? ?? ?? ?? 00 ?? ?? ?? ?? ?? ?? 83 AC 24 ?? ?? ?? ?? 03 BB ?? ?? ?? ?? 49 89 DE")
+lngt = resultList.getCount()
+-- don't enable if failed to find aob
+if not resultList then error("Failed to find AOB") end
+bytes = {}
+
+for x=0, lngt-1 do
+   bytes[x] = readBytes(resultList[x], 9, true) -- copy the 2 original bytes as a table
+   writeBytes(resultList[x], 0x90, 0x90, 0x90, 0x90, 0x90, 0X90, 0x90, 0x90, 0x90)
+end
+[DISABLE]
+for x=0, lngt-1, 1 do
+  writeBytes(resultList[x], bytes[x])
+end
+resultList.Destroy() -- no longer need the list so tell CE to free it
+-- bytes memory is handled by lua and it'll free that for us
+</AssemblerScript>
+          <Hotkeys>
+            <Hotkey>
+              <Action>Toggle Activation</Action>
+              <Keys>
+                <Key>99</Key>
+              </Keys>
+              <ID>0</ID>
+              <ActivateSound>Activate</ActivateSound>
+              <DeactivateSound>Deactivate</DeactivateSound>
+            </Hotkey>
+          </Hotkeys>
+        </CheatEntry>
+        <CheatEntry>
+          <ID>128</ID>
+          <Description>"Seeds (Press Numpad 4 for Infinite Seeds)"</Description>
+          <VariableType>Byte</VariableType>
+          <Address>_playerbase+2B0</Address>
+          <Hotkeys>
+            <Hotkey>
+              <Action>Toggle Activation Allow Increase</Action>
+              <Keys>
+                <Key>100</Key>
+              </Keys>
+              <ID>0</ID>
+              <ActivateSound>Activate</ActivateSound>
+              <DeactivateSound>Deactivate</DeactivateSound>
+            </Hotkey>
+          </Hotkeys>
+        </CheatEntry>
+        <CheatEntry>
+          <ID>117</ID>
+          <Description>"Lantern Oil (Press Numpad 5 for Infinite Oil)"</Description>
+          <VariableType>Byte</VariableType>
+          <Address>_playerbase+1c6</Address>
+          <Hotkeys>
+            <Hotkey>
+              <Action>Toggle Activation Allow Increase</Action>
+              <Keys>
+                <Key>101</Key>
+              </Keys>
+              <ID>0</ID>
+              <ActivateSound>Activate</ActivateSound>
+              <DeactivateSound>Deactivate</DeactivateSound>
+            </Hotkey>
+          </Hotkeys>
+        </CheatEntry>
+        <CheatEntry>
+          <ID>204</ID>
+          <Description>"Quiver Size"</Description>
+          <DropDownList ReadOnly="1" DescriptionOnly="1" DisplayValueAsItem="1">0:None
+30:Normal
+60:Big
+100:Giant
+</DropDownList>
+          <VariableType>Byte</VariableType>
+          <Address>_playerbase+2B4</Address>
+        </CheatEntry>
+        <CheatEntry>
+          <ID>164</ID>
+          <Description>"Arrows (Press Numpad 6 for Infinite Ammo)"</Description>
+          <VariableType>Byte</VariableType>
+          <Address>_playerbase+2A8</Address>
+          <Hotkeys>
+            <Hotkey>
+              <Action>Toggle Activation Allow Increase</Action>
+              <Keys>
+                <Key>102</Key>
+              </Keys>
+              <ID>0</ID>
+              <ActivateSound>Activate</ActivateSound>
+              <DeactivateSound>Deactivate</DeactivateSound>
+            </Hotkey>
+          </Hotkeys>
+        </CheatEntry>
+        <CheatEntry>
+          <ID>206</ID>
+          <Description>"Bombs Bag Size"</Description>
+          <DropDownList ReadOnly="1" DescriptionOnly="1" DisplayValueAsItem="1">0:None
+30:Normal
+60:Big
+</DropDownList>
+          <VariableType>Byte</VariableType>
+          <Address>_playerbase+2B5</Address>
+        </CheatEntry>
+        <CheatEntry>
+          <ID>171</ID>
+          <Description>"Bombs/Bomblings/Water Bombs (Press Numpad 7 for Infinite Bomb)"</Description>
+          <Options moHideChildren="1"/>
+          <LastState Value="" RealAddress="00000000"/>
+          <GroupHeader>1</GroupHeader>
+          <CheatEntries>
+            <CheatEntry>
+              <ID>165</ID>
+              <Description>"Bombs (Slot 1)"</Description>
+              <VariableType>Byte</VariableType>
+              <Address>_playerbase+2A9</Address>
+              <Hotkeys>
+                <Hotkey>
+                  <Action>Toggle Activation Allow Increase</Action>
+                  <Keys>
+                    <Key>103</Key>
+                  </Keys>
+                  <ID>0</ID>
+                  <ActivateSound>Activate</ActivateSound>
+                  <DeactivateSound>Activate</DeactivateSound>
+                </Hotkey>
+              </Hotkeys>
+            </CheatEntry>
+            <CheatEntry>
+              <ID>169</ID>
+              <Description>"Bombs (Slot 2)"</Description>
+              <VariableType>Byte</VariableType>
+              <Address>_playerbase+2AA</Address>
+              <Hotkeys>
+                <Hotkey>
+                  <Action>Toggle Activation Allow Increase</Action>
+                  <Keys>
+                    <Key>103</Key>
+                  </Keys>
+                  <ID>0</ID>
+                  <ActivateSound>Activate</ActivateSound>
+                  <DeactivateSound>Deactivate</DeactivateSound>
+                </Hotkey>
+              </Hotkeys>
+            </CheatEntry>
+            <CheatEntry>
+              <ID>170</ID>
+              <Description>"Bombs (Slot 3)"</Description>
+              <VariableType>Byte</VariableType>
+              <Address>_playerbase+2AB</Address>
+              <Hotkeys>
+                <Hotkey>
+                  <Action>Toggle Activation Allow Increase</Action>
+                  <Keys>
+                    <Key>103</Key>
+                  </Keys>
+                  <ID>0</ID>
+                  <ActivateSound>Activate</ActivateSound>
+                  <DeactivateSound>Deactivate</DeactivateSound>
+                </Hotkey>
+              </Hotkeys>
+            </CheatEntry>
+          </CheatEntries>
+        </CheatEntry>
+        <CheatEntry>
+          <ID>135</ID>
+          <Description>"-----------------------------------------------------------------------------------------"</Description>
+          <LastState Value="" RealAddress="00000000"/>
+          <GroupHeader>1</GroupHeader>
+        </CheatEntry>
+        <CheatEntry>
+          <ID>213</ID>
+          <Description>"Link's Form (Load Any Map to Switch Form)"</Description>
+          <DropDownList ReadOnly="1" DescriptionOnly="1" DisplayValueAsItem="1">0:Human
+1:Wolf
+</DropDownList>
+          <VariableType>Byte</VariableType>
+          <Address>_playerbase+1DC</Address>
+        </CheatEntry>
+        <CheatEntry>
+          <ID>212</ID>
+          <Description>"Number of Small Keys"</Description>
+          <VariableType>Byte</VariableType>
+          <Address>_playerbase+FD0</Address>
+        </CheatEntry>
+        <CheatEntry>
+          <ID>218</ID>
+          <Description>"Have Map/Compass/Boss Key"</Description>
+          <DropDownList ReadOnly="1" DescriptionOnly="1" DisplayValueAsItem="1">0:None
+1:Map
+2:Compass
+3:Map + Compass
+4:Boss Key
+5:Map + Boss Key
+6:Compass + Boss Key
+7:All
+95:Dungeon Beaten
+</DropDownList>
+          <VariableType>Byte</VariableType>
+          <Address>_playerbase+FD1</Address>
+        </CheatEntry>
+        <CheatEntry>
+          <ID>168</ID>
+          <Description>"Time of the Day"</Description>
+          <DropDownList ReadOnly="1" DescriptionOnly="1" DisplayValueAsItem="1">*:Click to Select
+42 C8 00 00:Early Morning
+43 00 00 00:Midday
+43 87 00 00:Dawn of night
+42 48 00 00:Midnight
+</DropDownList>
+          <ShowAsHex>1</ShowAsHex>
+          <VariableType>Array of byte</VariableType>
+          <ByteLength>4</ByteLength>
+          <Address>_playerbase+1F0</Address>
+        </CheatEntry>
+        <CheatEntry>
+          <ID>166</ID>
+          <Description>"Poe Souls (Max 60)"</Description>
+          <VariableType>Byte</VariableType>
+          <Address>_playerbase+2C8</Address>
+        </CheatEntry>
+        <CheatEntry>
+          <ID>202</ID>
+          <Description>"Memorized Scent"</Description>
+          <DropDownList ReadOnly="1" DescriptionOnly="1" DisplayValueAsItem="1">255:None
+176:Ilia
+178:Poe
+179:Reekfish
+180:Youths
+181:Medecine
+</DropDownList>
+          <VariableType>Byte</VariableType>
+          <Address>_playerbase+1D4</Address>
+        </CheatEntry>
+        <CheatEntry>
+          <ID>208</ID>
+          <Description>"Have All Golden Bugs"</Description>
+          <DropDownList ReadOnly="1" DescriptionOnly="1" DisplayValueAsItem="1">*:Disabled
+0:Disabled
+4294967295:Enabled
+</DropDownList>
+          <VariableType>Custom</VariableType>
+          <CustomType>4 Byte Big Endian</CustomType>
+          <Address>_playerbase+2A1</Address>
+        </CheatEntry>
+        <CheatEntry>
+          <ID>97</ID>
+          <Description>"Number of Fish Caught"</Description>
+          <VariableType>Custom</VariableType>
+          <CustomType>2 Byte Big Endian</CustomType>
+          <Address>_playerbase+332</Address>
+        </CheatEntry>
+        <CheatEntry>
+          <ID>98</ID>
+          <Description>"Largest Fish Caught (in Centimeter)"</Description>
+          <VariableType>Custom</VariableType>
+          <CustomType>2 Byte Big Endian</CustomType>
+          <Address>_playerbase+34c</Address>
+        </CheatEntry>
+        <CheatEntry>
+          <ID>137</ID>
+          <Description>"-----------------------------------------------------------------------------------------"</Description>
+          <LastState Value="" RealAddress="00000000"/>
+          <GroupHeader>1</GroupHeader>
+        </CheatEntry>
+        <CheatEntry>
+          <ID>138</ID>
+          <Description>"Faron's Tears of Light (WARNING : Unlock Portals BEFORE Modifying this Value !!)"</Description>
+          <VariableType>Byte</VariableType>
+          <Address>_playerbase+2D0</Address>
+        </CheatEntry>
+        <CheatEntry>
+          <ID>136</ID>
+          <Description>"Eldin's Tears of Light (WARNING : Unlock Portals BEFORE Modifying this Value !!)"</Description>
+          <VariableType>Byte</VariableType>
+          <Address>_playerbase+2D1</Address>
+        </CheatEntry>
+        <CheatEntry>
+          <ID>139</ID>
+          <Description>"Lanayru's Tears of Light (WARNING : Unlock Portals BEFORE Modifying this Value !!)"</Description>
+          <VariableType>Byte</VariableType>
+          <Address>_playerbase+2D2</Address>
+        </CheatEntry>
+        <CheatEntry>
+          <ID>209</ID>
+          <Description>"Fused Shadows"</Description>
+          <DropDownList ReadOnly="1" DescriptionOnly="1" DisplayValueAsItem="1">0:None
+1:1 Part
+3:2 Parts
+7:3 Parts
+15:All Parts
+</DropDownList>
+          <VariableType>Byte</VariableType>
+          <Address>_playerbase+2C5</Address>
+        </CheatEntry>
+        <CheatEntry>
+          <ID>210</ID>
+          <Description>"Mirror Shards"</Description>
+          <DropDownList ReadOnly="1" DescriptionOnly="1" DisplayValueAsItem="1">0:None
+1:1 Shard
+3:2 Shards
+7:3 Shards
+15:All Shards
+</DropDownList>
+          <VariableType>Byte</VariableType>
+          <Address>_playerbase+2C6</Address>
+        </CheatEntry>
+        <CheatEntry>
+          <ID>133</ID>
+          <Description>"-----------------------------------------------------------------------------------------"</Description>
+          <LastState Value="" RealAddress="00000000"/>
+          <GroupHeader>1</GroupHeader>
+        </CheatEntry>
+        <CheatEntry>
+          <ID>49</ID>
+          <Description>"Coordonates (Move First then press PAGE DOWN to Activate - May Not Work Everytime)"</Description>
+          <Options moHideChildren="1"/>
+          <LastState/>
+          <VariableType>Auto Assembler Script</VariableType>
+          <AssemblerScript>[ENABLE]
+aobscan(arraystart,ff ff ff ff ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? 00 00 ?? ?? ?? ?? ff 00 ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? 00 00 ?? ?? ?? ?? ?? 00 ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? 00 00 ?? ?? ?? ?? ?? 00 00 00 ?? ?? ?? ?? 00 00 3f 80 00 00 3f 80 00 00 3f 80 00 00 ?? ?? ?? ?? 00 00 00 00 ?? ?? ?? ?? 13 ?? ?? ?? 00 00 00 00)
+// module/region would take info to narrow the scan
+label(_coordbase)
+registersymbol(_coordbase)
+
+//arraystart:
+arraystart:
+_coordbase:
+
+[DISABLE]
+unregistersymbol(_coordbase)
+
+
+</AssemblerScript>
+          <Hotkeys>
+            <Hotkey>
+              <Action>Toggle Activation</Action>
+              <Keys>
+                <Key>34</Key>
+              </Keys>
+              <ID>0</ID>
+              <ActivateSound>Activate</ActivateSound>
+              <DeactivateSound>Deactivate</DeactivateSound>
+            </Hotkey>
+          </Hotkeys>
+          <CheatEntries>
+            <CheatEntry>
+              <ID>46</ID>
+              <Description>"_Reference (DO NOT TOUCH)"</Description>
+              <VariableType>Custom</VariableType>
+              <CustomType>2 Byte Big Endian</CustomType>
+              <Address>_coordbase</Address>
+            </CheatEntry>
+            <CheatEntry>
+              <ID>47</ID>
+              <Description>"X Coord"</Description>
+              <VariableType>Custom</VariableType>
+              <CustomType>Float Big Endian</CustomType>
+              <Address>_coordbase+34</Address>
+            </CheatEntry>
+            <CheatEntry>
+              <ID>50</ID>
+              <Description>"Y Coord"</Description>
+              <VariableType>Custom</VariableType>
+              <CustomType>Float Big Endian</CustomType>
+              <Address>_coordbase+2c</Address>
+            </CheatEntry>
+            <CheatEntry>
+              <ID>121</ID>
+              <Description>"Z Coord (Press Numpad . or Gamepad Left Thumbstick  to Teleport Higher)"</Description>
+              <VariableType>Custom</VariableType>
+              <CustomType>Float Big Endian</CustomType>
+              <Address>_coordbase+30</Address>
+              <Hotkeys>
+                <Hotkey>
+                  <Action>Increase Value</Action>
+                  <Keys>
+                    <Key>22550</Key>
+                  </Keys>
+                  <Value>300</Value>
+                  <ID>0</ID>
+                  <ActivateSound>Activate</ActivateSound>
+                </Hotkey>
+                <Hotkey>
+                  <Action>Increase Value</Action>
+                  <Keys>
+                    <Key>110</Key>
+                  </Keys>
+                  <Value>300</Value>
+                  <ID>1</ID>
+                  <ActivateSound>Activate</ActivateSound>
+                </Hotkey>
+              </Hotkeys>
+            </CheatEntry>
+          </CheatEntries>
+        </CheatEntry>
+        <CheatEntry>
+          <ID>110</ID>
+          <Description>"-----------------------------------------------------------------------------------------"</Description>
+          <LastState Value="" RealAddress="00000000"/>
+          <GroupHeader>1</GroupHeader>
+        </CheatEntry>
+        <CheatEntry>
+          <ID>197</ID>
+          <Description>"Unlocked Armors"</Description>
+          <DropDownList ReadOnly="1" DescriptionOnly="1" DisplayValueAsItem="1">0:None
+40:Hero's Armor
+42:Hero's Tunic + Zora Armor
+41:Hero's Tunic + Magic Armor
+43:All Armors
+</DropDownList>
+          <VariableType>Byte</VariableType>
+          <Address>_playerbase+28D</Address>
+        </CheatEntry>
+        <CheatEntry>
+          <ID>112</ID>
+          <Description>"Unlocked Swords and Shields"</Description>
+          <DropDownList ReadOnly="1" DescriptionOnly="1" DisplayValueAsItem="1">0:None
+1:Ordon Sword
+2:Master Sword
+3:Ordon Sword + Master Sword
+4:Ordon Shield
+5:Ordon Shield + Ordon Sword
+6:Ordon Shield + Master Sword
+7:Ordon Shield + Ordon Sword + Master Sword
+8:Wooden Shield
+9:Wooden Shield + Ordon Sword
+10:Wooden Shield + Master Sword
+11:Wooden Shield + Ordon Sword + Master Sword
+13:Wooden Shield + Ordon Sword (Duplicate)
+14:Wooden Shield + Master Sword (Duplicate)
+15:Wooden Shield + Ordon Sword + Master Sword (Duplicate)
+16:Hylian Shield
+17:Hylian Shield + Ordon Sword (Duplicate)
+18:Hylian Shield + Master Sword
+19:Hylian Shield + Ordon Sword + Master Sword
+20:Ordon Shield + Hylian Shield
+21:Ordon Shield + Hylian Shield + Ordon Sword
+22:Ordon Shield + Hylian Shield + Master Sword
+23:Ordon Shield + Hylian Shield + Ordon Sword + Master Sword
+133:Ordon Shield + Ordon Sword (Duplicate)
+145:Hylian Shield + Ordon Sword
+149:Ordon Shield + Hylian Shield + Ordon Sword
+151:Ordon Shield + Hylian Shield + Ordon Sword + Master Sword
+</DropDownList>
+          <VariableType>Byte</VariableType>
+          <Address>_playerbase+28e</Address>
+        </CheatEntry>
+        <CheatEntry>
+          <ID>198</ID>
+          <Description>"Equiped Armor"</Description>
+          <DropDownList ReadOnly="1" DescriptionOnly="1" DisplayValueAsItem="1">46:None
+47:Hero's Tunic
+48:Magic Armor
+49:Zora Armor
+</DropDownList>
+          <VariableType>Byte</VariableType>
+          <Address>_playerbase+1D1</Address>
+        </CheatEntry>
+        <CheatEntry>
+          <ID>106</ID>
+          <Description>"Equiped Sword"</Description>
+          <DropDownList ReadOnly="1" DescriptionOnly="1" DisplayValueAsItem="1">1:Ordon Sword (Duplicate)
+40:Ordon Sword
+41:Master Sword
+73:Master Sword (Infused)
+63:Wooden Sword
+255:None
+</DropDownList>
+          <VariableType>Byte</VariableType>
+          <Address>_playerbase+1D2</Address>
+        </CheatEntry>
+        <CheatEntry>
+          <ID>199</ID>
+          <Description>"Equiped Shield"</Description>
+          <DropDownList ReadOnly="1" DescriptionOnly="1" DisplayValueAsItem="1">42:Ordon Shield
+43:Wooden Shield
+44:Hylian Shield
+255:None
+</DropDownList>
+          <VariableType>Byte</VariableType>
+          <Address>_playerbase+1D3</Address>
+        </CheatEntry>
+        <CheatEntry>
+          <ID>129</ID>
+          <Description>"-----------------------------------------------------------------------------------------"</Description>
+          <LastState Value="" RealAddress="00000000"/>
+          <GroupHeader>1</GroupHeader>
+        </CheatEntry>
+        <CheatEntry>
+          <ID>77</ID>
+          <Description>"Link's Inventory"</Description>
+          <Options moHideChildren="1"/>
+          <LastState Value="" RealAddress="00000000"/>
+          <GroupHeader>1</GroupHeader>
+          <CheatEntries>
+            <CheatEntry>
+              <ID>172</ID>
+              <Description>"Item Slot"</Description>
+              <DropDownList ReadOnly="1" DescriptionOnly="1" DisplayValueAsItem="1">255:Nothing
+1:--- Usable items ---
+62:Hawkeye
+64:Gale Boomerang
+65:Spinner
+66:Ball and Chain
+67:Hero's Bow
+89:Hero's Bow With Bomb Arrows
+90:Hero's Bow With Hawkeye
+68:Clawshot
+71:Double Clawshots
+69:Iron Boots
+114:Bomblings
+70:Dominion Rod (cannot be used)
+76:Dominion Rod
+75:Slingshot
+72:Lantern
+112:Bombs
+113:Water Bombs
+132:Horse Call
+232:Ghost Lantern
+248:Lantern
+74:Fishing Rod (Lure)
+91:Fishing Rod (Bobber)
+92:Fishing Rod + Earring
+93:Fishing Rod With Worm
+94:Fishing Rod (Bobber) + Earring
+95:Fishing Rod (Lure) + Worm + Earring
+2:--- Bottle's Stuff ---
+96:Empty Bottle
+97:Red Potion
+98:Magic Potion
+99:Blue Potion
+100:Milk
+101:Milk (1/2)
+102:Lantern Oil
+103:Water
+106:Nasty Soup
+107:Hot Springwater
+108:Fairy
+115:Great Fairy's Tears
+116:Worm
+118:Bee Larvae
+119:Rare Chu Jelly
+120:Red Chu Jelly
+121:Blue Chu Jelly
+122:Green Chu Jelly
+123:Yellow Chu Jelly
+124:Purple Chu Jelly
+125:Simple Soup
+126:Good Soup
+127:Superb Soup
+158:Bee Larvae
+159:Black Chu Jelly
+3:--- Bugs ---
+192:Beetle
+194:Butterfly
+196:Stag Beetle
+198:Grasshopper
+200:Phasmid
+202:Pill Bug
+204:Mantis
+206:Ladybug
+208:Snail
+210:Dragonfly
+212:Ant
+214:Dayfly
+4:--- Quests Related ---
+45:Ooccoo's Note
+128:Renado's Letter
+129:Invoice
+145:Ashei's Sketch
+61:Coral Earring
+130:Wooden Statue
+131:Ilia's Charm
+233:Ancient Sky Book
+234:Ancient Sky Book
+235:Filled Sky Book
+5:--- Unusable Stuff (Won't Work) ---
+32:Small Key
+35:Dungeon Map
+36:Compass
+38:Big Key
+238:Small Key
+243:Gate Key
+249:Key Shard
+250:Key Shard
+251:Key Shard
+253:Key Shards All Assembled
+37:Ooccoo
+39:Ooccoo Jr.
+236:Ooccoo
+33:Pieces of Heart
+34:Heart Container
+63:Wooden Sword
+40:Ordon Sword
+41:Master Sword
+73:Master Sword
+42:Ordon Shield
+43:Wooden Shield
+44:Hylian Shield
+46:Ranch Clothes
+47:Hero's Clothes
+48:Magic Armor
+49:Zora Armor
+52:Wallet
+53:Big Wallet
+54:Giant Wallet
+55:Colossal Wallet
+79:Giant Bomb Bag
+80:Bomb Bag
+81:Bag and Bombs
+83:Fire Arrow
+84:Quiver
+85:Big Quiver
+86:Giant Quiver
+161:Vessel of Light
+224:Poe Souls
+244:Ordon Pumpkin
+245:Ordon Cheese
+246:Bedroom Key
+247:Surf Leaf (looks like Hylian Shield)
+</DropDownList>
+              <VariableType>Byte</VariableType>
+              <Address>_playerbase+258</Address>
+            </CheatEntry>
+            <CheatEntry>
+              <ID>174</ID>
+              <Description>"Item Slot"</Description>
+              <DropDownList ReadOnly="1" DescriptionOnly="1" DisplayValueAsItem="1">255:Nothing
+1:--- Usable items ---
+62:Hawkeye
+64:Gale Boomerang
+65:Spinner
+66:Ball and Chain
+67:Hero's Bow
+89:Hero's Bow With Bomb Arrows
+90:Hero's Bow With Hawkeye
+68:Clawshot
+71:Double Clawshots
+69:Iron Boots
+114:Bomblings
+70:Dominion Rod (cannot be used)
+76:Dominion Rod
+75:Slingshot
+72:Lantern
+112:Bombs
+113:Water Bombs
+132:Horse Call
+232:Ghost Lantern
+248:Lantern
+74:Fishing Rod (Lure)
+91:Fishing Rod (Bobber)
+92:Fishing Rod + Earring
+93:Fishing Rod With Worm
+94:Fishing Rod (Bobber) + Earring
+95:Fishing Rod (Lure) + Worm + Earring
+2:--- Bottle's Stuff ---
+96:Empty Bottle
+97:Red Potion
+98:Magic Potion
+99:Blue Potion
+100:Milk
+101:Milk (1/2)
+102:Lantern Oil
+103:Water
+106:Nasty Soup
+107:Hot Springwater
+108:Fairy
+115:Great Fairy's Tears
+116:Worm
+118:Bee Larvae
+119:Rare Chu Jelly
+120:Red Chu Jelly
+121:Blue Chu Jelly
+122:Green Chu Jelly
+123:Yellow Chu Jelly
+124:Purple Chu Jelly
+125:Simple Soup
+126:Good Soup
+127:Superb Soup
+158:Bee Larvae
+159:Black Chu Jelly
+3:--- Bugs ---
+192:Beetle
+194:Butterfly
+196:Stag Beetle
+198:Grasshopper
+200:Phasmid
+202:Pill Bug
+204:Mantis
+206:Ladybug
+208:Snail
+210:Dragonfly
+212:Ant
+214:Dayfly
+4:--- Quests Related ---
+45:Ooccoo's Note
+128:Renado's Letter
+129:Invoice
+145:Ashei's Sketch
+61:Coral Earring
+130:Wooden Statue
+131:Ilia's Charm
+233:Ancient Sky Book
+234:Ancient Sky Book
+235:Filled Sky Book
+5:--- Unusable Stuff (Won't Work) ---
+32:Small Key
+35:Dungeon Map
+36:Compass
+38:Big Key
+238:Small Key
+243:Gate Key
+249:Key Shard
+250:Key Shard
+251:Key Shard
+253:Key Shards All Assembled
+37:Ooccoo
+39:Ooccoo Jr.
+236:Ooccoo
+33:Pieces of Heart
+34:Heart Container
+63:Wooden Sword
+40:Ordon Sword
+41:Master Sword
+73:Master Sword
+42:Ordon Shield
+43:Wooden Shield
+44:Hylian Shield
+46:Ranch Clothes
+47:Hero's Clothes
+48:Magic Armor
+49:Zora Armor
+52:Wallet
+53:Big Wallet
+54:Giant Wallet
+55:Colossal Wallet
+79:Giant Bomb Bag
+80:Bomb Bag
+81:Bag and Bombs
+83:Fire Arrow
+84:Quiver
+85:Big Quiver
+86:Giant Quiver
+161:Vessel of Light
+224:Poe Souls
+244:Ordon Pumpkin
+245:Ordon Cheese
+246:Bedroom Key
+247:Surf Leaf (looks like Hylian Shield)
+</DropDownList>
+              <VariableType>Byte</VariableType>
+              <Address>_playerbase+259</Address>
+            </CheatEntry>
+            <CheatEntry>
+              <ID>175</ID>
+              <Description>"Item Slot"</Description>
+              <DropDownList ReadOnly="1" DescriptionOnly="1" DisplayValueAsItem="1">255:Nothing
+1:--- Usable items ---
+62:Hawkeye
+64:Gale Boomerang
+65:Spinner
+66:Ball and Chain
+67:Hero's Bow
+89:Hero's Bow With Bomb Arrows
+90:Hero's Bow With Hawkeye
+68:Clawshot
+71:Double Clawshots
+69:Iron Boots
+114:Bomblings
+70:Dominion Rod (cannot be used)
+76:Dominion Rod
+75:Slingshot
+72:Lantern
+112:Bombs
+113:Water Bombs
+132:Horse Call
+232:Ghost Lantern
+248:Lantern
+74:Fishing Rod (Lure)
+91:Fishing Rod (Bobber)
+92:Fishing Rod + Earring
+93:Fishing Rod With Worm
+94:Fishing Rod (Bobber) + Earring
+95:Fishing Rod (Lure) + Worm + Earring
+2:--- Bottle's Stuff ---
+96:Empty Bottle
+97:Red Potion
+98:Magic Potion
+99:Blue Potion
+100:Milk
+101:Milk (1/2)
+102:Lantern Oil
+103:Water
+106:Nasty Soup
+107:Hot Springwater
+108:Fairy
+115:Great Fairy's Tears
+116:Worm
+118:Bee Larvae
+119:Rare Chu Jelly
+120:Red Chu Jelly
+121:Blue Chu Jelly
+122:Green Chu Jelly
+123:Yellow Chu Jelly
+124:Purple Chu Jelly
+125:Simple Soup
+126:Good Soup
+127:Superb Soup
+158:Bee Larvae
+159:Black Chu Jelly
+3:--- Bugs ---
+192:Beetle
+194:Butterfly
+196:Stag Beetle
+198:Grasshopper
+200:Phasmid
+202:Pill Bug
+204:Mantis
+206:Ladybug
+208:Snail
+210:Dragonfly
+212:Ant
+214:Dayfly
+4:--- Quests Related ---
+45:Ooccoo's Note
+128:Renado's Letter
+129:Invoice
+145:Ashei's Sketch
+61:Coral Earring
+130:Wooden Statue
+131:Ilia's Charm
+233:Ancient Sky Book
+234:Ancient Sky Book
+235:Filled Sky Book
+5:--- Unusable Stuff (Won't Work) ---
+32:Small Key
+35:Dungeon Map
+36:Compass
+38:Big Key
+238:Small Key
+243:Gate Key
+249:Key Shard
+250:Key Shard
+251:Key Shard
+253:Key Shards All Assembled
+37:Ooccoo
+39:Ooccoo Jr.
+236:Ooccoo
+33:Pieces of Heart
+34:Heart Container
+63:Wooden Sword
+40:Ordon Sword
+41:Master Sword
+73:Master Sword
+42:Ordon Shield
+43:Wooden Shield
+44:Hylian Shield
+46:Ranch Clothes
+47:Hero's Clothes
+48:Magic Armor
+49:Zora Armor
+52:Wallet
+53:Big Wallet
+54:Giant Wallet
+55:Colossal Wallet
+79:Giant Bomb Bag
+80:Bomb Bag
+81:Bag and Bombs
+83:Fire Arrow
+84:Quiver
+85:Big Quiver
+86:Giant Quiver
+161:Vessel of Light
+224:Poe Souls
+244:Ordon Pumpkin
+245:Ordon Cheese
+246:Bedroom Key
+247:Surf Leaf (looks like Hylian Shield)
+</DropDownList>
+              <VariableType>Byte</VariableType>
+              <Address>_playerbase+25A</Address>
+            </CheatEntry>
+            <CheatEntry>
+              <ID>176</ID>
+              <Description>"Item Slot"</Description>
+              <DropDownList ReadOnly="1" DescriptionOnly="1" DisplayValueAsItem="1">255:Nothing
+1:--- Usable items ---
+62:Hawkeye
+64:Gale Boomerang
+65:Spinner
+66:Ball and Chain
+67:Hero's Bow
+89:Hero's Bow With Bomb Arrows
+90:Hero's Bow With Hawkeye
+68:Clawshot
+71:Double Clawshots
+69:Iron Boots
+114:Bomblings
+70:Dominion Rod (cannot be used)
+76:Dominion Rod
+75:Slingshot
+72:Lantern
+112:Bombs
+113:Water Bombs
+132:Horse Call
+232:Ghost Lantern
+248:Lantern
+74:Fishing Rod (Lure)
+91:Fishing Rod (Bobber)
+92:Fishing Rod + Earring
+93:Fishing Rod With Worm
+94:Fishing Rod (Bobber) + Earring
+95:Fishing Rod (Lure) + Worm + Earring
+2:--- Bottle's Stuff ---
+96:Empty Bottle
+97:Red Potion
+98:Magic Potion
+99:Blue Potion
+100:Milk
+101:Milk (1/2)
+102:Lantern Oil
+103:Water
+106:Nasty Soup
+107:Hot Springwater
+108:Fairy
+115:Great Fairy's Tears
+116:Worm
+118:Bee Larvae
+119:Rare Chu Jelly
+120:Red Chu Jelly
+121:Blue Chu Jelly
+122:Green Chu Jelly
+123:Yellow Chu Jelly
+124:Purple Chu Jelly
+125:Simple Soup
+126:Good Soup
+127:Superb Soup
+158:Bee Larvae
+159:Black Chu Jelly
+3:--- Bugs ---
+192:Beetle
+194:Butterfly
+196:Stag Beetle
+198:Grasshopper
+200:Phasmid
+202:Pill Bug
+204:Mantis
+206:Ladybug
+208:Snail
+210:Dragonfly
+212:Ant
+214:Dayfly
+4:--- Quests Related ---
+45:Ooccoo's Note
+128:Renado's Letter
+129:Invoice
+145:Ashei's Sketch
+61:Coral Earring
+130:Wooden Statue
+131:Ilia's Charm
+233:Ancient Sky Book
+234:Ancient Sky Book
+235:Filled Sky Book
+5:--- Unusable Stuff (Won't Work) ---
+32:Small Key
+35:Dungeon Map
+36:Compass
+38:Big Key
+238:Small Key
+243:Gate Key
+249:Key Shard
+250:Key Shard
+251:Key Shard
+253:Key Shards All Assembled
+37:Ooccoo
+39:Ooccoo Jr.
+236:Ooccoo
+33:Pieces of Heart
+34:Heart Container
+63:Wooden Sword
+40:Ordon Sword
+41:Master Sword
+73:Master Sword
+42:Ordon Shield
+43:Wooden Shield
+44:Hylian Shield
+46:Ranch Clothes
+47:Hero's Clothes
+48:Magic Armor
+49:Zora Armor
+52:Wallet
+53:Big Wallet
+54:Giant Wallet
+55:Colossal Wallet
+79:Giant Bomb Bag
+80:Bomb Bag
+81:Bag and Bombs
+83:Fire Arrow
+84:Quiver
+85:Big Quiver
+86:Giant Quiver
+161:Vessel of Light
+224:Poe Souls
+244:Ordon Pumpkin
+245:Ordon Cheese
+246:Bedroom Key
+247:Surf Leaf (looks like Hylian Shield)
+</DropDownList>
+              <VariableType>Byte</VariableType>
+              <Address>_playerbase+25B</Address>
+            </CheatEntry>
+            <CheatEntry>
+              <ID>177</ID>
+              <Description>"Item Slot"</Description>
+              <DropDownList ReadOnly="1" DescriptionOnly="1" DisplayValueAsItem="1">255:Nothing
+1:--- Usable items ---
+62:Hawkeye
+64:Gale Boomerang
+65:Spinner
+66:Ball and Chain
+67:Hero's Bow
+89:Hero's Bow With Bomb Arrows
+90:Hero's Bow With Hawkeye
+68:Clawshot
+71:Double Clawshots
+69:Iron Boots
+114:Bomblings
+70:Dominion Rod (cannot be used)
+76:Dominion Rod
+75:Slingshot
+72:Lantern
+112:Bombs
+113:Water Bombs
+132:Horse Call
+232:Ghost Lantern
+248:Lantern
+74:Fishing Rod (Lure)
+91:Fishing Rod (Bobber)
+92:Fishing Rod + Earring
+93:Fishing Rod With Worm
+94:Fishing Rod (Bobber) + Earring
+95:Fishing Rod (Lure) + Worm + Earring
+2:--- Bottle's Stuff ---
+96:Empty Bottle
+97:Red Potion
+98:Magic Potion
+99:Blue Potion
+100:Milk
+101:Milk (1/2)
+102:Lantern Oil
+103:Water
+106:Nasty Soup
+107:Hot Springwater
+108:Fairy
+115:Great Fairy's Tears
+116:Worm
+118:Bee Larvae
+119:Rare Chu Jelly
+120:Red Chu Jelly
+121:Blue Chu Jelly
+122:Green Chu Jelly
+123:Yellow Chu Jelly
+124:Purple Chu Jelly
+125:Simple Soup
+126:Good Soup
+127:Superb Soup
+158:Bee Larvae
+159:Black Chu Jelly
+3:--- Bugs ---
+192:Beetle
+194:Butterfly
+196:Stag Beetle
+198:Grasshopper
+200:Phasmid
+202:Pill Bug
+204:Mantis
+206:Ladybug
+208:Snail
+210:Dragonfly
+212:Ant
+214:Dayfly
+4:--- Quests Related ---
+45:Ooccoo's Note
+128:Renado's Letter
+129:Invoice
+145:Ashei's Sketch
+61:Coral Earring
+130:Wooden Statue
+131:Ilia's Charm
+233:Ancient Sky Book
+234:Ancient Sky Book
+235:Filled Sky Book
+5:--- Unusable Stuff (Won't Work) ---
+32:Small Key
+35:Dungeon Map
+36:Compass
+38:Big Key
+238:Small Key
+243:Gate Key
+249:Key Shard
+250:Key Shard
+251:Key Shard
+253:Key Shards All Assembled
+37:Ooccoo
+39:Ooccoo Jr.
+236:Ooccoo
+33:Pieces of Heart
+34:Heart Container
+63:Wooden Sword
+40:Ordon Sword
+41:Master Sword
+73:Master Sword
+42:Ordon Shield
+43:Wooden Shield
+44:Hylian Shield
+46:Ranch Clothes
+47:Hero's Clothes
+48:Magic Armor
+49:Zora Armor
+52:Wallet
+53:Big Wallet
+54:Giant Wallet
+55:Colossal Wallet
+79:Giant Bomb Bag
+80:Bomb Bag
+81:Bag and Bombs
+83:Fire Arrow
+84:Quiver
+85:Big Quiver
+86:Giant Quiver
+161:Vessel of Light
+224:Poe Souls
+244:Ordon Pumpkin
+245:Ordon Cheese
+246:Bedroom Key
+247:Surf Leaf (looks like Hylian Shield)
+</DropDownList>
+              <VariableType>Byte</VariableType>
+              <Address>_playerbase+25C</Address>
+            </CheatEntry>
+            <CheatEntry>
+              <ID>178</ID>
+              <Description>"Item Slot"</Description>
+              <DropDownList ReadOnly="1" DescriptionOnly="1" DisplayValueAsItem="1">255:Nothing
+1:--- Usable items ---
+62:Hawkeye
+64:Gale Boomerang
+65:Spinner
+66:Ball and Chain
+67:Hero's Bow
+89:Hero's Bow With Bomb Arrows
+90:Hero's Bow With Hawkeye
+68:Clawshot
+71:Double Clawshots
+69:Iron Boots
+114:Bomblings
+70:Dominion Rod (cannot be used)
+76:Dominion Rod
+75:Slingshot
+72:Lantern
+112:Bombs
+113:Water Bombs
+132:Horse Call
+232:Ghost Lantern
+248:Lantern
+74:Fishing Rod (Lure)
+91:Fishing Rod (Bobber)
+92:Fishing Rod + Earring
+93:Fishing Rod With Worm
+94:Fishing Rod (Bobber) + Earring
+95:Fishing Rod (Lure) + Worm + Earring
+2:--- Bottle's Stuff ---
+96:Empty Bottle
+97:Red Potion
+98:Magic Potion
+99:Blue Potion
+100:Milk
+101:Milk (1/2)
+102:Lantern Oil
+103:Water
+106:Nasty Soup
+107:Hot Springwater
+108:Fairy
+115:Great Fairy's Tears
+116:Worm
+118:Bee Larvae
+119:Rare Chu Jelly
+120:Red Chu Jelly
+121:Blue Chu Jelly
+122:Green Chu Jelly
+123:Yellow Chu Jelly
+124:Purple Chu Jelly
+125:Simple Soup
+126:Good Soup
+127:Superb Soup
+158:Bee Larvae
+159:Black Chu Jelly
+3:--- Bugs ---
+192:Beetle
+194:Butterfly
+196:Stag Beetle
+198:Grasshopper
+200:Phasmid
+202:Pill Bug
+204:Mantis
+206:Ladybug
+208:Snail
+210:Dragonfly
+212:Ant
+214:Dayfly
+4:--- Quests Related ---
+45:Ooccoo's Note
+128:Renado's Letter
+129:Invoice
+145:Ashei's Sketch
+61:Coral Earring
+130:Wooden Statue
+131:Ilia's Charm
+233:Ancient Sky Book
+234:Ancient Sky Book
+235:Filled Sky Book
+5:--- Unusable Stuff (Won't Work) ---
+32:Small Key
+35:Dungeon Map
+36:Compass
+38:Big Key
+238:Small Key
+243:Gate Key
+249:Key Shard
+250:Key Shard
+251:Key Shard
+253:Key Shards All Assembled
+37:Ooccoo
+39:Ooccoo Jr.
+236:Ooccoo
+33:Pieces of Heart
+34:Heart Container
+63:Wooden Sword
+40:Ordon Sword
+41:Master Sword
+73:Master Sword
+42:Ordon Shield
+43:Wooden Shield
+44:Hylian Shield
+46:Ranch Clothes
+47:Hero's Clothes
+48:Magic Armor
+49:Zora Armor
+52:Wallet
+53:Big Wallet
+54:Giant Wallet
+55:Colossal Wallet
+79:Giant Bomb Bag
+80:Bomb Bag
+81:Bag and Bombs
+83:Fire Arrow
+84:Quiver
+85:Big Quiver
+86:Giant Quiver
+161:Vessel of Light
+224:Poe Souls
+244:Ordon Pumpkin
+245:Ordon Cheese
+246:Bedroom Key
+247:Surf Leaf (looks like Hylian Shield)
+</DropDownList>
+              <VariableType>Byte</VariableType>
+              <Address>_playerbase+25D</Address>
+            </CheatEntry>
+            <CheatEntry>
+              <ID>179</ID>
+              <Description>"Item Slot"</Description>
+              <DropDownList ReadOnly="1" DescriptionOnly="1" DisplayValueAsItem="1">255:Nothing
+1:--- Usable items ---
+62:Hawkeye
+64:Gale Boomerang
+65:Spinner
+66:Ball and Chain
+67:Hero's Bow
+89:Hero's Bow With Bomb Arrows
+90:Hero's Bow With Hawkeye
+68:Clawshot
+71:Double Clawshots
+69:Iron Boots
+114:Bomblings
+70:Dominion Rod (cannot be used)
+76:Dominion Rod
+75:Slingshot
+72:Lantern
+112:Bombs
+113:Water Bombs
+132:Horse Call
+232:Ghost Lantern
+248:Lantern
+74:Fishing Rod (Lure)
+91:Fishing Rod (Bobber)
+92:Fishing Rod + Earring
+93:Fishing Rod With Worm
+94:Fishing Rod (Bobber) + Earring
+95:Fishing Rod (Lure) + Worm + Earring
+2:--- Bottle's Stuff ---
+96:Empty Bottle
+97:Red Potion
+98:Magic Potion
+99:Blue Potion
+100:Milk
+101:Milk (1/2)
+102:Lantern Oil
+103:Water
+106:Nasty Soup
+107:Hot Springwater
+108:Fairy
+115:Great Fairy's Tears
+116:Worm
+118:Bee Larvae
+119:Rare Chu Jelly
+120:Red Chu Jelly
+121:Blue Chu Jelly
+122:Green Chu Jelly
+123:Yellow Chu Jelly
+124:Purple Chu Jelly
+125:Simple Soup
+126:Good Soup
+127:Superb Soup
+158:Bee Larvae
+159:Black Chu Jelly
+3:--- Bugs ---
+192:Beetle
+194:Butterfly
+196:Stag Beetle
+198:Grasshopper
+200:Phasmid
+202:Pill Bug
+204:Mantis
+206:Ladybug
+208:Snail
+210:Dragonfly
+212:Ant
+214:Dayfly
+4:--- Quests Related ---
+45:Ooccoo's Note
+128:Renado's Letter
+129:Invoice
+145:Ashei's Sketch
+61:Coral Earring
+130:Wooden Statue
+131:Ilia's Charm
+233:Ancient Sky Book
+234:Ancient Sky Book
+235:Filled Sky Book
+5:--- Unusable Stuff (Won't Work) ---
+32:Small Key
+35:Dungeon Map
+36:Compass
+38:Big Key
+238:Small Key
+243:Gate Key
+249:Key Shard
+250:Key Shard
+251:Key Shard
+253:Key Shards All Assembled
+37:Ooccoo
+39:Ooccoo Jr.
+236:Ooccoo
+33:Pieces of Heart
+34:Heart Container
+63:Wooden Sword
+40:Ordon Sword
+41:Master Sword
+73:Master Sword
+42:Ordon Shield
+43:Wooden Shield
+44:Hylian Shield
+46:Ranch Clothes
+47:Hero's Clothes
+48:Magic Armor
+49:Zora Armor
+52:Wallet
+53:Big Wallet
+54:Giant Wallet
+55:Colossal Wallet
+79:Giant Bomb Bag
+80:Bomb Bag
+81:Bag and Bombs
+83:Fire Arrow
+84:Quiver
+85:Big Quiver
+86:Giant Quiver
+161:Vessel of Light
+224:Poe Souls
+244:Ordon Pumpkin
+245:Ordon Cheese
+246:Bedroom Key
+247:Surf Leaf (looks like Hylian Shield)
+</DropDownList>
+              <VariableType>Byte</VariableType>
+              <Address>_playerbase+25E</Address>
+            </CheatEntry>
+            <CheatEntry>
+              <ID>180</ID>
+              <Description>"Item Slot"</Description>
+              <DropDownList ReadOnly="1" DescriptionOnly="1" DisplayValueAsItem="1">255:Nothing
+1:--- Usable items ---
+62:Hawkeye
+64:Gale Boomerang
+65:Spinner
+66:Ball and Chain
+67:Hero's Bow
+89:Hero's Bow With Bomb Arrows
+90:Hero's Bow With Hawkeye
+68:Clawshot
+71:Double Clawshots
+69:Iron Boots
+114:Bomblings
+70:Dominion Rod (cannot be used)
+76:Dominion Rod
+75:Slingshot
+72:Lantern
+112:Bombs
+113:Water Bombs
+132:Horse Call
+232:Ghost Lantern
+248:Lantern
+74:Fishing Rod (Lure)
+91:Fishing Rod (Bobber)
+92:Fishing Rod + Earring
+93:Fishing Rod With Worm
+94:Fishing Rod (Bobber) + Earring
+95:Fishing Rod (Lure) + Worm + Earring
+2:--- Bottle's Stuff ---
+96:Empty Bottle
+97:Red Potion
+98:Magic Potion
+99:Blue Potion
+100:Milk
+101:Milk (1/2)
+102:Lantern Oil
+103:Water
+106:Nasty Soup
+107:Hot Springwater
+108:Fairy
+115:Great Fairy's Tears
+116:Worm
+118:Bee Larvae
+119:Rare Chu Jelly
+120:Red Chu Jelly
+121:Blue Chu Jelly
+122:Green Chu Jelly
+123:Yellow Chu Jelly
+124:Purple Chu Jelly
+125:Simple Soup
+126:Good Soup
+127:Superb Soup
+158:Bee Larvae
+159:Black Chu Jelly
+3:--- Bugs ---
+192:Beetle
+194:Butterfly
+196:Stag Beetle
+198:Grasshopper
+200:Phasmid
+202:Pill Bug
+204:Mantis
+206:Ladybug
+208:Snail
+210:Dragonfly
+212:Ant
+214:Dayfly
+4:--- Quests Related ---
+45:Ooccoo's Note
+128:Renado's Letter
+129:Invoice
+145:Ashei's Sketch
+61:Coral Earring
+130:Wooden Statue
+131:Ilia's Charm
+233:Ancient Sky Book
+234:Ancient Sky Book
+235:Filled Sky Book
+5:--- Unusable Stuff (Won't Work) ---
+32:Small Key
+35:Dungeon Map
+36:Compass
+38:Big Key
+238:Small Key
+243:Gate Key
+249:Key Shard
+250:Key Shard
+251:Key Shard
+253:Key Shards All Assembled
+37:Ooccoo
+39:Ooccoo Jr.
+236:Ooccoo
+33:Pieces of Heart
+34:Heart Container
+63:Wooden Sword
+40:Ordon Sword
+41:Master Sword
+73:Master Sword
+42:Ordon Shield
+43:Wooden Shield
+44:Hylian Shield
+46:Ranch Clothes
+47:Hero's Clothes
+48:Magic Armor
+49:Zora Armor
+52:Wallet
+53:Big Wallet
+54:Giant Wallet
+55:Colossal Wallet
+79:Giant Bomb Bag
+80:Bomb Bag
+81:Bag and Bombs
+83:Fire Arrow
+84:Quiver
+85:Big Quiver
+86:Giant Quiver
+161:Vessel of Light
+224:Poe Souls
+244:Ordon Pumpkin
+245:Ordon Cheese
+246:Bedroom Key
+247:Surf Leaf (looks like Hylian Shield)
+</DropDownList>
+              <VariableType>Byte</VariableType>
+              <Address>_playerbase+25F</Address>
+            </CheatEntry>
+            <CheatEntry>
+              <ID>83</ID>
+              <Description>"Item Slot"</Description>
+              <DropDownList ReadOnly="1" DescriptionOnly="1" DisplayValueAsItem="1">255:Nothing
+1:--- Usable items ---
+62:Hawkeye
+64:Gale Boomerang
+65:Spinner
+66:Ball and Chain
+67:Hero's Bow
+89:Hero's Bow With Bomb Arrows
+90:Hero's Bow With Hawkeye
+68:Clawshot
+71:Double Clawshots
+69:Iron Boots
+114:Bomblings
+70:Dominion Rod (cannot be used)
+76:Dominion Rod
+75:Slingshot
+72:Lantern
+112:Bombs
+113:Water Bombs
+132:Horse Call
+232:Ghost Lantern
+248:Lantern
+74:Fishing Rod (Lure)
+91:Fishing Rod (Bobber)
+92:Fishing Rod + Earring
+93:Fishing Rod With Worm
+94:Fishing Rod (Bobber) + Earring
+95:Fishing Rod (Lure) + Worm + Earring
+2:--- Bottle's Stuff ---
+96:Empty Bottle
+97:Red Potion
+98:Magic Potion
+99:Blue Potion
+100:Milk
+101:Milk (1/2)
+102:Lantern Oil
+103:Water
+106:Nasty Soup
+107:Hot Springwater
+108:Fairy
+115:Great Fairy's Tears
+116:Worm
+118:Bee Larvae
+119:Rare Chu Jelly
+120:Red Chu Jelly
+121:Blue Chu Jelly
+122:Green Chu Jelly
+123:Yellow Chu Jelly
+124:Purple Chu Jelly
+125:Simple Soup
+126:Good Soup
+127:Superb Soup
+158:Bee Larvae
+159:Black Chu Jelly
+3:--- Bugs ---
+192:Beetle
+194:Butterfly
+196:Stag Beetle
+198:Grasshopper
+200:Phasmid
+202:Pill Bug
+204:Mantis
+206:Ladybug
+208:Snail
+210:Dragonfly
+212:Ant
+214:Dayfly
+4:--- Quests Related ---
+45:Ooccoo's Note
+128:Renado's Letter
+129:Invoice
+145:Ashei's Sketch
+61:Coral Earring
+130:Wooden Statue
+131:Ilia's Charm
+233:Ancient Sky Book
+234:Ancient Sky Book
+235:Filled Sky Book
+5:--- Unusable Stuff (Won't Work) ---
+32:Small Key
+35:Dungeon Map
+36:Compass
+38:Big Key
+238:Small Key
+243:Gate Key
+249:Key Shard
+250:Key Shard
+251:Key Shard
+253:Key Shards All Assembled
+37:Ooccoo
+39:Ooccoo Jr.
+236:Ooccoo
+33:Pieces of Heart
+34:Heart Container
+63:Wooden Sword
+40:Ordon Sword
+41:Master Sword
+73:Master Sword
+42:Ordon Shield
+43:Wooden Shield
+44:Hylian Shield
+46:Ranch Clothes
+47:Hero's Clothes
+48:Magic Armor
+49:Zora Armor
+52:Wallet
+53:Big Wallet
+54:Giant Wallet
+55:Colossal Wallet
+79:Giant Bomb Bag
+80:Bomb Bag
+81:Bag and Bombs
+83:Fire Arrow
+84:Quiver
+85:Big Quiver
+86:Giant Quiver
+161:Vessel of Light
+224:Poe Souls
+244:Ordon Pumpkin
+245:Ordon Cheese
+246:Bedroom Key
+247:Surf Leaf (looks like Hylian Shield)
+</DropDownList>
+              <VariableType>Byte</VariableType>
+              <Address>_playerbase+260</Address>
+            </CheatEntry>
+            <CheatEntry>
+              <ID>181</ID>
+              <Description>"Item Slot"</Description>
+              <DropDownList ReadOnly="1" DescriptionOnly="1" DisplayValueAsItem="1">255:Nothing
+1:--- Usable items ---
+62:Hawkeye
+64:Gale Boomerang
+65:Spinner
+66:Ball and Chain
+67:Hero's Bow
+89:Hero's Bow With Bomb Arrows
+90:Hero's Bow With Hawkeye
+68:Clawshot
+71:Double Clawshots
+69:Iron Boots
+114:Bomblings
+70:Dominion Rod (cannot be used)
+76:Dominion Rod
+75:Slingshot
+72:Lantern
+112:Bombs
+113:Water Bombs
+132:Horse Call
+232:Ghost Lantern
+248:Lantern
+74:Fishing Rod (Lure)
+91:Fishing Rod (Bobber)
+92:Fishing Rod + Earring
+93:Fishing Rod With Worm
+94:Fishing Rod (Bobber) + Earring
+95:Fishing Rod (Lure) + Worm + Earring
+2:--- Bottle's Stuff ---
+96:Empty Bottle
+97:Red Potion
+98:Magic Potion
+99:Blue Potion
+100:Milk
+101:Milk (1/2)
+102:Lantern Oil
+103:Water
+106:Nasty Soup
+107:Hot Springwater
+108:Fairy
+115:Great Fairy's Tears
+116:Worm
+118:Bee Larvae
+119:Rare Chu Jelly
+120:Red Chu Jelly
+121:Blue Chu Jelly
+122:Green Chu Jelly
+123:Yellow Chu Jelly
+124:Purple Chu Jelly
+125:Simple Soup
+126:Good Soup
+127:Superb Soup
+158:Bee Larvae
+159:Black Chu Jelly
+3:--- Bugs ---
+192:Beetle
+194:Butterfly
+196:Stag Beetle
+198:Grasshopper
+200:Phasmid
+202:Pill Bug
+204:Mantis
+206:Ladybug
+208:Snail
+210:Dragonfly
+212:Ant
+214:Dayfly
+4:--- Quests Related ---
+45:Ooccoo's Note
+128:Renado's Letter
+129:Invoice
+145:Ashei's Sketch
+61:Coral Earring
+130:Wooden Statue
+131:Ilia's Charm
+233:Ancient Sky Book
+234:Ancient Sky Book
+235:Filled Sky Book
+5:--- Unusable Stuff (Won't Work) ---
+32:Small Key
+35:Dungeon Map
+36:Compass
+38:Big Key
+238:Small Key
+243:Gate Key
+249:Key Shard
+250:Key Shard
+251:Key Shard
+253:Key Shards All Assembled
+37:Ooccoo
+39:Ooccoo Jr.
+236:Ooccoo
+33:Pieces of Heart
+34:Heart Container
+63:Wooden Sword
+40:Ordon Sword
+41:Master Sword
+73:Master Sword
+42:Ordon Shield
+43:Wooden Shield
+44:Hylian Shield
+46:Ranch Clothes
+47:Hero's Clothes
+48:Magic Armor
+49:Zora Armor
+52:Wallet
+53:Big Wallet
+54:Giant Wallet
+55:Colossal Wallet
+79:Giant Bomb Bag
+80:Bomb Bag
+81:Bag and Bombs
+83:Fire Arrow
+84:Quiver
+85:Big Quiver
+86:Giant Quiver
+161:Vessel of Light
+224:Poe Souls
+244:Ordon Pumpkin
+245:Ordon Cheese
+246:Bedroom Key
+247:Surf Leaf (looks like Hylian Shield)
+</DropDownList>
+              <VariableType>Byte</VariableType>
+              <Address>_playerbase+261</Address>
+            </CheatEntry>
+            <CheatEntry>
+              <ID>182</ID>
+              <Description>"Item Slot"</Description>
+              <DropDownList ReadOnly="1" DescriptionOnly="1" DisplayValueAsItem="1">255:Nothing
+1:--- Usable items ---
+62:Hawkeye
+64:Gale Boomerang
+65:Spinner
+66:Ball and Chain
+67:Hero's Bow
+89:Hero's Bow With Bomb Arrows
+90:Hero's Bow With Hawkeye
+68:Clawshot
+71:Double Clawshots
+69:Iron Boots
+114:Bomblings
+70:Dominion Rod (cannot be used)
+76:Dominion Rod
+75:Slingshot
+72:Lantern
+112:Bombs
+113:Water Bombs
+132:Horse Call
+232:Ghost Lantern
+248:Lantern
+74:Fishing Rod (Lure)
+91:Fishing Rod (Bobber)
+92:Fishing Rod + Earring
+93:Fishing Rod With Worm
+94:Fishing Rod (Bobber) + Earring
+95:Fishing Rod (Lure) + Worm + Earring
+2:--- Bottle's Stuff ---
+96:Empty Bottle
+97:Red Potion
+98:Magic Potion
+99:Blue Potion
+100:Milk
+101:Milk (1/2)
+102:Lantern Oil
+103:Water
+106:Nasty Soup
+107:Hot Springwater
+108:Fairy
+115:Great Fairy's Tears
+116:Worm
+118:Bee Larvae
+119:Rare Chu Jelly
+120:Red Chu Jelly
+121:Blue Chu Jelly
+122:Green Chu Jelly
+123:Yellow Chu Jelly
+124:Purple Chu Jelly
+125:Simple Soup
+126:Good Soup
+127:Superb Soup
+158:Bee Larvae
+159:Black Chu Jelly
+3:--- Bugs ---
+192:Beetle
+194:Butterfly
+196:Stag Beetle
+198:Grasshopper
+200:Phasmid
+202:Pill Bug
+204:Mantis
+206:Ladybug
+208:Snail
+210:Dragonfly
+212:Ant
+214:Dayfly
+4:--- Quests Related ---
+45:Ooccoo's Note
+128:Renado's Letter
+129:Invoice
+145:Ashei's Sketch
+61:Coral Earring
+130:Wooden Statue
+131:Ilia's Charm
+233:Ancient Sky Book
+234:Ancient Sky Book
+235:Filled Sky Book
+5:--- Unusable Stuff (Won't Work) ---
+32:Small Key
+35:Dungeon Map
+36:Compass
+38:Big Key
+238:Small Key
+243:Gate Key
+249:Key Shard
+250:Key Shard
+251:Key Shard
+253:Key Shards All Assembled
+37:Ooccoo
+39:Ooccoo Jr.
+236:Ooccoo
+33:Pieces of Heart
+34:Heart Container
+63:Wooden Sword
+40:Ordon Sword
+41:Master Sword
+73:Master Sword
+42:Ordon Shield
+43:Wooden Shield
+44:Hylian Shield
+46:Ranch Clothes
+47:Hero's Clothes
+48:Magic Armor
+49:Zora Armor
+52:Wallet
+53:Big Wallet
+54:Giant Wallet
+55:Colossal Wallet
+79:Giant Bomb Bag
+80:Bomb Bag
+81:Bag and Bombs
+83:Fire Arrow
+84:Quiver
+85:Big Quiver
+86:Giant Quiver
+161:Vessel of Light
+224:Poe Souls
+244:Ordon Pumpkin
+245:Ordon Cheese
+246:Bedroom Key
+247:Surf Leaf (looks like Hylian Shield)
+</DropDownList>
+              <VariableType>Byte</VariableType>
+              <Address>_playerbase+262</Address>
+            </CheatEntry>
+            <CheatEntry>
+              <ID>183</ID>
+              <Description>"Item Slot"</Description>
+              <DropDownList ReadOnly="1" DescriptionOnly="1" DisplayValueAsItem="1">255:Nothing
+1:--- Usable items ---
+62:Hawkeye
+64:Gale Boomerang
+65:Spinner
+66:Ball and Chain
+67:Hero's Bow
+89:Hero's Bow With Bomb Arrows
+90:Hero's Bow With Hawkeye
+68:Clawshot
+71:Double Clawshots
+69:Iron Boots
+114:Bomblings
+70:Dominion Rod (cannot be used)
+76:Dominion Rod
+75:Slingshot
+72:Lantern
+112:Bombs
+113:Water Bombs
+132:Horse Call
+232:Ghost Lantern
+248:Lantern
+74:Fishing Rod (Lure)
+91:Fishing Rod (Bobber)
+92:Fishing Rod + Earring
+93:Fishing Rod With Worm
+94:Fishing Rod (Bobber) + Earring
+95:Fishing Rod (Lure) + Worm + Earring
+2:--- Bottle's Stuff ---
+96:Empty Bottle
+97:Red Potion
+98:Magic Potion
+99:Blue Potion
+100:Milk
+101:Milk (1/2)
+102:Lantern Oil
+103:Water
+106:Nasty Soup
+107:Hot Springwater
+108:Fairy
+115:Great Fairy's Tears
+116:Worm
+118:Bee Larvae
+119:Rare Chu Jelly
+120:Red Chu Jelly
+121:Blue Chu Jelly
+122:Green Chu Jelly
+123:Yellow Chu Jelly
+124:Purple Chu Jelly
+125:Simple Soup
+126:Good Soup
+127:Superb Soup
+158:Bee Larvae
+159:Black Chu Jelly
+3:--- Bugs ---
+192:Beetle
+194:Butterfly
+196:Stag Beetle
+198:Grasshopper
+200:Phasmid
+202:Pill Bug
+204:Mantis
+206:Ladybug
+208:Snail
+210:Dragonfly
+212:Ant
+214:Dayfly
+4:--- Quests Related ---
+45:Ooccoo's Note
+128:Renado's Letter
+129:Invoice
+145:Ashei's Sketch
+61:Coral Earring
+130:Wooden Statue
+131:Ilia's Charm
+233:Ancient Sky Book
+234:Ancient Sky Book
+235:Filled Sky Book
+5:--- Unusable Stuff (Won't Work) ---
+32:Small Key
+35:Dungeon Map
+36:Compass
+38:Big Key
+238:Small Key
+243:Gate Key
+249:Key Shard
+250:Key Shard
+251:Key Shard
+253:Key Shards All Assembled
+37:Ooccoo
+39:Ooccoo Jr.
+236:Ooccoo
+33:Pieces of Heart
+34:Heart Container
+63:Wooden Sword
+40:Ordon Sword
+41:Master Sword
+73:Master Sword
+42:Ordon Shield
+43:Wooden Shield
+44:Hylian Shield
+46:Ranch Clothes
+47:Hero's Clothes
+48:Magic Armor
+49:Zora Armor
+52:Wallet
+53:Big Wallet
+54:Giant Wallet
+55:Colossal Wallet
+79:Giant Bomb Bag
+80:Bomb Bag
+81:Bag and Bombs
+83:Fire Arrow
+84:Quiver
+85:Big Quiver
+86:Giant Quiver
+161:Vessel of Light
+224:Poe Souls
+244:Ordon Pumpkin
+245:Ordon Cheese
+246:Bedroom Key
+247:Surf Leaf (looks like Hylian Shield)
+</DropDownList>
+              <VariableType>Byte</VariableType>
+              <Address>_playerbase+263</Address>
+            </CheatEntry>
+            <CheatEntry>
+              <ID>184</ID>
+              <Description>"Item Slot"</Description>
+              <DropDownList ReadOnly="1" DescriptionOnly="1" DisplayValueAsItem="1">255:Nothing
+1:--- Usable items ---
+62:Hawkeye
+64:Gale Boomerang
+65:Spinner
+66:Ball and Chain
+67:Hero's Bow
+89:Hero's Bow With Bomb Arrows
+90:Hero's Bow With Hawkeye
+68:Clawshot
+71:Double Clawshots
+69:Iron Boots
+114:Bomblings
+70:Dominion Rod (cannot be used)
+76:Dominion Rod
+75:Slingshot
+72:Lantern
+112:Bombs
+113:Water Bombs
+132:Horse Call
+232:Ghost Lantern
+248:Lantern
+74:Fishing Rod (Lure)
+91:Fishing Rod (Bobber)
+92:Fishing Rod + Earring
+93:Fishing Rod With Worm
+94:Fishing Rod (Bobber) + Earring
+95:Fishing Rod (Lure) + Worm + Earring
+2:--- Bottle's Stuff ---
+96:Empty Bottle
+97:Red Potion
+98:Magic Potion
+99:Blue Potion
+100:Milk
+101:Milk (1/2)
+102:Lantern Oil
+103:Water
+106:Nasty Soup
+107:Hot Springwater
+108:Fairy
+115:Great Fairy's Tears
+116:Worm
+118:Bee Larvae
+119:Rare Chu Jelly
+120:Red Chu Jelly
+121:Blue Chu Jelly
+122:Green Chu Jelly
+123:Yellow Chu Jelly
+124:Purple Chu Jelly
+125:Simple Soup
+126:Good Soup
+127:Superb Soup
+158:Bee Larvae
+159:Black Chu Jelly
+3:--- Bugs ---
+192:Beetle
+194:Butterfly
+196:Stag Beetle
+198:Grasshopper
+200:Phasmid
+202:Pill Bug
+204:Mantis
+206:Ladybug
+208:Snail
+210:Dragonfly
+212:Ant
+214:Dayfly
+4:--- Quests Related ---
+45:Ooccoo's Note
+128:Renado's Letter
+129:Invoice
+145:Ashei's Sketch
+61:Coral Earring
+130:Wooden Statue
+131:Ilia's Charm
+233:Ancient Sky Book
+234:Ancient Sky Book
+235:Filled Sky Book
+5:--- Unusable Stuff (Won't Work) ---
+32:Small Key
+35:Dungeon Map
+36:Compass
+38:Big Key
+238:Small Key
+243:Gate Key
+249:Key Shard
+250:Key Shard
+251:Key Shard
+253:Key Shards All Assembled
+37:Ooccoo
+39:Ooccoo Jr.
+236:Ooccoo
+33:Pieces of Heart
+34:Heart Container
+63:Wooden Sword
+40:Ordon Sword
+41:Master Sword
+73:Master Sword
+42:Ordon Shield
+43:Wooden Shield
+44:Hylian Shield
+46:Ranch Clothes
+47:Hero's Clothes
+48:Magic Armor
+49:Zora Armor
+52:Wallet
+53:Big Wallet
+54:Giant Wallet
+55:Colossal Wallet
+79:Giant Bomb Bag
+80:Bomb Bag
+81:Bag and Bombs
+83:Fire Arrow
+84:Quiver
+85:Big Quiver
+86:Giant Quiver
+161:Vessel of Light
+224:Poe Souls
+244:Ordon Pumpkin
+245:Ordon Cheese
+246:Bedroom Key
+247:Surf Leaf (looks like Hylian Shield)
+</DropDownList>
+              <VariableType>Byte</VariableType>
+              <Address>_playerbase+264</Address>
+            </CheatEntry>
+            <CheatEntry>
+              <ID>185</ID>
+              <Description>"Item Slot"</Description>
+              <DropDownList ReadOnly="1" DescriptionOnly="1" DisplayValueAsItem="1">255:Nothing
+1:--- Usable items ---
+62:Hawkeye
+64:Gale Boomerang
+65:Spinner
+66:Ball and Chain
+67:Hero's Bow
+89:Hero's Bow With Bomb Arrows
+90:Hero's Bow With Hawkeye
+68:Clawshot
+71:Double Clawshots
+69:Iron Boots
+114:Bomblings
+70:Dominion Rod (cannot be used)
+76:Dominion Rod
+75:Slingshot
+72:Lantern
+112:Bombs
+113:Water Bombs
+132:Horse Call
+232:Ghost Lantern
+248:Lantern
+74:Fishing Rod (Lure)
+91:Fishing Rod (Bobber)
+92:Fishing Rod + Earring
+93:Fishing Rod With Worm
+94:Fishing Rod (Bobber) + Earring
+95:Fishing Rod (Lure) + Worm + Earring
+2:--- Bottle's Stuff ---
+96:Empty Bottle
+97:Red Potion
+98:Magic Potion
+99:Blue Potion
+100:Milk
+101:Milk (1/2)
+102:Lantern Oil
+103:Water
+106:Nasty Soup
+107:Hot Springwater
+108:Fairy
+115:Great Fairy's Tears
+116:Worm
+118:Bee Larvae
+119:Rare Chu Jelly
+120:Red Chu Jelly
+121:Blue Chu Jelly
+122:Green Chu Jelly
+123:Yellow Chu Jelly
+124:Purple Chu Jelly
+125:Simple Soup
+126:Good Soup
+127:Superb Soup
+158:Bee Larvae
+159:Black Chu Jelly
+3:--- Bugs ---
+192:Beetle
+194:Butterfly
+196:Stag Beetle
+198:Grasshopper
+200:Phasmid
+202:Pill Bug
+204:Mantis
+206:Ladybug
+208:Snail
+210:Dragonfly
+212:Ant
+214:Dayfly
+4:--- Quests Related ---
+45:Ooccoo's Note
+128:Renado's Letter
+129:Invoice
+145:Ashei's Sketch
+61:Coral Earring
+130:Wooden Statue
+131:Ilia's Charm
+233:Ancient Sky Book
+234:Ancient Sky Book
+235:Filled Sky Book
+5:--- Unusable Stuff (Won't Work) ---
+32:Small Key
+35:Dungeon Map
+36:Compass
+38:Big Key
+238:Small Key
+243:Gate Key
+249:Key Shard
+250:Key Shard
+251:Key Shard
+253:Key Shards All Assembled
+37:Ooccoo
+39:Ooccoo Jr.
+236:Ooccoo
+33:Pieces of Heart
+34:Heart Container
+63:Wooden Sword
+40:Ordon Sword
+41:Master Sword
+73:Master Sword
+42:Ordon Shield
+43:Wooden Shield
+44:Hylian Shield
+46:Ranch Clothes
+47:Hero's Clothes
+48:Magic Armor
+49:Zora Armor
+52:Wallet
+53:Big Wallet
+54:Giant Wallet
+55:Colossal Wallet
+79:Giant Bomb Bag
+80:Bomb Bag
+81:Bag and Bombs
+83:Fire Arrow
+84:Quiver
+85:Big Quiver
+86:Giant Quiver
+161:Vessel of Light
+224:Poe Souls
+244:Ordon Pumpkin
+245:Ordon Cheese
+246:Bedroom Key
+247:Surf Leaf (looks like Hylian Shield)
+</DropDownList>
+              <VariableType>Byte</VariableType>
+              <Address>_playerbase+265</Address>
+            </CheatEntry>
+            <CheatEntry>
+              <ID>186</ID>
+              <Description>"Item Slot"</Description>
+              <DropDownList ReadOnly="1" DescriptionOnly="1" DisplayValueAsItem="1">255:Nothing
+1:--- Usable items ---
+62:Hawkeye
+64:Gale Boomerang
+65:Spinner
+66:Ball and Chain
+67:Hero's Bow
+89:Hero's Bow With Bomb Arrows
+90:Hero's Bow With Hawkeye
+68:Clawshot
+71:Double Clawshots
+69:Iron Boots
+114:Bomblings
+70:Dominion Rod (cannot be used)
+76:Dominion Rod
+75:Slingshot
+72:Lantern
+112:Bombs
+113:Water Bombs
+132:Horse Call
+232:Ghost Lantern
+248:Lantern
+74:Fishing Rod (Lure)
+91:Fishing Rod (Bobber)
+92:Fishing Rod + Earring
+93:Fishing Rod With Worm
+94:Fishing Rod (Bobber) + Earring
+95:Fishing Rod (Lure) + Worm + Earring
+2:--- Bottle's Stuff ---
+96:Empty Bottle
+97:Red Potion
+98:Magic Potion
+99:Blue Potion
+100:Milk
+101:Milk (1/2)
+102:Lantern Oil
+103:Water
+106:Nasty Soup
+107:Hot Springwater
+108:Fairy
+115:Great Fairy's Tears
+116:Worm
+118:Bee Larvae
+119:Rare Chu Jelly
+120:Red Chu Jelly
+121:Blue Chu Jelly
+122:Green Chu Jelly
+123:Yellow Chu Jelly
+124:Purple Chu Jelly
+125:Simple Soup
+126:Good Soup
+127:Superb Soup
+158:Bee Larvae
+159:Black Chu Jelly
+3:--- Bugs ---
+192:Beetle
+194:Butterfly
+196:Stag Beetle
+198:Grasshopper
+200:Phasmid
+202:Pill Bug
+204:Mantis
+206:Ladybug
+208:Snail
+210:Dragonfly
+212:Ant
+214:Dayfly
+4:--- Quests Related ---
+45:Ooccoo's Note
+128:Renado's Letter
+129:Invoice
+145:Ashei's Sketch
+61:Coral Earring
+130:Wooden Statue
+131:Ilia's Charm
+233:Ancient Sky Book
+234:Ancient Sky Book
+235:Filled Sky Book
+5:--- Unusable Stuff (Won't Work) ---
+32:Small Key
+35:Dungeon Map
+36:Compass
+38:Big Key
+238:Small Key
+243:Gate Key
+249:Key Shard
+250:Key Shard
+251:Key Shard
+253:Key Shards All Assembled
+37:Ooccoo
+39:Ooccoo Jr.
+236:Ooccoo
+33:Pieces of Heart
+34:Heart Container
+63:Wooden Sword
+40:Ordon Sword
+41:Master Sword
+73:Master Sword
+42:Ordon Shield
+43:Wooden Shield
+44:Hylian Shield
+46:Ranch Clothes
+47:Hero's Clothes
+48:Magic Armor
+49:Zora Armor
+52:Wallet
+53:Big Wallet
+54:Giant Wallet
+55:Colossal Wallet
+79:Giant Bomb Bag
+80:Bomb Bag
+81:Bag and Bombs
+83:Fire Arrow
+84:Quiver
+85:Big Quiver
+86:Giant Quiver
+161:Vessel of Light
+224:Poe Souls
+244:Ordon Pumpkin
+245:Ordon Cheese
+246:Bedroom Key
+247:Surf Leaf (looks like Hylian Shield)
+</DropDownList>
+              <VariableType>Byte</VariableType>
+              <Address>_playerbase+266</Address>
+            </CheatEntry>
+            <CheatEntry>
+              <ID>187</ID>
+              <Description>"Item Slot"</Description>
+              <DropDownList ReadOnly="1" DescriptionOnly="1" DisplayValueAsItem="1">255:Nothing
+1:--- Usable items ---
+62:Hawkeye
+64:Gale Boomerang
+65:Spinner
+66:Ball and Chain
+67:Hero's Bow
+89:Hero's Bow With Bomb Arrows
+90:Hero's Bow With Hawkeye
+68:Clawshot
+71:Double Clawshots
+69:Iron Boots
+114:Bomblings
+70:Dominion Rod (cannot be used)
+76:Dominion Rod
+75:Slingshot
+72:Lantern
+112:Bombs
+113:Water Bombs
+132:Horse Call
+232:Ghost Lantern
+248:Lantern
+74:Fishing Rod (Lure)
+91:Fishing Rod (Bobber)
+92:Fishing Rod + Earring
+93:Fishing Rod With Worm
+94:Fishing Rod (Bobber) + Earring
+95:Fishing Rod (Lure) + Worm + Earring
+2:--- Bottle's Stuff ---
+96:Empty Bottle
+97:Red Potion
+98:Magic Potion
+99:Blue Potion
+100:Milk
+101:Milk (1/2)
+102:Lantern Oil
+103:Water
+106:Nasty Soup
+107:Hot Springwater
+108:Fairy
+115:Great Fairy's Tears
+116:Worm
+118:Bee Larvae
+119:Rare Chu Jelly
+120:Red Chu Jelly
+121:Blue Chu Jelly
+122:Green Chu Jelly
+123:Yellow Chu Jelly
+124:Purple Chu Jelly
+125:Simple Soup
+126:Good Soup
+127:Superb Soup
+158:Bee Larvae
+159:Black Chu Jelly
+3:--- Bugs ---
+192:Beetle
+194:Butterfly
+196:Stag Beetle
+198:Grasshopper
+200:Phasmid
+202:Pill Bug
+204:Mantis
+206:Ladybug
+208:Snail
+210:Dragonfly
+212:Ant
+214:Dayfly
+4:--- Quests Related ---
+45:Ooccoo's Note
+128:Renado's Letter
+129:Invoice
+145:Ashei's Sketch
+61:Coral Earring
+130:Wooden Statue
+131:Ilia's Charm
+233:Ancient Sky Book
+234:Ancient Sky Book
+235:Filled Sky Book
+5:--- Unusable Stuff (Won't Work) ---
+32:Small Key
+35:Dungeon Map
+36:Compass
+38:Big Key
+238:Small Key
+243:Gate Key
+249:Key Shard
+250:Key Shard
+251:Key Shard
+253:Key Shards All Assembled
+37:Ooccoo
+39:Ooccoo Jr.
+236:Ooccoo
+33:Pieces of Heart
+34:Heart Container
+63:Wooden Sword
+40:Ordon Sword
+41:Master Sword
+73:Master Sword
+42:Ordon Shield
+43:Wooden Shield
+44:Hylian Shield
+46:Ranch Clothes
+47:Hero's Clothes
+48:Magic Armor
+49:Zora Armor
+52:Wallet
+53:Big Wallet
+54:Giant Wallet
+55:Colossal Wallet
+79:Giant Bomb Bag
+80:Bomb Bag
+81:Bag and Bombs
+83:Fire Arrow
+84:Quiver
+85:Big Quiver
+86:Giant Quiver
+161:Vessel of Light
+224:Poe Souls
+244:Ordon Pumpkin
+245:Ordon Cheese
+246:Bedroom Key
+247:Surf Leaf (looks like Hylian Shield)
+</DropDownList>
+              <VariableType>Byte</VariableType>
+              <Address>_playerbase+267</Address>
+            </CheatEntry>
+            <CheatEntry>
+              <ID>188</ID>
+              <Description>"Item Slot"</Description>
+              <DropDownList ReadOnly="1" DescriptionOnly="1" DisplayValueAsItem="1">255:Nothing
+1:--- Usable items ---
+62:Hawkeye
+64:Gale Boomerang
+65:Spinner
+66:Ball and Chain
+67:Hero's Bow
+89:Hero's Bow With Bomb Arrows
+90:Hero's Bow With Hawkeye
+68:Clawshot
+71:Double Clawshots
+69:Iron Boots
+114:Bomblings
+70:Dominion Rod (cannot be used)
+76:Dominion Rod
+75:Slingshot
+72:Lantern
+112:Bombs
+113:Water Bombs
+132:Horse Call
+232:Ghost Lantern
+248:Lantern
+74:Fishing Rod (Lure)
+91:Fishing Rod (Bobber)
+92:Fishing Rod + Earring
+93:Fishing Rod With Worm
+94:Fishing Rod (Bobber) + Earring
+95:Fishing Rod (Lure) + Worm + Earring
+2:--- Bottle's Stuff ---
+96:Empty Bottle
+97:Red Potion
+98:Magic Potion
+99:Blue Potion
+100:Milk
+101:Milk (1/2)
+102:Lantern Oil
+103:Water
+106:Nasty Soup
+107:Hot Springwater
+108:Fairy
+115:Great Fairy's Tears
+116:Worm
+118:Bee Larvae
+119:Rare Chu Jelly
+120:Red Chu Jelly
+121:Blue Chu Jelly
+122:Green Chu Jelly
+123:Yellow Chu Jelly
+124:Purple Chu Jelly
+125:Simple Soup
+126:Good Soup
+127:Superb Soup
+158:Bee Larvae
+159:Black Chu Jelly
+3:--- Bugs ---
+192:Beetle
+194:Butterfly
+196:Stag Beetle
+198:Grasshopper
+200:Phasmid
+202:Pill Bug
+204:Mantis
+206:Ladybug
+208:Snail
+210:Dragonfly
+212:Ant
+214:Dayfly
+4:--- Quests Related ---
+45:Ooccoo's Note
+128:Renado's Letter
+129:Invoice
+145:Ashei's Sketch
+61:Coral Earring
+130:Wooden Statue
+131:Ilia's Charm
+233:Ancient Sky Book
+234:Ancient Sky Book
+235:Filled Sky Book
+5:--- Unusable Stuff (Won't Work) ---
+32:Small Key
+35:Dungeon Map
+36:Compass
+38:Big Key
+238:Small Key
+243:Gate Key
+249:Key Shard
+250:Key Shard
+251:Key Shard
+253:Key Shards All Assembled
+37:Ooccoo
+39:Ooccoo Jr.
+236:Ooccoo
+33:Pieces of Heart
+34:Heart Container
+63:Wooden Sword
+40:Ordon Sword
+41:Master Sword
+73:Master Sword
+42:Ordon Shield
+43:Wooden Shield
+44:Hylian Shield
+46:Ranch Clothes
+47:Hero's Clothes
+48:Magic Armor
+49:Zora Armor
+52:Wallet
+53:Big Wallet
+54:Giant Wallet
+55:Colossal Wallet
+79:Giant Bomb Bag
+80:Bomb Bag
+81:Bag and Bombs
+83:Fire Arrow
+84:Quiver
+85:Big Quiver
+86:Giant Quiver
+161:Vessel of Light
+224:Poe Souls
+244:Ordon Pumpkin
+245:Ordon Cheese
+246:Bedroom Key
+247:Surf Leaf (looks like Hylian Shield)
+</DropDownList>
+              <VariableType>Byte</VariableType>
+              <Address>_playerbase+268</Address>
+            </CheatEntry>
+            <CheatEntry>
+              <ID>189</ID>
+              <Description>"Item Slot"</Description>
+              <DropDownList ReadOnly="1" DescriptionOnly="1" DisplayValueAsItem="1">255:Nothing
+1:--- Usable items ---
+62:Hawkeye
+64:Gale Boomerang
+65:Spinner
+66:Ball and Chain
+67:Hero's Bow
+89:Hero's Bow With Bomb Arrows
+90:Hero's Bow With Hawkeye
+68:Clawshot
+71:Double Clawshots
+69:Iron Boots
+114:Bomblings
+70:Dominion Rod (cannot be used)
+76:Dominion Rod
+75:Slingshot
+72:Lantern
+112:Bombs
+113:Water Bombs
+132:Horse Call
+232:Ghost Lantern
+248:Lantern
+74:Fishing Rod (Lure)
+91:Fishing Rod (Bobber)
+92:Fishing Rod + Earring
+93:Fishing Rod With Worm
+94:Fishing Rod (Bobber) + Earring
+95:Fishing Rod (Lure) + Worm + Earring
+2:--- Bottle's Stuff ---
+96:Empty Bottle
+97:Red Potion
+98:Magic Potion
+99:Blue Potion
+100:Milk
+101:Milk (1/2)
+102:Lantern Oil
+103:Water
+106:Nasty Soup
+107:Hot Springwater
+108:Fairy
+115:Great Fairy's Tears
+116:Worm
+118:Bee Larvae
+119:Rare Chu Jelly
+120:Red Chu Jelly
+121:Blue Chu Jelly
+122:Green Chu Jelly
+123:Yellow Chu Jelly
+124:Purple Chu Jelly
+125:Simple Soup
+126:Good Soup
+127:Superb Soup
+158:Bee Larvae
+159:Black Chu Jelly
+3:--- Bugs ---
+192:Beetle
+194:Butterfly
+196:Stag Beetle
+198:Grasshopper
+200:Phasmid
+202:Pill Bug
+204:Mantis
+206:Ladybug
+208:Snail
+210:Dragonfly
+212:Ant
+214:Dayfly
+4:--- Quests Related ---
+45:Ooccoo's Note
+128:Renado's Letter
+129:Invoice
+145:Ashei's Sketch
+61:Coral Earring
+130:Wooden Statue
+131:Ilia's Charm
+233:Ancient Sky Book
+234:Ancient Sky Book
+235:Filled Sky Book
+5:--- Unusable Stuff (Won't Work) ---
+32:Small Key
+35:Dungeon Map
+36:Compass
+38:Big Key
+238:Small Key
+243:Gate Key
+249:Key Shard
+250:Key Shard
+251:Key Shard
+253:Key Shards All Assembled
+37:Ooccoo
+39:Ooccoo Jr.
+236:Ooccoo
+33:Pieces of Heart
+34:Heart Container
+63:Wooden Sword
+40:Ordon Sword
+41:Master Sword
+73:Master Sword
+42:Ordon Shield
+43:Wooden Shield
+44:Hylian Shield
+46:Ranch Clothes
+47:Hero's Clothes
+48:Magic Armor
+49:Zora Armor
+52:Wallet
+53:Big Wallet
+54:Giant Wallet
+55:Colossal Wallet
+79:Giant Bomb Bag
+80:Bomb Bag
+81:Bag and Bombs
+83:Fire Arrow
+84:Quiver
+85:Big Quiver
+86:Giant Quiver
+161:Vessel of Light
+224:Poe Souls
+244:Ordon Pumpkin
+245:Ordon Cheese
+246:Bedroom Key
+247:Surf Leaf (looks like Hylian Shield)
+</DropDownList>
+              <VariableType>Byte</VariableType>
+              <Address>_playerbase+269</Address>
+            </CheatEntry>
+            <CheatEntry>
+              <ID>190</ID>
+              <Description>"Item Slot"</Description>
+              <DropDownList ReadOnly="1" DescriptionOnly="1" DisplayValueAsItem="1">255:Nothing
+1:--- Usable items ---
+62:Hawkeye
+64:Gale Boomerang
+65:Spinner
+66:Ball and Chain
+67:Hero's Bow
+89:Hero's Bow With Bomb Arrows
+90:Hero's Bow With Hawkeye
+68:Clawshot
+71:Double Clawshots
+69:Iron Boots
+114:Bomblings
+70:Dominion Rod (cannot be used)
+76:Dominion Rod
+75:Slingshot
+72:Lantern
+112:Bombs
+113:Water Bombs
+132:Horse Call
+232:Ghost Lantern
+248:Lantern
+74:Fishing Rod (Lure)
+91:Fishing Rod (Bobber)
+92:Fishing Rod + Earring
+93:Fishing Rod With Worm
+94:Fishing Rod (Bobber) + Earring
+95:Fishing Rod (Lure) + Worm + Earring
+2:--- Bottle's Stuff ---
+96:Empty Bottle
+97:Red Potion
+98:Magic Potion
+99:Blue Potion
+100:Milk
+101:Milk (1/2)
+102:Lantern Oil
+103:Water
+106:Nasty Soup
+107:Hot Springwater
+108:Fairy
+115:Great Fairy's Tears
+116:Worm
+118:Bee Larvae
+119:Rare Chu Jelly
+120:Red Chu Jelly
+121:Blue Chu Jelly
+122:Green Chu Jelly
+123:Yellow Chu Jelly
+124:Purple Chu Jelly
+125:Simple Soup
+126:Good Soup
+127:Superb Soup
+158:Bee Larvae
+159:Black Chu Jelly
+3:--- Bugs ---
+192:Beetle
+194:Butterfly
+196:Stag Beetle
+198:Grasshopper
+200:Phasmid
+202:Pill Bug
+204:Mantis
+206:Ladybug
+208:Snail
+210:Dragonfly
+212:Ant
+214:Dayfly
+4:--- Quests Related ---
+45:Ooccoo's Note
+128:Renado's Letter
+129:Invoice
+145:Ashei's Sketch
+61:Coral Earring
+130:Wooden Statue
+131:Ilia's Charm
+233:Ancient Sky Book
+234:Ancient Sky Book
+235:Filled Sky Book
+5:--- Unusable Stuff (Won't Work) ---
+32:Small Key
+35:Dungeon Map
+36:Compass
+38:Big Key
+238:Small Key
+243:Gate Key
+249:Key Shard
+250:Key Shard
+251:Key Shard
+253:Key Shards All Assembled
+37:Ooccoo
+39:Ooccoo Jr.
+236:Ooccoo
+33:Pieces of Heart
+34:Heart Container
+63:Wooden Sword
+40:Ordon Sword
+41:Master Sword
+73:Master Sword
+42:Ordon Shield
+43:Wooden Shield
+44:Hylian Shield
+46:Ranch Clothes
+47:Hero's Clothes
+48:Magic Armor
+49:Zora Armor
+52:Wallet
+53:Big Wallet
+54:Giant Wallet
+55:Colossal Wallet
+79:Giant Bomb Bag
+80:Bomb Bag
+81:Bag and Bombs
+83:Fire Arrow
+84:Quiver
+85:Big Quiver
+86:Giant Quiver
+161:Vessel of Light
+224:Poe Souls
+244:Ordon Pumpkin
+245:Ordon Cheese
+246:Bedroom Key
+247:Surf Leaf (looks like Hylian Shield)
+</DropDownList>
+              <VariableType>Byte</VariableType>
+              <Address>_playerbase+26A</Address>
+            </CheatEntry>
+            <CheatEntry>
+              <ID>191</ID>
+              <Description>"Item Slot"</Description>
+              <DropDownList ReadOnly="1" DescriptionOnly="1" DisplayValueAsItem="1">255:Nothing
+1:--- Usable items ---
+62:Hawkeye
+64:Gale Boomerang
+65:Spinner
+66:Ball and Chain
+67:Hero's Bow
+89:Hero's Bow With Bomb Arrows
+90:Hero's Bow With Hawkeye
+68:Clawshot
+71:Double Clawshots
+69:Iron Boots
+114:Bomblings
+70:Dominion Rod (cannot be used)
+76:Dominion Rod
+75:Slingshot
+72:Lantern
+112:Bombs
+113:Water Bombs
+132:Horse Call
+232:Ghost Lantern
+248:Lantern
+74:Fishing Rod (Lure)
+91:Fishing Rod (Bobber)
+92:Fishing Rod + Earring
+93:Fishing Rod With Worm
+94:Fishing Rod (Bobber) + Earring
+95:Fishing Rod (Lure) + Worm + Earring
+2:--- Bottle's Stuff ---
+96:Empty Bottle
+97:Red Potion
+98:Magic Potion
+99:Blue Potion
+100:Milk
+101:Milk (1/2)
+102:Lantern Oil
+103:Water
+106:Nasty Soup
+107:Hot Springwater
+108:Fairy
+115:Great Fairy's Tears
+116:Worm
+118:Bee Larvae
+119:Rare Chu Jelly
+120:Red Chu Jelly
+121:Blue Chu Jelly
+122:Green Chu Jelly
+123:Yellow Chu Jelly
+124:Purple Chu Jelly
+125:Simple Soup
+126:Good Soup
+127:Superb Soup
+158:Bee Larvae
+159:Black Chu Jelly
+3:--- Bugs ---
+192:Beetle
+194:Butterfly
+196:Stag Beetle
+198:Grasshopper
+200:Phasmid
+202:Pill Bug
+204:Mantis
+206:Ladybug
+208:Snail
+210:Dragonfly
+212:Ant
+214:Dayfly
+4:--- Quests Related ---
+45:Ooccoo's Note
+128:Renado's Letter
+129:Invoice
+145:Ashei's Sketch
+61:Coral Earring
+130:Wooden Statue
+131:Ilia's Charm
+233:Ancient Sky Book
+234:Ancient Sky Book
+235:Filled Sky Book
+5:--- Unusable Stuff (Won't Work) ---
+32:Small Key
+35:Dungeon Map
+36:Compass
+38:Big Key
+238:Small Key
+243:Gate Key
+249:Key Shard
+250:Key Shard
+251:Key Shard
+253:Key Shards All Assembled
+37:Ooccoo
+39:Ooccoo Jr.
+236:Ooccoo
+33:Pieces of Heart
+34:Heart Container
+63:Wooden Sword
+40:Ordon Sword
+41:Master Sword
+73:Master Sword
+42:Ordon Shield
+43:Wooden Shield
+44:Hylian Shield
+46:Ranch Clothes
+47:Hero's Clothes
+48:Magic Armor
+49:Zora Armor
+52:Wallet
+53:Big Wallet
+54:Giant Wallet
+55:Colossal Wallet
+79:Giant Bomb Bag
+80:Bomb Bag
+81:Bag and Bombs
+83:Fire Arrow
+84:Quiver
+85:Big Quiver
+86:Giant Quiver
+161:Vessel of Light
+224:Poe Souls
+244:Ordon Pumpkin
+245:Ordon Cheese
+246:Bedroom Key
+247:Surf Leaf (looks like Hylian Shield)
+</DropDownList>
+              <VariableType>Byte</VariableType>
+              <Address>_playerbase+26B</Address>
+            </CheatEntry>
+            <CheatEntry>
+              <ID>192</ID>
+              <Description>"Item Slot"</Description>
+              <DropDownList ReadOnly="1" DescriptionOnly="1" DisplayValueAsItem="1">255:Nothing
+1:--- Usable items ---
+62:Hawkeye
+64:Gale Boomerang
+65:Spinner
+66:Ball and Chain
+67:Hero's Bow
+89:Hero's Bow With Bomb Arrows
+90:Hero's Bow With Hawkeye
+68:Clawshot
+71:Double Clawshots
+69:Iron Boots
+114:Bomblings
+70:Dominion Rod (cannot be used)
+76:Dominion Rod
+75:Slingshot
+72:Lantern
+112:Bombs
+113:Water Bombs
+132:Horse Call
+232:Ghost Lantern
+248:Lantern
+74:Fishing Rod (Lure)
+91:Fishing Rod (Bobber)
+92:Fishing Rod + Earring
+93:Fishing Rod With Worm
+94:Fishing Rod (Bobber) + Earring
+95:Fishing Rod (Lure) + Worm + Earring
+2:--- Bottle's Stuff ---
+96:Empty Bottle
+97:Red Potion
+98:Magic Potion
+99:Blue Potion
+100:Milk
+101:Milk (1/2)
+102:Lantern Oil
+103:Water
+106:Nasty Soup
+107:Hot Springwater
+108:Fairy
+115:Great Fairy's Tears
+116:Worm
+118:Bee Larvae
+119:Rare Chu Jelly
+120:Red Chu Jelly
+121:Blue Chu Jelly
+122:Green Chu Jelly
+123:Yellow Chu Jelly
+124:Purple Chu Jelly
+125:Simple Soup
+126:Good Soup
+127:Superb Soup
+158:Bee Larvae
+159:Black Chu Jelly
+3:--- Bugs ---
+192:Beetle
+194:Butterfly
+196:Stag Beetle
+198:Grasshopper
+200:Phasmid
+202:Pill Bug
+204:Mantis
+206:Ladybug
+208:Snail
+210:Dragonfly
+212:Ant
+214:Dayfly
+4:--- Quests Related ---
+45:Ooccoo's Note
+128:Renado's Letter
+129:Invoice
+145:Ashei's Sketch
+61:Coral Earring
+130:Wooden Statue
+131:Ilia's Charm
+233:Ancient Sky Book
+234:Ancient Sky Book
+235:Filled Sky Book
+5:--- Unusable Stuff (Won't Work) ---
+32:Small Key
+35:Dungeon Map
+36:Compass
+38:Big Key
+238:Small Key
+243:Gate Key
+249:Key Shard
+250:Key Shard
+251:Key Shard
+253:Key Shards All Assembled
+37:Ooccoo
+39:Ooccoo Jr.
+236:Ooccoo
+33:Pieces of Heart
+34:Heart Container
+63:Wooden Sword
+40:Ordon Sword
+41:Master Sword
+73:Master Sword
+42:Ordon Shield
+43:Wooden Shield
+44:Hylian Shield
+46:Ranch Clothes
+47:Hero's Clothes
+48:Magic Armor
+49:Zora Armor
+52:Wallet
+53:Big Wallet
+54:Giant Wallet
+55:Colossal Wallet
+79:Giant Bomb Bag
+80:Bomb Bag
+81:Bag and Bombs
+83:Fire Arrow
+84:Quiver
+85:Big Quiver
+86:Giant Quiver
+161:Vessel of Light
+224:Poe Souls
+244:Ordon Pumpkin
+245:Ordon Cheese
+246:Bedroom Key
+247:Surf Leaf (looks like Hylian Shield)
+</DropDownList>
+              <VariableType>Byte</VariableType>
+              <Address>_playerbase+26C</Address>
+            </CheatEntry>
+            <CheatEntry>
+              <ID>193</ID>
+              <Description>"Item Slot"</Description>
+              <DropDownList ReadOnly="1" DescriptionOnly="1" DisplayValueAsItem="1">255:Nothing
+1:--- Usable items ---
+62:Hawkeye
+64:Gale Boomerang
+65:Spinner
+66:Ball and Chain
+67:Hero's Bow
+89:Hero's Bow With Bomb Arrows
+90:Hero's Bow With Hawkeye
+68:Clawshot
+71:Double Clawshots
+69:Iron Boots
+114:Bomblings
+70:Dominion Rod (cannot be used)
+76:Dominion Rod
+75:Slingshot
+72:Lantern
+112:Bombs
+113:Water Bombs
+132:Horse Call
+232:Ghost Lantern
+248:Lantern
+74:Fishing Rod (Lure)
+91:Fishing Rod (Bobber)
+92:Fishing Rod + Earring
+93:Fishing Rod With Worm
+94:Fishing Rod (Bobber) + Earring
+95:Fishing Rod (Lure) + Worm + Earring
+2:--- Bottle's Stuff ---
+96:Empty Bottle
+97:Red Potion
+98:Magic Potion
+99:Blue Potion
+100:Milk
+101:Milk (1/2)
+102:Lantern Oil
+103:Water
+106:Nasty Soup
+107:Hot Springwater
+108:Fairy
+115:Great Fairy's Tears
+116:Worm
+118:Bee Larvae
+119:Rare Chu Jelly
+120:Red Chu Jelly
+121:Blue Chu Jelly
+122:Green Chu Jelly
+123:Yellow Chu Jelly
+124:Purple Chu Jelly
+125:Simple Soup
+126:Good Soup
+127:Superb Soup
+158:Bee Larvae
+159:Black Chu Jelly
+3:--- Bugs ---
+192:Beetle
+194:Butterfly
+196:Stag Beetle
+198:Grasshopper
+200:Phasmid
+202:Pill Bug
+204:Mantis
+206:Ladybug
+208:Snail
+210:Dragonfly
+212:Ant
+214:Dayfly
+4:--- Quests Related ---
+45:Ooccoo's Note
+128:Renado's Letter
+129:Invoice
+145:Ashei's Sketch
+61:Coral Earring
+130:Wooden Statue
+131:Ilia's Charm
+233:Ancient Sky Book
+234:Ancient Sky Book
+235:Filled Sky Book
+5:--- Unusable Stuff (Won't Work) ---
+32:Small Key
+35:Dungeon Map
+36:Compass
+38:Big Key
+238:Small Key
+243:Gate Key
+249:Key Shard
+250:Key Shard
+251:Key Shard
+253:Key Shards All Assembled
+37:Ooccoo
+39:Ooccoo Jr.
+236:Ooccoo
+33:Pieces of Heart
+34:Heart Container
+63:Wooden Sword
+40:Ordon Sword
+41:Master Sword
+73:Master Sword
+42:Ordon Shield
+43:Wooden Shield
+44:Hylian Shield
+46:Ranch Clothes
+47:Hero's Clothes
+48:Magic Armor
+49:Zora Armor
+52:Wallet
+53:Big Wallet
+54:Giant Wallet
+55:Colossal Wallet
+79:Giant Bomb Bag
+80:Bomb Bag
+81:Bag and Bombs
+83:Fire Arrow
+84:Quiver
+85:Big Quiver
+86:Giant Quiver
+161:Vessel of Light
+224:Poe Souls
+244:Ordon Pumpkin
+245:Ordon Cheese
+246:Bedroom Key
+247:Surf Leaf (looks like Hylian Shield)
+</DropDownList>
+              <VariableType>Byte</VariableType>
+              <Address>_playerbase+26D</Address>
+            </CheatEntry>
+            <CheatEntry>
+              <ID>194</ID>
+              <Description>"Item Slot"</Description>
+              <DropDownList ReadOnly="1" DescriptionOnly="1" DisplayValueAsItem="1">255:Nothing
+1:--- Usable items ---
+62:Hawkeye
+64:Gale Boomerang
+65:Spinner
+66:Ball and Chain
+67:Hero's Bow
+89:Hero's Bow With Bomb Arrows
+90:Hero's Bow With Hawkeye
+68:Clawshot
+71:Double Clawshots
+69:Iron Boots
+114:Bomblings
+70:Dominion Rod (cannot be used)
+76:Dominion Rod
+75:Slingshot
+72:Lantern
+112:Bombs
+113:Water Bombs
+132:Horse Call
+232:Ghost Lantern
+248:Lantern
+74:Fishing Rod (Lure)
+91:Fishing Rod (Bobber)
+92:Fishing Rod + Earring
+93:Fishing Rod With Worm
+94:Fishing Rod (Bobber) + Earring
+95:Fishing Rod (Lure) + Worm + Earring
+2:--- Bottle's Stuff ---
+96:Empty Bottle
+97:Red Potion
+98:Magic Potion
+99:Blue Potion
+100:Milk
+101:Milk (1/2)
+102:Lantern Oil
+103:Water
+106:Nasty Soup
+107:Hot Springwater
+108:Fairy
+115:Great Fairy's Tears
+116:Worm
+118:Bee Larvae
+119:Rare Chu Jelly
+120:Red Chu Jelly
+121:Blue Chu Jelly
+122:Green Chu Jelly
+123:Yellow Chu Jelly
+124:Purple Chu Jelly
+125:Simple Soup
+126:Good Soup
+127:Superb Soup
+158:Bee Larvae
+159:Black Chu Jelly
+3:--- Bugs ---
+192:Beetle
+194:Butterfly
+196:Stag Beetle
+198:Grasshopper
+200:Phasmid
+202:Pill Bug
+204:Mantis
+206:Ladybug
+208:Snail
+210:Dragonfly
+212:Ant
+214:Dayfly
+4:--- Quests Related ---
+45:Ooccoo's Note
+128:Renado's Letter
+129:Invoice
+145:Ashei's Sketch
+61:Coral Earring
+130:Wooden Statue
+131:Ilia's Charm
+233:Ancient Sky Book
+234:Ancient Sky Book
+235:Filled Sky Book
+5:--- Unusable Stuff (Won't Work) ---
+32:Small Key
+35:Dungeon Map
+36:Compass
+38:Big Key
+238:Small Key
+243:Gate Key
+249:Key Shard
+250:Key Shard
+251:Key Shard
+253:Key Shards All Assembled
+37:Ooccoo
+39:Ooccoo Jr.
+236:Ooccoo
+33:Pieces of Heart
+34:Heart Container
+63:Wooden Sword
+40:Ordon Sword
+41:Master Sword
+73:Master Sword
+42:Ordon Shield
+43:Wooden Shield
+44:Hylian Shield
+46:Ranch Clothes
+47:Hero's Clothes
+48:Magic Armor
+49:Zora Armor
+52:Wallet
+53:Big Wallet
+54:Giant Wallet
+55:Colossal Wallet
+79:Giant Bomb Bag
+80:Bomb Bag
+81:Bag and Bombs
+83:Fire Arrow
+84:Quiver
+85:Big Quiver
+86:Giant Quiver
+161:Vessel of Light
+224:Poe Souls
+244:Ordon Pumpkin
+245:Ordon Cheese
+246:Bedroom Key
+247:Surf Leaf (looks like Hylian Shield)
+</DropDownList>
+              <VariableType>Byte</VariableType>
+              <Address>_playerbase+26E</Address>
+            </CheatEntry>
+            <CheatEntry>
+              <ID>195</ID>
+              <Description>"Item Slot"</Description>
+              <DropDownList ReadOnly="1" DescriptionOnly="1" DisplayValueAsItem="1">255:Nothing
+1:--- Usable items ---
+62:Hawkeye
+64:Gale Boomerang
+65:Spinner
+66:Ball and Chain
+67:Hero's Bow
+89:Hero's Bow With Bomb Arrows
+90:Hero's Bow With Hawkeye
+68:Clawshot
+71:Double Clawshots
+69:Iron Boots
+114:Bomblings
+70:Dominion Rod (cannot be used)
+76:Dominion Rod
+75:Slingshot
+72:Lantern
+112:Bombs
+113:Water Bombs
+132:Horse Call
+232:Ghost Lantern
+248:Lantern
+74:Fishing Rod (Lure)
+91:Fishing Rod (Bobber)
+92:Fishing Rod + Earring
+93:Fishing Rod With Worm
+94:Fishing Rod (Bobber) + Earring
+95:Fishing Rod (Lure) + Worm + Earring
+2:--- Bottle's Stuff ---
+96:Empty Bottle
+97:Red Potion
+98:Magic Potion
+99:Blue Potion
+100:Milk
+101:Milk (1/2)
+102:Lantern Oil
+103:Water
+106:Nasty Soup
+107:Hot Springwater
+108:Fairy
+115:Great Fairy's Tears
+116:Worm
+118:Bee Larvae
+119:Rare Chu Jelly
+120:Red Chu Jelly
+121:Blue Chu Jelly
+122:Green Chu Jelly
+123:Yellow Chu Jelly
+124:Purple Chu Jelly
+125:Simple Soup
+126:Good Soup
+127:Superb Soup
+158:Bee Larvae
+159:Black Chu Jelly
+3:--- Bugs ---
+192:Beetle
+194:Butterfly
+196:Stag Beetle
+198:Grasshopper
+200:Phasmid
+202:Pill Bug
+204:Mantis
+206:Ladybug
+208:Snail
+210:Dragonfly
+212:Ant
+214:Dayfly
+4:--- Quests Related ---
+45:Ooccoo's Note
+128:Renado's Letter
+129:Invoice
+145:Ashei's Sketch
+61:Coral Earring
+130:Wooden Statue
+131:Ilia's Charm
+233:Ancient Sky Book
+234:Ancient Sky Book
+235:Filled Sky Book
+5:--- Unusable Stuff (Won't Work) ---
+32:Small Key
+35:Dungeon Map
+36:Compass
+38:Big Key
+238:Small Key
+243:Gate Key
+249:Key Shard
+250:Key Shard
+251:Key Shard
+253:Key Shards All Assembled
+37:Ooccoo
+39:Ooccoo Jr.
+236:Ooccoo
+33:Pieces of Heart
+34:Heart Container
+63:Wooden Sword
+40:Ordon Sword
+41:Master Sword
+73:Master Sword
+42:Ordon Shield
+43:Wooden Shield
+44:Hylian Shield
+46:Ranch Clothes
+47:Hero's Clothes
+48:Magic Armor
+49:Zora Armor
+52:Wallet
+53:Big Wallet
+54:Giant Wallet
+55:Colossal Wallet
+79:Giant Bomb Bag
+80:Bomb Bag
+81:Bag and Bombs
+83:Fire Arrow
+84:Quiver
+85:Big Quiver
+86:Giant Quiver
+161:Vessel of Light
+224:Poe Souls
+244:Ordon Pumpkin
+245:Ordon Cheese
+246:Bedroom Key
+247:Surf Leaf (looks like Hylian Shield)
+</DropDownList>
+              <VariableType>Byte</VariableType>
+              <Address>_playerbase+26F</Address>
+            </CheatEntry>
+          </CheatEntries>
+        </CheatEntry>
+      </CheatEntries>
+    </CheatEntry>
+  </CheatEntries>
+  <UserdefinedSymbols>
+    <SymbolEntry>
+      <Name>_eponadashes</Name>
+      <Address>25E38A70000</Address>
+    </SymbolEntry>
+  </UserdefinedSymbols>
+  <LuaScript>registerCustomTypeAutoAssembler([[
+
+alloc(TypeName,256)
+alloc(ByteSize,4)
+alloc(ConvertRoutine,1024)
+alloc(ConvertBackRoutine,1024)
+alloc(UsesFloat,1)
+
+
+TypeName:
+db 'Float Big Endian',0
+
+
+ByteSize:
+dd 4
+
+UsesFloat:
+db 1
+
+
+ConvertRoutine:
+[64-bit]
+xor eax,eax
+mov eax,[rcx] //eax now contains the bytes 'input' pointed to
+bswap eax //convert to big endian
+ret
+[/64-bit]
+
+[32-bit]
+push ebp
+mov ebp,esp
+mov eax,[ebp+8] //place the address that contains the bytes into eax
+mov eax,[eax] //place the bytes into eax so it's handled as a normal 4 byte value
+bswap eax
+pop ebp
+ret 4
+[/32-bit]
+
+
+ConvertBackRoutine:
+[64-bit]
+bswap ecx //convert the little endian input into a big endian input
+mov [rdx],ecx //place the integer the 4 bytes pointed to by rdx
+ret
+[/64-bit]
+
+[32-bit]
+push ebp
+mov ebp,esp
+push eax
+push ebx
+mov eax,[ebp+8] //load the value into eax
+mov ebx,[ebp+c] //load the address into ebx
+bswap eax
+
+mov [ebx],eax //write the value into the address
+pop ebx
+pop eax
+pop ebp
+ret 8
+[/32-bit]
+]])
+
+registerCustomTypeAutoAssembler([[
+alloc(TypeName,256)
+alloc(ByteSize,4)
+alloc(ConvertRoutine,1024)
+alloc(ConvertBackRoutine,1024)
+
+TypeName:
+db '2 Byte Big Endian',0
+
+ByteSize:
+dd 2
+
+//The convert routine should hold a routine that converts the data to an integer (in eax)
+//function declared as: stdcall int ConvertRoutine(unsigned char *input);
+//Note: Keep in mind that this routine can be called by multiple threads at the same time.
+ConvertRoutine:
+//jmp dllname.functionname
+[64-bit]
+//or manual:
+//parameters: (64-bit)
+//rcx=address of input
+xor eax,eax
+mov ax,[rcx] //eax now contains the bytes 'input' pointed to
+xchg ah,al //convert to big endian
+
+ret
+[/64-bit]
+
+[32-bit]
+//jmp dllname.functionname
+//or manual:
+//parameters: (32-bit)
+push ebp
+mov ebp,esp
+//[ebp+8]=input
+//example:
+mov eax,[ebp+8] //place the address that contains the bytes into eax
+mov ax,[eax] //place the bytes into eax so it's handled as a normal 4 byte value
+and eax,ffff //cleanup
+xchg ah,al //convert to big endian
+
+pop ebp
+ret 4
+[/32-bit]
+
+//The convert back routine should hold a routine that converts the given integer back to a row of bytes (e.g when the user wats to write a new value)
+//function declared as: stdcall void ConvertBackRoutine(int i, unsigned char *output);
+ConvertBackRoutine:
+//jmp dllname.functionname
+//or manual:
+[64-bit]
+//parameters: (64-bit)
+//ecx=input
+//rdx=address of output
+//example:
+xchg ch,cl //convert the little endian input into a big endian input
+mov [rdx],cx //place the integer the 4 bytes pointed to by rdx
+
+ret
+[/64-bit]
+
+[32-bit]
+//parameters: (32-bit)
+push ebp
+mov ebp,esp
+//[ebp+8]=input
+//[ebp+c]=address of output
+//example:
+push eax
+push ebx
+mov eax,[ebp+8] //load the value into eax
+mov ebx,[ebp+c] //load the address into ebx
+
+//convert the value to big endian
+xchg ah,al
+
+mov [ebx],ax //write the value into the address
+pop ebx
+pop eax
+
+pop ebp
+ret 8
+[/32-bit]
+
+]])
+
+
+registerCustomTypeAutoAssembler([[
+alloc(TypeName,256)
+alloc(ByteSize,4)
+alloc(ConvertRoutine,1024)
+alloc(ConvertBackRoutine,1024)
+
+TypeName:
+db '4 Byte Big Endian',0
+
+ByteSize:
+dd 4
+
+//The convert routine should hold a routine that converts the data to an integer (in eax)
+//function declared as: stdcall int ConvertRoutine(unsigned char *input);
+//Note: Keep in mind that this routine can be called by multiple threads at the same time.
+ConvertRoutine:
+//jmp dllname.functionname
+[64-bit]
+//or manual:
+//parameters: (64-bit)
+//rcx=address of input
+xor eax,eax
+mov eax,[rcx] //eax now contains the bytes 'input' pointed to
+bswap eax //convert to big endian
+
+ret
+[/64-bit]
+
+[32-bit]
+//jmp dllname.functionname
+//or manual:
+//parameters: (32-bit)
+push ebp
+mov ebp,esp
+//[ebp+8]=input
+//example:
+mov eax,[ebp+8] //place the address that contains the bytes into eax
+mov eax,[eax] //place the bytes into eax so it's handled as a normal 4 byte value
+
+bswap eax
+
+pop ebp
+ret 4
+[/32-bit]
+
+//The convert back routine should hold a routine that converts the given integer back to a row of bytes (e.g when the user wats to write a new value)
+//function declared as: stdcall void ConvertBackRoutine(int i, unsigned char *output);
+ConvertBackRoutine:
+//jmp dllname.functionname
+//or manual:
+[64-bit]
+//parameters: (64-bit)
+//ecx=input
+//rdx=address of output
+//example:
+bswap ecx //convert the little endian input into a big endian input
+mov [rdx],ecx //place the integer the 4 bytes pointed to by rdx
+
+ret
+[/64-bit]
+
+[32-bit]
+//parameters: (32-bit)
+push ebp
+mov ebp,esp
+//[ebp+8]=input
+//[ebp+c]=address of output
+//example:
+push eax
+push ebx
+mov eax,[ebp+8] //load the value into eax
+mov ebx,[ebp+c] //load the address into ebx
+
+//convert the value to big endian
+bswap eax
+
+mov [ebx],eax //write the value into the address
+pop ebx
+pop eax
+
+pop ebp
+ret 8
+[/32-bit]
+]])
+
+registerCustomTypeAutoAssembler([[
+alloc(TypeName,256)
+alloc(ByteSize,4)
+alloc(ConvertRoutine,1024)
+alloc(ConvertBackRoutine,1024)
+alloc(UsesFloat,4)
+alloc(PreferedAlignment,4)
+alloc(TEMPVAL,8)
+
+TypeName:
+db 'Double Big Endian',0
+ByteSize:
+dd 08
+UsesFloat:
+dd 01
+PreferedAlignment:
+dd 04
+TEMPVAL:
+dq 00
+
+ConvertRoutine:
+[32-bit]
+push ebp
+mov ebp,esp
+//[ebp+8]=input
+//example:
+mov eax,[ebp+8] //place the address that contains the bytes into eax
+mov eax,[eax]
+bswap eax
+mov [TEMPVAL+4],eax
+
+mov eax,[ebp+8] //place the address that contains the bytes into eax
+mov eax,[eax+4]
+bswap eax
+mov [TEMPVAL],eax
+
+finit
+fld qword ptr [TEMPVAL]
+fstp dword ptr [TEMPVAL]
+mov eax,[TEMPVAL]
+
+pop ebp
+ret 4
+[/32-bit]
+
+[64-bit]
+//rcx=address of input
+mov rcx,[rcx] //rcx now contains the bytes 'input' pointed to
+bswap rcx
+mov [TEMPVAL],rcx
+
+finit
+fld qword ptr [TEMPVAL]
+fstp dword ptr [TEMPVAL]
+mov eax,[TEMPVAL]
+
+ret
+[/64-bit]
+
+ConvertBackRoutine:
+[32-bit]
+push ebp
+mov ebp,esp
+//[ebp+8]=input
+//[ebp+c]=address of output
+//example:
+push eax
+push ebx
+mov ebx,[ebp+c] //load the address into ebx
+
+finit
+fld dword ptr [ebp+8]
+fstp qword ptr [TEMPVAL]
+
+mov eax,[TEMPVAL+4]
+bswap eax
+mov [ebx],eax //write the value into the address
+
+mov eax,[TEMPVAL]
+bswap eax
+mov [ebx+4],eax //write the value into the address
+
+pop ebx
+pop eax
+
+pop ebp
+ret 8
+[/32-bit]
+
+[64-bit]
+//ecx=input
+//rdx=address of output
+mov [TEMPVAL],ecx
+
+finit
+fld dword ptr [TEMPVAL]
+fstp qword ptr [TEMPVAL]
+
+mov rax,[TEMPVAL]
+bswap rax
+
+mov [rdx],rax //place the integer the 8 bytes pointed to by rdx
+ret
+[/64-bit]
+]])
+</LuaScript>
+</CheatTable>
