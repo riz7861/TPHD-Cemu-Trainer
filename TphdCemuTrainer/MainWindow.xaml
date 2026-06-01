@@ -9,31 +9,76 @@
         MinHeight="680"
         Width="1120"
         MinWidth="980"
-        Background="#F0F0F0"
+        Background="{DynamicResource AppBackgroundBrush}"
         FontFamily="Segoe UI">
     <Window.Resources>
+        <SolidColorBrush x:Key="AppBackgroundBrush" Color="#F0F0F0" />
+        <SolidColorBrush x:Key="PanelBackgroundBrush" Color="#FAFAFA" />
+        <SolidColorBrush x:Key="ControlBackgroundBrush" Color="#FFFFFF" />
+        <SolidColorBrush x:Key="ReadOnlyBackgroundBrush" Color="#F7F7F7" />
+        <SolidColorBrush x:Key="TextBrush" Color="#111111" />
+        <SolidColorBrush x:Key="SecondaryTextBrush" Color="#555555" />
+        <SolidColorBrush x:Key="BorderBrush" Color="#B8B8B8" />
+        <SolidColorBrush x:Key="WarningBackgroundBrush" Color="#FFF8E6" />
+        <SolidColorBrush x:Key="WarningBorderBrush" Color="#D9A23A" />
+        <SolidColorBrush x:Key="WarningTextBrush" Color="#6F4700" />
+        <SolidColorBrush x:Key="ChangedRowBackgroundBrush" Color="#FFF3C4" />
+        <SolidColorBrush x:Key="StrongCandidateBackgroundBrush" Color="#DFF4E7" />
+        <SolidColorBrush x:Key="ChangedBitBackgroundBrush" Color="#FFC64D" />
+        <SolidColorBrush x:Key="StatusNeutralBrush" Color="#808080" />
+
+        <Style TargetType="TextBlock">
+            <Setter Property="Foreground" Value="{DynamicResource TextBrush}" />
+        </Style>
+        <Style TargetType="CheckBox">
+            <Setter Property="Foreground" Value="{DynamicResource TextBrush}" />
+        </Style>
         <Style TargetType="Button">
             <Setter Property="MinHeight" Value="26" />
             <Setter Property="Padding" Value="10,3" />
             <Setter Property="Margin" Value="3,0" />
+            <Setter Property="Background" Value="{DynamicResource ControlBackgroundBrush}" />
+            <Setter Property="Foreground" Value="{DynamicResource TextBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}" />
         </Style>
         <Style TargetType="TextBox">
             <Setter Property="MinHeight" Value="25" />
             <Setter Property="Padding" Value="5,2" />
             <Setter Property="VerticalContentAlignment" Value="Center" />
+            <Setter Property="Background" Value="{DynamicResource ControlBackgroundBrush}" />
+            <Setter Property="Foreground" Value="{DynamicResource TextBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}" />
         </Style>
         <Style TargetType="ComboBox">
             <Setter Property="MinHeight" Value="25" />
             <Setter Property="MinWidth" Value="98" />
             <Setter Property="Margin" Value="0" />
             <Setter Property="VerticalContentAlignment" Value="Center" />
+            <Setter Property="Background" Value="{DynamicResource ControlBackgroundBrush}" />
+            <Setter Property="Foreground" Value="{DynamicResource TextBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}" />
         </Style>
         <Style TargetType="GroupBox">
             <Setter Property="Margin" Value="7" />
             <Setter Property="Padding" Value="9" />
+            <Setter Property="Foreground" Value="{DynamicResource TextBrush}" />
+        </Style>
+        <Style TargetType="TabControl">
+            <Setter Property="Background" Value="{DynamicResource AppBackgroundBrush}" />
+            <Setter Property="Foreground" Value="{DynamicResource TextBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}" />
         </Style>
         <Style TargetType="TabItem">
             <Setter Property="Padding" Value="12,5" />
+            <Setter Property="Background" Value="{DynamicResource PanelBackgroundBrush}" />
+            <Setter Property="Foreground" Value="{DynamicResource TextBrush}" />
+        </Style>
+        <Style TargetType="DataGrid">
+            <Setter Property="Background" Value="{DynamicResource PanelBackgroundBrush}" />
+            <Setter Property="Foreground" Value="{DynamicResource TextBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}" />
+            <Setter Property="RowBackground" Value="{DynamicResource PanelBackgroundBrush}" />
+            <Setter Property="AlternatingRowBackground" Value="{DynamicResource ReadOnlyBackgroundBrush}" />
         </Style>
 
         <DataTemplate x:Key="EditableValueTemplate">
@@ -53,7 +98,7 @@
                 <TextBox Grid.Column="1"
                          Text="{Binding CurrentValue, Mode=OneWay}"
                          IsReadOnly="True"
-                         Background="#F7F7F7" />
+                         Background="{DynamicResource ReadOnlyBackgroundBrush}" />
                 <TextBox Grid.Column="2"
                          Text="{Binding TargetValue, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                          Margin="6,0,0,0" />
@@ -91,7 +136,7 @@
                 <TextBox Grid.Column="1"
                          Text="{Binding CurrentValue, Mode=OneWay}"
                          IsReadOnly="True"
-                         Background="#F7F7F7" />
+                         Background="{DynamicResource ReadOnlyBackgroundBrush}" />
                 <TextBox Grid.Column="2"
                          Text="{Binding TargetValue, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                          Margin="6,0,0,0" />
@@ -105,7 +150,7 @@
                         Click="MaxPoeSouls_Click" />
                 <TextBlock Grid.Column="5"
                            Text="0-60"
-                           Foreground="#555"
+                           Foreground="{DynamicResource SecondaryTextBrush}"
                            VerticalAlignment="Center"
                            Margin="8,0,0,0" />
             </Grid>
@@ -126,7 +171,7 @@
                 <TextBox Grid.Column="2"
                          Text="{Binding CurrentValue, Mode=OneWay}"
                          IsReadOnly="True"
-                         Background="#F7F7F7" />
+                         Background="{DynamicResource ReadOnlyBackgroundBrush}" />
             </Grid>
         </DataTemplate>
 
@@ -149,7 +194,7 @@
                 <TextBlock Grid.Column="2"
                            VerticalAlignment="Center"
                            Margin="8,0,0,0"
-                           Foreground="#555">
+                           Foreground="{DynamicResource SecondaryTextBrush}">
                     <Run Text="Stored:" />
                     <Run Text="{Binding CurrentStoredValue, Mode=OneWay}" />
                 </TextBlock>
@@ -167,11 +212,11 @@
             <TextBlock Text="{Binding Name}"
                        ToolTip="{Binding Notes}"
                        Margin="0,3"
-                       Foreground="#555" />
+                       Foreground="{DynamicResource SecondaryTextBrush}" />
         </DataTemplate>
 
         <DataTemplate x:Key="InventoryOwnershipItemTemplate">
-            <Border BorderBrush="#D8D8D8"
+            <Border BorderBrush="{DynamicResource BorderBrush}"
                     BorderThickness="0,0,0,1"
                     Padding="0,5"
                     ToolTip="{Binding Notes}">
@@ -208,12 +253,12 @@
                                VerticalAlignment="Center" />
                     <TextBlock Grid.Column="5"
                                Text="{Binding FlagLocation}"
-                               Foreground="#7A4A00"
+                               Foreground="{DynamicResource WarningTextBrush}"
                                VerticalAlignment="Center"
                                Margin="6,0" />
                     <TextBlock Grid.Column="6"
                                Text="{Binding EditStatus}"
-                               Foreground="#555"
+                               Foreground="{DynamicResource SecondaryTextBrush}"
                                VerticalAlignment="Center"
                                Margin="6,0" />
                     <TextBlock Grid.Column="7"
@@ -226,7 +271,7 @@
         </DataTemplate>
 
         <DataTemplate x:Key="InventorySlotReadOnlyTemplate">
-            <Border BorderBrush="#D8D8D8"
+            <Border BorderBrush="{DynamicResource BorderBrush}"
                     BorderThickness="0,0,0,1"
                     Padding="0,4"
                     ToolTip="{Binding Notes}">
@@ -255,7 +300,7 @@
                                VerticalAlignment="Center" />
                     <TextBlock Grid.Column="4"
                                Text="{Binding ManagementStatus}"
-                               Foreground="#7A4A00"
+                               Foreground="{DynamicResource WarningTextBrush}"
                                TextTrimming="CharacterEllipsis"
                                VerticalAlignment="Center"
                                Margin="6,0" />
@@ -269,7 +314,7 @@
         </DataTemplate>
 
         <DataTemplate x:Key="InventorySlotTemplate">
-            <Border BorderBrush="#D8D8D8"
+            <Border BorderBrush="{DynamicResource BorderBrush}"
                     BorderThickness="0,0,0,1"
                     Padding="0,4">
                 <Grid>
@@ -299,7 +344,7 @@
                                VerticalAlignment="Center" />
                     <TextBlock Grid.Column="4"
                                Text="{Binding ManagementStatus}"
-                               Foreground="#7A4A00"
+                               Foreground="{DynamicResource WarningTextBrush}"
                                VerticalAlignment="Center"
                                Margin="6,0" />
                     <ComboBox Grid.Column="5"
@@ -321,8 +366,65 @@
             </Border>
         </DataTemplate>
 
+        <DataTemplate x:Key="InventoryRemovalItemTemplate">
+            <Border BorderBrush="{DynamicResource BorderBrush}"
+                    BorderThickness="0,0,0,1"
+                    Padding="0,4">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" MinWidth="160" />
+                        <ColumnDefinition Width="60" />
+                        <ColumnDefinition Width="74" />
+                        <ColumnDefinition Width="100" />
+                        <ColumnDefinition Width="118" />
+                        <ColumnDefinition Width="118" />
+                        <ColumnDefinition Width="*" MinWidth="150" />
+                        <ColumnDefinition Width="74" />
+                        <ColumnDefinition Width="74" />
+                    </Grid.ColumnDefinitions>
+
+                    <TextBlock Text="{Binding CurrentItemName}"
+                               TextTrimming="CharacterEllipsis"
+                               VerticalAlignment="Center" />
+                    <TextBlock Grid.Column="1"
+                               Text="{Binding SlotNumber}"
+                               VerticalAlignment="Center" />
+                    <TextBlock Grid.Column="2"
+                               Text="{Binding Offset}"
+                               FontFamily="Consolas"
+                               VerticalAlignment="Center" />
+                    <TextBlock Grid.Column="3"
+                               Text="{Binding CurrentRawValue}"
+                               FontFamily="Consolas"
+                               VerticalAlignment="Center" />
+                    <TextBlock Grid.Column="4"
+                               Text="{Binding PreviousRawValue}"
+                               FontFamily="Consolas"
+                               VerticalAlignment="Center" />
+                    <TextBlock Grid.Column="5"
+                               Text="{Binding PreviousItemName}"
+                               TextTrimming="CharacterEllipsis"
+                               VerticalAlignment="Center" />
+                    <TextBlock Grid.Column="6"
+                               Text="{Binding Status}"
+                               TextTrimming="CharacterEllipsis"
+                               VerticalAlignment="Center" />
+                    <Button Grid.Column="7"
+                            Content="Remove"
+                            IsEnabled="{Binding CanRemove}"
+                            Tag="{Binding}"
+                            Click="RemoveInventoryVisibleItem_Click" />
+                    <Button Grid.Column="8"
+                            Content="Restore"
+                            IsEnabled="{Binding CanRestore}"
+                            Tag="{Binding}"
+                            Click="RestoreInventoryVisibleItem_Click" />
+                </Grid>
+            </Border>
+        </DataTemplate>
+
         <DataTemplate x:Key="EquipmentSlotTemplate">
-            <Border BorderBrush="#D8D8D8"
+            <Border BorderBrush="{DynamicResource BorderBrush}"
                     BorderThickness="0,0,0,1"
                     Padding="0,5"
                     ToolTip="{Binding Source}">
@@ -352,7 +454,7 @@
         </DataTemplate>
 
         <DataTemplate x:Key="EquipmentFlagTemplate">
-            <Border BorderBrush="#D8D8D8"
+            <Border BorderBrush="{DynamicResource BorderBrush}"
                     BorderThickness="0,0,0,1"
                     Padding="0,5"
                     ToolTip="{Binding Source}">
@@ -392,7 +494,7 @@
         </DataTemplate>
 
         <DataTemplate x:Key="ResearchRangeRowTemplate">
-            <Border BorderBrush="#D8D8D8"
+            <Border BorderBrush="{DynamicResource BorderBrush}"
                     BorderThickness="0,0,0,1"
                     Padding="0,4">
                 <Border.Style>
@@ -400,7 +502,7 @@
                         <Setter Property="Background" Value="Transparent" />
                         <Style.Triggers>
                             <DataTrigger Binding="{Binding IsChanged}" Value="True">
-                                <Setter Property="Background" Value="#FFF3C4" />
+                                <Setter Property="Background" Value="{DynamicResource ChangedRowBackgroundBrush}" />
                             </DataTrigger>
                         </Style.Triggers>
                     </Style>
@@ -443,7 +545,7 @@
         </DataTemplate>
 
         <DataTemplate x:Key="ResearchSnapshotTemplate">
-            <Border BorderBrush="#D8D8D8"
+            <Border BorderBrush="{DynamicResource BorderBrush}"
                     BorderThickness="0,0,0,1"
                     Padding="0,5">
                 <Grid>
@@ -473,7 +575,7 @@
         </DataTemplate>
 
         <DataTemplate x:Key="ResearchSnapshotCompareRowTemplate">
-            <Border BorderBrush="#D8D8D8"
+            <Border BorderBrush="{DynamicResource BorderBrush}"
                     BorderThickness="0,0,0,1"
                     Padding="0,4">
                 <Border.Style>
@@ -481,7 +583,7 @@
                         <Setter Property="Background" Value="Transparent" />
                         <Style.Triggers>
                             <DataTrigger Binding="{Binding IsChanged}" Value="True">
-                                <Setter Property="Background" Value="#FFF3C4" />
+                                <Setter Property="Background" Value="{DynamicResource ChangedRowBackgroundBrush}" />
                             </DataTrigger>
                         </Style.Triggers>
                     </Style>
@@ -507,8 +609,29 @@
             </Border>
         </DataTemplate>
 
+        <DataTemplate x:Key="OwnershipDiscoveryBitTemplate">
+            <Border Width="14"
+                    Margin="0,0,1,0"
+                    Padding="1,0">
+                <Border.Style>
+                    <Style TargetType="Border">
+                        <Setter Property="Background" Value="Transparent" />
+                        <Style.Triggers>
+                            <DataTrigger Binding="{Binding IsChanged}" Value="True">
+                                <Setter Property="Background" Value="{DynamicResource ChangedBitBackgroundBrush}" />
+                            </DataTrigger>
+                        </Style.Triggers>
+                    </Style>
+                </Border.Style>
+                <TextBlock Text="{Binding Value}"
+                           ToolTip="{Binding ToolTip}"
+                           TextAlignment="Center"
+                           FontFamily="Consolas" />
+            </Border>
+        </DataTemplate>
+
         <DataTemplate x:Key="OwnershipDiscoveryRowTemplate">
-            <Border BorderBrush="#D8D8D8"
+            <Border BorderBrush="{DynamicResource BorderBrush}"
                     BorderThickness="0,0,0,1"
                     Padding="0,4">
                 <Border.Style>
@@ -516,10 +639,10 @@
                         <Setter Property="Background" Value="Transparent" />
                         <Style.Triggers>
                             <DataTrigger Binding="{Binding IsChanged}" Value="True">
-                                <Setter Property="Background" Value="#FFF3C4" />
+                                <Setter Property="Background" Value="{DynamicResource ChangedRowBackgroundBrush}" />
                             </DataTrigger>
                             <DataTrigger Binding="{Binding IsStrongCandidate}" Value="True">
-                                <Setter Property="Background" Value="#DFF4E7" />
+                                <Setter Property="Background" Value="{DynamicResource StrongCandidateBackgroundBrush}" />
                             </DataTrigger>
                         </Style.Triggers>
                     </Style>
@@ -530,15 +653,62 @@
                         <ColumnDefinition Width="92" />
                         <ColumnDefinition Width="92" />
                         <ColumnDefinition Width="70" />
+                        <ColumnDefinition Width="118" />
+                        <ColumnDefinition Width="118" />
+                        <ColumnDefinition Width="112" />
+                        <ColumnDefinition Width="64" />
                         <ColumnDefinition Width="52" />
                         <ColumnDefinition Width="*" MinWidth="260" />
                     </Grid.ColumnDefinitions>
                     <TextBlock Text="{Binding Offset}" FontFamily="Consolas" VerticalAlignment="Center" />
                     <TextBlock Grid.Column="1" Text="{Binding BeforeByte}" FontFamily="Consolas" VerticalAlignment="Center" />
                     <TextBlock Grid.Column="2" Text="{Binding AfterByte}" FontFamily="Consolas" VerticalAlignment="Center" />
-                    <TextBlock Grid.Column="3" Text="{Binding IsChanged}" FontWeight="SemiBold" VerticalAlignment="Center" />
-                    <TextBlock Grid.Column="4" Text="{Binding Score}" FontWeight="SemiBold" VerticalAlignment="Center" />
-                    <TextBlock Grid.Column="5" Text="{Binding PotentialMeaning}" TextTrimming="CharacterEllipsis" VerticalAlignment="Center" />
+                    <TextBlock Grid.Column="3" Text="{Binding ByteChanged}" FontWeight="SemiBold" VerticalAlignment="Center" />
+                    <ItemsControl Grid.Column="4"
+                                  ItemsSource="{Binding BeforeBitCells}"
+                                  ItemTemplate="{StaticResource OwnershipDiscoveryBitTemplate}"
+                                  VerticalAlignment="Center">
+                        <ItemsControl.ItemsPanel>
+                            <ItemsPanelTemplate>
+                                <StackPanel Orientation="Horizontal" />
+                            </ItemsPanelTemplate>
+                        </ItemsControl.ItemsPanel>
+                    </ItemsControl>
+                    <ItemsControl Grid.Column="5"
+                                  ItemsSource="{Binding AfterBitCells}"
+                                  ItemTemplate="{StaticResource OwnershipDiscoveryBitTemplate}"
+                                  VerticalAlignment="Center">
+                        <ItemsControl.ItemsPanel>
+                            <ItemsPanelTemplate>
+                                <StackPanel Orientation="Horizontal" />
+                            </ItemsPanelTemplate>
+                        </ItemsControl.ItemsPanel>
+                    </ItemsControl>
+                    <TextBlock Grid.Column="6" Text="{Binding ChangedBits}" FontFamily="Consolas" VerticalAlignment="Center" />
+                    <TextBlock Grid.Column="7" Text="{Binding ChangedBitCount}" FontFamily="Consolas" VerticalAlignment="Center" />
+                    <TextBlock Grid.Column="8" Text="{Binding Score}" FontWeight="SemiBold" VerticalAlignment="Center" />
+                    <TextBlock Grid.Column="9" Text="{Binding PotentialMeaning}" TextTrimming="CharacterEllipsis" VerticalAlignment="Center" />
+                </Grid>
+            </Border>
+        </DataTemplate>
+
+        <DataTemplate x:Key="OwnershipCorrelationRowTemplate">
+            <Border BorderBrush="{DynamicResource BorderBrush}"
+                    BorderThickness="0,0,0,1"
+                    Padding="0,4">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="74" />
+                        <ColumnDefinition Width="96" />
+                        <ColumnDefinition Width="*" MinWidth="240" />
+                        <ColumnDefinition Width="*" MinWidth="240" />
+                        <ColumnDefinition Width="*" MinWidth="320" />
+                    </Grid.ColumnDefinitions>
+                    <TextBlock Text="{Binding Offset}" FontFamily="Consolas" VerticalAlignment="Center" />
+                    <TextBlock Grid.Column="1" Text="{Binding ChangedCount}" FontWeight="SemiBold" VerticalAlignment="Center" />
+                    <TextBlock Grid.Column="2" Text="{Binding AssociatedItemGains}" TextTrimming="CharacterEllipsis" VerticalAlignment="Center" />
+                    <TextBlock Grid.Column="3" Text="{Binding BitChanges}" TextTrimming="CharacterEllipsis" FontFamily="Consolas" VerticalAlignment="Center" />
+                    <TextBlock Grid.Column="4" Text="{Binding Reports}" TextTrimming="CharacterEllipsis" VerticalAlignment="Center" />
                 </Grid>
             </Border>
         </DataTemplate>
@@ -551,9 +721,9 @@
         </Grid.RowDefinitions>
 
         <Border Grid.Row="0"
-                BorderBrush="#B8B8B8"
+                BorderBrush="{DynamicResource BorderBrush}"
                 BorderThickness="1"
-                Background="#FAFAFA"
+                Background="{DynamicResource PanelBackgroundBrush}"
                 Padding="9"
                 Margin="0,0,0,8">
             <Grid>
@@ -580,7 +750,7 @@
                         <Ellipse x:Name="StatusDot"
                                  Width="10"
                                  Height="10"
-                                 Fill="#808080"
+                                 Fill="{DynamicResource StatusNeutralBrush}"
                                  Margin="0,0,8,0" />
                         <TextBlock x:Name="StatusText"
                                    Text="Not attached"
@@ -588,22 +758,22 @@
                                    VerticalAlignment="Center" />
                     </StackPanel>
                     <StackPanel Orientation="Horizontal" Margin="18,4,0,0">
-                        <TextBlock Text="Player Data:" Foreground="#555" Margin="0,0,4,0" />
+                        <TextBlock Text="Player Data:" Foreground="{DynamicResource SecondaryTextBrush}" Margin="0,0,4,0" />
                         <TextBlock x:Name="PlayerDataStateText"
                                    Text="Not Ready"
                                    FontWeight="SemiBold"
                                    Margin="0,0,14,0" />
-                        <TextBlock Text="Inventory:" Foreground="#555" Margin="0,0,4,0" />
+                        <TextBlock Text="Inventory:" Foreground="{DynamicResource SecondaryTextBrush}" Margin="0,0,4,0" />
                         <TextBlock x:Name="InventoryStateText"
                                    Text="-"
                                    FontWeight="SemiBold"
                                    Margin="0,0,14,0" />
-                        <TextBlock Text="Equipment:" Foreground="#555" Margin="0,0,4,0" />
+                        <TextBlock Text="Equipment:" Foreground="{DynamicResource SecondaryTextBrush}" Margin="0,0,4,0" />
                         <TextBlock x:Name="EquipmentStateText"
                                    Text="-"
                                    FontWeight="SemiBold"
                                    Margin="0,0,14,0" />
-                        <TextBlock Text="Ownership Edits:" Foreground="#555" Margin="0,0,4,0" />
+                        <TextBlock Text="Ownership Edits:" Foreground="{DynamicResource SecondaryTextBrush}" Margin="0,0,4,0" />
                         <TextBlock x:Name="OwnershipEditsStateText"
                                    Text="Unknown"
                                    FontWeight="SemiBold" />
@@ -613,6 +783,10 @@
                 <StackPanel Grid.Column="2"
                             Orientation="Horizontal"
                             VerticalAlignment="Center">
+                    <CheckBox Content="Dark Mode"
+                              IsChecked="{Binding IsDarkMode, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                              VerticalAlignment="Center"
+                              Margin="0,0,16,0" />
                     <TextBlock Text="PID:" Margin="0,0,4,0" />
                     <TextBlock x:Name="PidText"
                                Text="-"
@@ -629,7 +803,7 @@
 
         <TabControl Grid.Row="1"
                     x:Name="TrainerTabs"
-                    Background="#F0F0F0">
+                    Background="{DynamicResource AppBackgroundBrush}">
             <TabItem Header="General">
                 <ScrollViewer VerticalScrollBarVisibility="Auto">
                     <UniformGrid Columns="2" Margin="6">
@@ -649,7 +823,7 @@
                                              x:Name="HeartContainersText"
                                              Text="Not read"
                                              IsReadOnly="True"
-                                             Background="#F7F7F7" />
+                                             Background="{DynamicResource ReadOnlyBackgroundBrush}" />
                                 </Grid>
                                 <Grid Margin="0,4">
                                     <Grid.ColumnDefinitions>
@@ -661,7 +835,7 @@
                                              x:Name="TotalHeartPiecesText"
                                              Text="Not mapped in CT"
                                              IsReadOnly="True"
-                                             Background="#F7F7F7" />
+                                             Background="{DynamicResource ReadOnlyBackgroundBrush}" />
                                 </Grid>
                                 <ContentControl Content="{Binding LanternOil}"
                                                 ContentTemplate="{StaticResource EditableValueTemplate}" />
@@ -691,7 +865,7 @@
                                              x:Name="GoldenBugsCountText"
                                              Text="Not read"
                                              IsReadOnly="True"
-                                             Background="#F7F7F7" />
+                                             Background="{DynamicResource ReadOnlyBackgroundBrush}" />
                                 </Grid>
                                 <Grid Margin="0,4">
                                     <Grid.ColumnDefinitions>
@@ -702,14 +876,14 @@
                                     <TextBox Grid.Column="1"
                                              Text="{Binding ElementName=TotalHeartPiecesText, Path=Text, Mode=OneWay}"
                                              IsReadOnly="True"
-                                             Background="#F7F7F7" />
+                                             Background="{DynamicResource ReadOnlyBackgroundBrush}" />
                                 </Grid>
                             </StackPanel>
                         </GroupBox>
 
                         <GroupBox Header="Notes">
                             <TextBlock TextWrapping="Wrap"
-                                       Foreground="#555"
+                                       Foreground="{DynamicResource SecondaryTextBrush}"
                                        Text="Capacity-limited edits are clamped to the selected capacity before writing. If player data is not found, load into gameplay and rescan." />
                         </GroupBox>
                     </UniformGrid>
@@ -722,54 +896,54 @@
                         <GroupBox Header="Owned / Unlocked Inventory Items">
                             <StackPanel>
                                 <TextBlock TextWrapping="Wrap"
-                                           Foreground="#7A4A00"
+                                           Foreground="{DynamicResource WarningTextBrush}"
                                            Margin="0,0,0,8"
                                            Text="Inventory ownership/progression flags have not been mapped yet. Known items are detected from visible inventory data and remain read-only until real flags are identified." />
 
-                                <Border BorderBrush="#D9A23A"
+                                <Border BorderBrush="{DynamicResource WarningBorderBrush}"
                                         BorderThickness="1"
-                                        Background="#FFF8E6"
+                                        Background="{DynamicResource WarningBackgroundBrush}"
                                         Padding="8"
                                         Margin="0,0,0,8">
                                     <TextBlock TextWrapping="Wrap"
-                                               Foreground="#6F4700"
+                                               Foreground="{DynamicResource WarningTextBrush}"
                                                FontWeight="SemiBold"
                                                Text="Detected from visible inventory. Ownership/progression flag not mapped yet. Raw inventory slots are game-managed and may revert. The trainer will not fake ownership by writing raw inventory slots." />
                                 </Border>
 
-                                <Border BorderBrush="#D9A23A"
+                                <Border BorderBrush="{DynamicResource WarningBorderBrush}"
                                         BorderThickness="1"
-                                        Background="#FFF8E6"
+                                        Background="{DynamicResource WarningBackgroundBrush}"
                                         Padding="8"
                                         Margin="0,0,0,8">
                                     <TextBlock TextWrapping="Wrap"
-                                               Foreground="#6F4700"
+                                               Foreground="{DynamicResource WarningTextBrush}"
                                                FontWeight="SemiBold"
                                                Text="Inventory ownership changes may not appear if the in-game inventory menu is already open. Close and reopen the inventory menu after applying changes." />
                                 </Border>
 
                                 <Border x:Name="InventoryOwnershipAcceptanceWarningText"
                                         Visibility="Collapsed"
-                                        BorderBrush="#D9A23A"
+                                        BorderBrush="{DynamicResource WarningBorderBrush}"
                                         BorderThickness="1"
-                                        Background="#FFF8E6"
+                                        Background="{DynamicResource WarningBackgroundBrush}"
                                         Padding="8"
                                         Margin="0,0,0,8">
                                     <TextBlock TextWrapping="Wrap"
-                                               Foreground="#6F4700"
+                                               Foreground="{DynamicResource WarningTextBrush}"
                                                FontWeight="SemiBold"
                                                Text="This save appears to be before TPHD begins honoring ownership edits. Progress past the Ordon Village intro arc and rescan." />
                                 </Border>
 
                                 <Border x:Name="InventoryInitializationWarningText"
                                         Visibility="Collapsed"
-                                        BorderBrush="#D9A23A"
+                                        BorderBrush="{DynamicResource WarningBorderBrush}"
                                         BorderThickness="1"
-                                        Background="#FFF8E6"
+                                        Background="{DynamicResource WarningBackgroundBrush}"
                                         Padding="8"
                                         Margin="0,0,0,8">
                                     <TextBlock TextWrapping="Wrap"
-                                               Foreground="#6F4700"
+                                               Foreground="{DynamicResource WarningTextBrush}"
                                                FontWeight="SemiBold"
                                                Text="Inventory has not been initialized by the game yet.&#x0a;&#x0a;You appear to be at a very early point in the story.&#x0a;&#x0a;Progress until Link obtains a real inventory item (Fishing Rod, Slingshot, Lantern, etc.) then click Attach / Rescan." />
                                 </Border>
@@ -784,7 +958,7 @@
                                     <TextBlock Text="Visible inventory slots are game-managed and read-only."
                                                VerticalAlignment="Center"
                                                Margin="12,0,0,0"
-                                               Foreground="#555" />
+                                               Foreground="{DynamicResource SecondaryTextBrush}" />
                                 </StackPanel>
 
                                 <WrapPanel Margin="0,0,0,8">
@@ -829,7 +1003,7 @@
                         <GroupBox Header="Current Inventory Slots (Read Only)">
                             <StackPanel>
                                 <TextBlock TextWrapping="Wrap"
-                                           Foreground="#555"
+                                           Foreground="{DynamicResource SecondaryTextBrush}"
                                            Margin="0,0,0,8"
                                            Text="These 24 bytes are CT-derived visible inventory fields from _playerbase+0x258 through _playerbase+0x26F. They are shown for detection and research; normal inventory editing does not write them." />
 
@@ -855,22 +1029,68 @@
                             </StackPanel>
                         </GroupBox>
 
-                        <Expander Header="Advanced / Raw Inventory Writes (Unsafe)" IsExpanded="False">
-                            <GroupBox Header="Unsafe Raw Inventory Writes">
+                        <Expander Header="Advanced / Inventory Removal Testing (Unsafe)" IsExpanded="False">
+                            <GroupBox Header="Inventory Removal Tester">
                                 <StackPanel>
-                                    <Border BorderBrush="#D9A23A"
+                                    <Border BorderBrush="{DynamicResource WarningBorderBrush}"
                                             BorderThickness="1"
-                                            Background="#FFF8E6"
+                                            Background="{DynamicResource WarningBackgroundBrush}"
                                             Padding="8"
                                             Margin="0,0,0,8">
                                         <TextBlock TextWrapping="Wrap"
-                                                   Foreground="#6F4700"
+                                                   Foreground="{DynamicResource WarningTextBrush}"
+                                                   FontWeight="SemiBold"
+                                                   Text="Inventory removal writes directly to visible game-managed slots. TPHD may revert them or the save may behave unexpectedly. Use only on copied saves or save states." />
+                                    </Border>
+
+                                    <TextBlock TextWrapping="Wrap"
+                                               Foreground="{DynamicResource SecondaryTextBrush}"
+                                               Margin="0,0,0,8"
+                                               Text="This research tool only writes 0xFF / Nothing to detected visible slots, then can restore the previous captured byte. It does not add items and does not write ownership/progression flags." />
+
+                                    <Grid Margin="0,0,0,4">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*" MinWidth="160" />
+                                            <ColumnDefinition Width="60" />
+                                            <ColumnDefinition Width="74" />
+                                            <ColumnDefinition Width="100" />
+                                            <ColumnDefinition Width="118" />
+                                            <ColumnDefinition Width="118" />
+                                            <ColumnDefinition Width="*" MinWidth="150" />
+                                            <ColumnDefinition Width="74" />
+                                            <ColumnDefinition Width="74" />
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock Text="Item" FontWeight="SemiBold" />
+                                        <TextBlock Grid.Column="1" Text="Slot" FontWeight="SemiBold" />
+                                        <TextBlock Grid.Column="2" Text="Offset" FontWeight="SemiBold" />
+                                        <TextBlock Grid.Column="3" Text="Current raw" FontWeight="SemiBold" />
+                                        <TextBlock Grid.Column="4" Text="Previous raw" FontWeight="SemiBold" />
+                                        <TextBlock Grid.Column="5" Text="Previous item" FontWeight="SemiBold" />
+                                        <TextBlock Grid.Column="6" Text="Status" FontWeight="SemiBold" />
+                                    </Grid>
+
+                                    <ItemsControl ItemsSource="{Binding InventoryRemovalItems}"
+                                                  ItemTemplate="{StaticResource InventoryRemovalItemTemplate}" />
+                                </StackPanel>
+                            </GroupBox>
+                        </Expander>
+
+                        <Expander Header="Advanced / Raw Inventory Writes (Unsafe)" IsExpanded="False">
+                            <GroupBox Header="Unsafe Raw Inventory Writes">
+                                <StackPanel>
+                                    <Border BorderBrush="{DynamicResource WarningBorderBrush}"
+                                            BorderThickness="1"
+                                            Background="{DynamicResource WarningBackgroundBrush}"
+                                            Padding="8"
+                                            Margin="0,0,0,8">
+                                        <TextBlock TextWrapping="Wrap"
+                                                   Foreground="{DynamicResource WarningTextBrush}"
                                                    FontWeight="SemiBold"
                                                    Text="Raw inventory writes are experimental. TPHD may immediately revert invalid writes. Use only for research on copied saves." />
                                     </Border>
 
                                     <TextBlock TextWrapping="Wrap"
-                                               Foreground="#7A4A00"
+                                               Foreground="{DynamicResource WarningTextBrush}"
                                                Margin="0,0,0,8"
                                                Text="This section exposes all CT item IDs for diagnostics. Raw inventory slots are game-managed and may revert; the game likely rebuilds them from ownership/progression flags elsewhere." />
 
@@ -925,43 +1145,43 @@
                         <GroupBox Header="Equipment Editor">
                             <StackPanel>
                                 <TextBlock TextWrapping="Wrap"
-                                           Foreground="#7A4A00"
+                                           Foreground="{DynamicResource WarningTextBrush}"
                                            Margin="0,0,0,8"
                                            Text="Ownership flags are the authoritative equipment data. Grant ownership here, then equip owned items through the in-game equipment screen." />
 
-                                <Border BorderBrush="#D9A23A"
+                                <Border BorderBrush="{DynamicResource WarningBorderBrush}"
                                         BorderThickness="1"
-                                        Background="#FFF8E6"
+                                        Background="{DynamicResource WarningBackgroundBrush}"
                                         Padding="8"
                                         Margin="0,0,0,8">
                                     <TextBlock TextWrapping="Wrap"
-                                               Foreground="#6F4700"
+                                               Foreground="{DynamicResource WarningTextBrush}"
                                                FontWeight="SemiBold"
                                                Text="Changes may not appear immediately if the equipment screen is currently open. Close the in-game equipment menu and reopen it to refresh the displayed equipment." />
                                 </Border>
 
                                 <Border x:Name="EquipmentOwnershipAcceptanceWarningText"
                                         Visibility="Collapsed"
-                                        BorderBrush="#D9A23A"
+                                        BorderBrush="{DynamicResource WarningBorderBrush}"
                                         BorderThickness="1"
-                                        Background="#FFF8E6"
+                                        Background="{DynamicResource WarningBackgroundBrush}"
                                         Padding="8"
                                         Margin="0,0,0,8">
                                     <TextBlock TextWrapping="Wrap"
-                                               Foreground="#6F4700"
+                                               Foreground="{DynamicResource WarningTextBrush}"
                                                FontWeight="SemiBold"
                                                Text="This save appears to be before TPHD begins honoring ownership edits. Progress past the Ordon Village intro arc and rescan." />
                                 </Border>
 
                                 <Border x:Name="EquipmentInitializationWarningText"
                                         Visibility="Collapsed"
-                                        BorderBrush="#D9A23A"
+                                        BorderBrush="{DynamicResource WarningBorderBrush}"
                                         BorderThickness="1"
-                                        Background="#FFF8E6"
+                                        Background="{DynamicResource WarningBackgroundBrush}"
                                         Padding="8"
                                         Margin="0,0,0,8">
                                     <TextBlock TextWrapping="Wrap"
-                                               Foreground="#6F4700"
+                                               Foreground="{DynamicResource WarningTextBrush}"
                                                FontWeight="SemiBold"
                                                Text="Equipment has not been initialized by the game yet.&#x0a;&#x0a;Progress until Link obtains equipment, then click Attach / Rescan." />
                                 </Border>
@@ -981,7 +1201,7 @@
                                     <TextBlock Text="Equipment should be equipped through the in-game menu after ownership is granted."
                                                VerticalAlignment="Center"
                                                Margin="12,0,0,0"
-                                               Foreground="#555" />
+                                               Foreground="{DynamicResource SecondaryTextBrush}" />
                                 </StackPanel>
 
                                 <WrapPanel Margin="0,0,0,8">
@@ -1002,7 +1222,7 @@
                         <GroupBox Header="Owned Equipment">
                             <StackPanel>
                                 <TextBlock TextWrapping="Wrap"
-                                           Foreground="#555"
+                                           Foreground="{DynamicResource SecondaryTextBrush}"
                                            Margin="0,0,0,8"
                                            Text="Checkboxes edit desired ownership. Detected ownership is read from memory and dirty rows are preserved across background refresh until Apply Ownership Changes is clicked." />
                                 <UniformGrid Columns="3">
@@ -1025,7 +1245,7 @@
                         <GroupBox Header="Current Equipment (Read Only)">
                             <StackPanel>
                                 <TextBlock TextWrapping="Wrap"
-                                           Foreground="#555"
+                                           Foreground="{DynamicResource SecondaryTextBrush}"
                                            Margin="0,0,0,8"
                                            Text="Current equipment values are game-managed and are shown for diagnostics only." />
                                 <Grid Margin="0,0,0,4">
@@ -1115,7 +1335,7 @@
                         <GroupBox Header="Poe Souls">
                             <StackPanel>
                                 <TextBlock TextWrapping="Wrap"
-                                           Foreground="#555"
+                                           Foreground="{DynamicResource SecondaryTextBrush}"
                                            Margin="0,0,0,8"
                                            Text="CT-backed editable byte at _playerbase+0x2C8. Values are clamped to 0-60 and verified after writing." />
                                 <ContentControl Content="{Binding PoeSouls}"
@@ -1126,7 +1346,7 @@
                             <StackPanel>
                                 <TextBlock Text="Research Only - Not editable yet"
                                            FontWeight="SemiBold"
-                                           Foreground="#7A4A00"
+                                           Foreground="{DynamicResource WarningTextBrush}"
                                            Margin="0,0,0,8" />
                                 <ContentControl Content="{Binding GoldenBugsFlags}"
                                                 ContentTemplate="{StaticResource ReadOnlyRawValueTemplate}" />
@@ -1139,10 +1359,10 @@
                                     <TextBox Grid.Column="1"
                                              Text="{Binding ElementName=GoldenBugsCountText, Path=Text, Mode=OneWay}"
                                              IsReadOnly="True"
-                                             Background="#F7F7F7" />
+                                             Background="{DynamicResource ReadOnlyBackgroundBrush}" />
                                 </Grid>
                                 <TextBlock TextWrapping="Wrap"
-                                           Foreground="#555"
+                                           Foreground="{DynamicResource SecondaryTextBrush}"
                                            Text="Golden Bugs are shown as a CT-derived raw bitfield and detected count only. Editing is reserved until individual bug bits are mapped and verified." />
                             </StackPanel>
                         </GroupBox>
@@ -1157,7 +1377,7 @@
                                     <TextBox Grid.Column="1"
                                              Text="{Binding CurrentHealth.CurrentValue, Mode=OneWay}"
                                              IsReadOnly="True"
-                                             Background="#F7F7F7" />
+                                             Background="{DynamicResource ReadOnlyBackgroundBrush}" />
                                 </Grid>
                                 <Grid Margin="0,4">
                                     <Grid.ColumnDefinitions>
@@ -1168,7 +1388,7 @@
                                     <TextBox Grid.Column="1"
                                              Text="{Binding MaximumHealth.CurrentValue, Mode=OneWay}"
                                              IsReadOnly="True"
-                                             Background="#F7F7F7" />
+                                             Background="{DynamicResource ReadOnlyBackgroundBrush}" />
                                 </Grid>
                                 <Grid Margin="0,4">
                                     <Grid.ColumnDefinitions>
@@ -1180,7 +1400,7 @@
                                              x:Name="CollectiblesHeartContainersText"
                                              Text="Not read"
                                              IsReadOnly="True"
-                                             Background="#F7F7F7" />
+                                             Background="{DynamicResource ReadOnlyBackgroundBrush}" />
                                 </Grid>
                                 <Grid Margin="0,4">
                                     <Grid.ColumnDefinitions>
@@ -1191,10 +1411,10 @@
                                     <TextBox Grid.Column="1"
                                              Text="{Binding ElementName=TotalHeartPiecesText, Path=Text, Mode=OneWay}"
                                              IsReadOnly="True"
-                                             Background="#F7F7F7" />
+                                             Background="{DynamicResource ReadOnlyBackgroundBrush}" />
                                 </Grid>
                                 <TextBlock TextWrapping="Wrap"
-                                           Foreground="#555"
+                                           Foreground="{DynamicResource SecondaryTextBrush}"
                                            Text="Health editing remains in General. This section only summarizes CT-backed health values for collectible research." />
                             </StackPanel>
                         </GroupBox>
@@ -1211,7 +1431,7 @@
                         </GroupBox>
                         <GroupBox Header="Warning">
                             <TextBlock TextWrapping="Wrap"
-                                       Foreground="#555"
+                                       Foreground="{DynamicResource SecondaryTextBrush}"
                                        Text="Story flags can affect progression and event state. This area is intentionally reserved until flag behavior is verified." />
                         </GroupBox>
                     </UniformGrid>
@@ -1236,7 +1456,7 @@
                         </GroupBox>
                         <GroupBox Header="Progression Notes">
                             <TextBlock TextWrapping="Wrap"
-                                       Foreground="#555"
+                                       Foreground="{DynamicResource SecondaryTextBrush}"
                                        Text="Quest item editing will be added after item state, event flags, and save compatibility are mapped." />
                         </GroupBox>
                     </UniformGrid>
@@ -1252,21 +1472,21 @@
                                          Text="-"
                                          IsReadOnly="True"
                                          FontFamily="Consolas"
-                                         Background="#F7F7F7" />
+                                         Background="{DynamicResource ReadOnlyBackgroundBrush}" />
                                 <TextBlock Text="AOB pattern"
                                            Margin="0,10,0,2" />
                                 <TextBox x:Name="AobPatternText"
                                          IsReadOnly="True"
                                          FontFamily="Consolas"
                                          TextWrapping="Wrap"
-                                         Background="#F7F7F7" />
+                                         Background="{DynamicResource ReadOnlyBackgroundBrush}" />
                             </StackPanel>
                         </GroupBox>
 
                         <GroupBox Header="AOB Scan Diagnostics">
                             <StackPanel>
                                 <TextBlock Text="Also written to logs/scan.log after Attach / Rescan"
-                                           Foreground="#555"
+                                           Foreground="{DynamicResource SecondaryTextBrush}"
                                            Margin="0,0,0,6" />
                                 <TextBox x:Name="ScanDiagnosticsText"
                                          Text="No scan has run yet."
@@ -1275,14 +1495,14 @@
                                          AcceptsReturn="True"
                                          MinHeight="150"
                                          FontFamily="Consolas"
-                                         Background="#F7F7F7" />
+                                         Background="{DynamicResource ReadOnlyBackgroundBrush}" />
                             </StackPanel>
                         </GroupBox>
 
                         <GroupBox Header="Progression Diagnostics">
                             <StackPanel>
                                 <TextBlock Text="Also written to logs/progression.log after Attach / Rescan"
-                                           Foreground="#555"
+                                           Foreground="{DynamicResource SecondaryTextBrush}"
                                            Margin="0,0,0,6" />
                                 <Grid>
                                     <Grid.ColumnDefinitions>
@@ -1309,7 +1529,7 @@
                                              Text="-"
                                              IsReadOnly="True"
                                              FontFamily="Consolas"
-                                             Background="#F7F7F7"
+                                             Background="{DynamicResource ReadOnlyBackgroundBrush}"
                                              Margin="0,0,0,5" />
 
                                     <TextBlock Grid.Row="1" Text="Player Data" VerticalAlignment="Center" Margin="0,0,8,5" />
@@ -1318,7 +1538,7 @@
                                              x:Name="ProgressionPlayerDataText"
                                              Text="-"
                                              IsReadOnly="True"
-                                             Background="#F7F7F7"
+                                             Background="{DynamicResource ReadOnlyBackgroundBrush}"
                                              Margin="0,0,0,5" />
 
                                     <TextBlock Grid.Row="2" Text="Memory Initialized" VerticalAlignment="Center" Margin="0,0,8,5" />
@@ -1327,7 +1547,7 @@
                                              x:Name="ProgressionMemoryInitializedText"
                                              Text="-"
                                              IsReadOnly="True"
-                                             Background="#F7F7F7"
+                                             Background="{DynamicResource ReadOnlyBackgroundBrush}"
                                              Margin="0,0,0,5" />
 
                                     <TextBlock Grid.Row="3" Text="Ownership Edits Accepted" VerticalAlignment="Center" Margin="0,0,8,5" />
@@ -1336,7 +1556,7 @@
                                              x:Name="ProgressionOwnershipAcceptanceText"
                                              Text="Unknown"
                                              IsReadOnly="True"
-                                             Background="#F7F7F7"
+                                             Background="{DynamicResource ReadOnlyBackgroundBrush}"
                                              Margin="0,0,0,5" />
 
                                     <TextBlock Grid.Row="4" Text="Detection Reason" VerticalAlignment="Center" Margin="0,0,8,5" />
@@ -1346,7 +1566,7 @@
                                              Text="Player data is not available."
                                              IsReadOnly="True"
                                              TextWrapping="Wrap"
-                                             Background="#F7F7F7"
+                                             Background="{DynamicResource ReadOnlyBackgroundBrush}"
                                              Margin="0,0,0,5" />
 
                                     <TextBlock Grid.Row="5" Text="Inventory" VerticalAlignment="Center" Margin="0,0,8,5" />
@@ -1355,7 +1575,7 @@
                                              x:Name="ProgressionInventoryInitializedText"
                                              Text="-"
                                              IsReadOnly="True"
-                                             Background="#F7F7F7"
+                                             Background="{DynamicResource ReadOnlyBackgroundBrush}"
                                              Margin="0,0,0,5" />
 
                                     <TextBlock Grid.Row="6" Text="Equipment" VerticalAlignment="Center" Margin="0,0,8,5" />
@@ -1364,7 +1584,7 @@
                                              x:Name="ProgressionEquipmentInitializedText"
                                              Text="-"
                                              IsReadOnly="True"
-                                             Background="#F7F7F7"
+                                             Background="{DynamicResource ReadOnlyBackgroundBrush}"
                                              Margin="0,0,0,5" />
 
                                     <TextBlock Grid.Row="7" Text="Inventory raw bytes" VerticalAlignment="Center" Margin="0,0,8,5" />
@@ -1375,7 +1595,7 @@
                                              IsReadOnly="True"
                                              FontFamily="Consolas"
                                              TextWrapping="Wrap"
-                                             Background="#F7F7F7"
+                                             Background="{DynamicResource ReadOnlyBackgroundBrush}"
                                              Margin="0,0,0,5" />
 
                                     <TextBlock Grid.Row="8" Text="Ownership bytes" VerticalAlignment="Center" Margin="0,0,8,5" />
@@ -1385,7 +1605,7 @@
                                              Text="Not read"
                                              IsReadOnly="True"
                                              FontFamily="Consolas"
-                                             Background="#F7F7F7"
+                                             Background="{DynamicResource ReadOnlyBackgroundBrush}"
                                              Margin="0,0,0,5" />
 
                                     <TextBlock Grid.Row="9" Text="Equipped bytes" VerticalAlignment="Center" Margin="0,0,8,5" />
@@ -1395,7 +1615,7 @@
                                              Text="Not read"
                                              IsReadOnly="True"
                                              FontFamily="Consolas"
-                                             Background="#F7F7F7"
+                                             Background="{DynamicResource ReadOnlyBackgroundBrush}"
                                              Margin="0,0,0,5" />
 
                                     <TextBlock Grid.Row="10" Text="Current status" VerticalAlignment="Center" Margin="0,0,8,0" />
@@ -1405,7 +1625,7 @@
                                              Text="Not attached"
                                              IsReadOnly="True"
                                              TextWrapping="Wrap"
-                                             Background="#F7F7F7" />
+                                             Background="{DynamicResource ReadOnlyBackgroundBrush}" />
                                 </Grid>
                             </StackPanel>
                         </GroupBox>
@@ -1413,7 +1633,7 @@
                         <GroupBox Header="Research">
                             <StackPanel>
                                 <TextBlock TextWrapping="Wrap"
-                                           Foreground="#555"
+                                           Foreground="{DynamicResource SecondaryTextBrush}"
                                            Margin="0,0,0,8"
                                            Text="Watch one playerbase-relative byte while playing to help identify real ownership or progression flags." />
                                 <Grid>
@@ -1455,7 +1675,7 @@
                                              Text="-"
                                              IsReadOnly="True"
                                              FontFamily="Consolas"
-                                             Background="#F7F7F7"
+                                             Background="{DynamicResource ReadOnlyBackgroundBrush}"
                                              Margin="0,0,0,5" />
 
                                     <TextBlock Grid.Row="2"
@@ -1469,7 +1689,7 @@
                                              Text="Not read"
                                              IsReadOnly="True"
                                              FontFamily="Consolas"
-                                             Background="#F7F7F7"
+                                             Background="{DynamicResource ReadOnlyBackgroundBrush}"
                                              Margin="0,0,0,5" />
 
                                     <CheckBox Grid.Row="3"
@@ -1492,7 +1712,7 @@
                                                  Text="Not captured"
                                                  IsReadOnly="True"
                                                  FontFamily="Consolas"
-                                                 Background="#F7F7F7"
+                                                 Background="{DynamicResource ReadOnlyBackgroundBrush}"
                                                  Width="150" />
                                         <Button Content="Capture"
                                                 Click="ResearchCaptureSnapshot_Click" />
@@ -1511,15 +1731,144 @@
                                              Text="No snapshot"
                                              IsReadOnly="True"
                                              TextWrapping="Wrap"
-                                             Background="#F7F7F7" />
+                                             Background="{DynamicResource ReadOnlyBackgroundBrush}" />
                                 </Grid>
+                            </StackPanel>
+                        </GroupBox>
+
+                        <GroupBox Header="Candidate Flag Tester (Advanced / Research)">
+                            <StackPanel>
+                                <Border BorderBrush="{DynamicResource WarningBorderBrush}"
+                                        BorderThickness="1"
+                                        Background="{DynamicResource WarningBackgroundBrush}"
+                                        Padding="8"
+                                        Margin="0,0,0,8">
+                                    <TextBlock TextWrapping="Wrap"
+                                               Foreground="{DynamicResource WarningTextBrush}"
+                                               FontWeight="SemiBold"
+                                               Text="Copied-save warning: this tool writes one raw byte to a candidate offset only when you click Write Value. Use on copied saves or save states, then Restore Previous before continuing normal play." />
+                                </Border>
+
+                                <TextBlock TextWrapping="Wrap"
+                                           Foreground="{DynamicResource SecondaryTextBrush}"
+                                           Margin="0,0,0,8"
+                                           Text="Enter a _playerbase-relative offset and byte value to test suspected ownership/progression flags without hardcoding them into Inventory." />
+
+                                <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
+                                    <Button Content="0x288"
+                                            Tag="0x288"
+                                            Click="CandidatePreset_Click" />
+                                    <Button Content="0x293"
+                                            Tag="0x293"
+                                            Click="CandidatePreset_Click" />
+                                    <Button Content="0x29A"
+                                            Tag="0x29A"
+                                            Click="CandidatePreset_Click" />
+                                    <Button Content="0x253"
+                                            Tag="0x253"
+                                            Click="CandidatePreset_Click" />
+                                </StackPanel>
+
+                                <Grid Margin="0,0,0,8">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="126" />
+                                        <ColumnDefinition Width="130" />
+                                        <ColumnDefinition Width="104" />
+                                        <ColumnDefinition Width="130" />
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+
+                                    <TextBlock Text="Candidate Offset"
+                                               VerticalAlignment="Center"
+                                               Margin="0,0,6,0" />
+                                    <TextBox Grid.Column="1"
+                                             x:Name="CandidateOffsetText"
+                                             Text="0x288"
+                                             FontFamily="Consolas"
+                                             Margin="0,0,8,0" />
+                                    <TextBlock Grid.Column="2"
+                                               Text="Candidate Value"
+                                               VerticalAlignment="Center"
+                                               Margin="0,0,6,0" />
+                                    <TextBox Grid.Column="3"
+                                             x:Name="CandidateValueText"
+                                             Text="0x01"
+                                             FontFamily="Consolas"
+                                             Margin="0,0,8,0" />
+                                    <Button Grid.Column="4"
+                                            Content="Read Current"
+                                            Click="CandidateReadCurrent_Click" />
+                                    <Button Grid.Column="5"
+                                            Content="Write Value"
+                                            Click="CandidateWriteValue_Click" />
+                                    <Button Grid.Column="6"
+                                            Content="Restore Previous"
+                                            Click="CandidateRestorePrevious_Click" />
+                                </Grid>
+
+                                <Grid Margin="0,0,0,8">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="126" />
+                                        <ColumnDefinition Width="*" />
+                                    </Grid.ColumnDefinitions>
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="Auto" />
+                                        <RowDefinition Height="Auto" />
+                                        <RowDefinition Height="Auto" />
+                                        <RowDefinition Height="Auto" />
+                                    </Grid.RowDefinitions>
+
+                                    <TextBlock Text="Absolute address" VerticalAlignment="Center" Margin="0,0,8,5" />
+                                    <TextBox Grid.Column="1"
+                                             x:Name="CandidateAbsoluteAddressText"
+                                             Text="-"
+                                             IsReadOnly="True"
+                                             FontFamily="Consolas"
+                                             Background="{DynamicResource ReadOnlyBackgroundBrush}"
+                                             Margin="0,0,0,5" />
+
+                                    <TextBlock Grid.Row="1" Text="Current byte" VerticalAlignment="Center" Margin="0,0,8,5" />
+                                    <TextBox Grid.Row="1"
+                                             Grid.Column="1"
+                                             x:Name="CandidateCurrentByteText"
+                                             Text="Not read"
+                                             IsReadOnly="True"
+                                             FontFamily="Consolas"
+                                             Background="{DynamicResource ReadOnlyBackgroundBrush}"
+                                             Margin="0,0,0,5" />
+
+                                    <TextBlock Grid.Row="2" Text="Previous byte" VerticalAlignment="Center" Margin="0,0,8,5" />
+                                    <TextBox Grid.Row="2"
+                                             Grid.Column="1"
+                                             x:Name="CandidatePreviousByteText"
+                                             Text="Not captured"
+                                             IsReadOnly="True"
+                                             FontFamily="Consolas"
+                                             Background="{DynamicResource ReadOnlyBackgroundBrush}"
+                                             Margin="0,0,0,5" />
+
+                                    <TextBlock Grid.Row="3" Text="Status" VerticalAlignment="Center" Margin="0,0,8,0" />
+                                    <TextBox Grid.Row="3"
+                                             Grid.Column="1"
+                                             x:Name="CandidateStatusText"
+                                             Text="Ready. No automatic writes."
+                                             IsReadOnly="True"
+                                             TextWrapping="Wrap"
+                                             Background="{DynamicResource ReadOnlyBackgroundBrush}" />
+                                </Grid>
+
+                                <TextBlock Text="Reads/writes/restores are logged to logs/candidate-testing.log."
+                                           Foreground="{DynamicResource SecondaryTextBrush}"
+                                           TextWrapping="Wrap" />
                             </StackPanel>
                         </GroupBox>
 
                         <GroupBox Header="Research Range Snapshot">
                             <StackPanel>
                                 <TextBlock TextWrapping="Wrap"
-                                           Foreground="#555"
+                                           Foreground="{DynamicResource SecondaryTextBrush}"
                                            Margin="0,0,0,8"
                                            Text="Capture a byte range before an in-game pickup, then compare after the pickup to identify changed inventory, equipment, or progression bytes. This tool only reads memory." />
 
@@ -1584,7 +1933,7 @@
                                          Text="No range snapshot captured"
                                          IsReadOnly="True"
                                          TextWrapping="Wrap"
-                                         Background="#F7F7F7"
+                                         Background="{DynamicResource ReadOnlyBackgroundBrush}"
                                          Margin="0,0,0,8" />
 
                                 <Grid Margin="0,0,0,4">
@@ -1607,7 +1956,7 @@
                                 <ScrollViewer Height="230"
                                               VerticalScrollBarVisibility="Auto"
                                               HorizontalScrollBarVisibility="Auto"
-                                              Background="#F7F7F7">
+                                              Background="{DynamicResource ReadOnlyBackgroundBrush}">
                                     <ItemsControl ItemsSource="{Binding ResearchRangeRows}"
                                                   ItemTemplate="{StaticResource ResearchRangeRowTemplate}" />
                                 </ScrollViewer>
@@ -1617,12 +1966,12 @@
                         <GroupBox Header="Ownership Discovery Mode">
                             <StackPanel>
                                 <TextBlock TextWrapping="Wrap"
-                                           Foreground="#555"
+                                           Foreground="{DynamicResource SecondaryTextBrush}"
                                            Margin="0,0,0,8"
                                            Text="Read-only workflow for comparing temple/progression saves. Capture Save A before an item, capture Save B after obtaining or reloading it, then compare candidate ownership bytes without manually searching offsets." />
 
                                 <TextBlock TextWrapping="Wrap"
-                                           Foreground="#7A4A00"
+                                           Foreground="{DynamicResource WarningTextBrush}"
                                            Margin="0,0,0,8"
                                            Text="Captured ranges: Inventory Slots 0x258/0x18, Equipment Ownership 0x28D/0x08, Candidate Ownership Region 0x240/0xA0, Collectibles 0x2A1/0x30." />
 
@@ -1673,7 +2022,7 @@
                                              x:Name="OwnershipDiscoverySnapshotAText"
                                              Text="-"
                                              IsReadOnly="True"
-                                             Background="#F7F7F7"
+                                             Background="{DynamicResource ReadOnlyBackgroundBrush}"
                                              Margin="0,0,0,5" />
                                     <TextBlock Grid.Row="1" Text="Snapshot B" VerticalAlignment="Center" Margin="0,0,6,0" />
                                     <TextBox Grid.Row="1"
@@ -1681,7 +2030,7 @@
                                              x:Name="OwnershipDiscoverySnapshotBText"
                                              Text="-"
                                              IsReadOnly="True"
-                                             Background="#F7F7F7" />
+                                             Background="{DynamicResource ReadOnlyBackgroundBrush}" />
                                 </Grid>
 
                                 <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
@@ -1701,8 +2050,16 @@
                                          Text="Capture Save A and Save B"
                                          IsReadOnly="True"
                                          TextWrapping="Wrap"
-                                         Background="#F7F7F7"
+                                         Background="{DynamicResource ReadOnlyBackgroundBrush}"
                                          Margin="0,0,0,8" />
+
+                                <TextBlock Text="Bitfield Analysis Mode"
+                                           FontWeight="SemiBold"
+                                           Margin="0,0,0,4" />
+                                <TextBlock TextWrapping="Wrap"
+                                           Foreground="{DynamicResource SecondaryTextBrush}"
+                                           Margin="0,0,0,6"
+                                           Text="Changed bytes show binary before/after values. Highlighted bit cells are the bits that changed; bit numbers use bit 0 as the least-significant bit." />
 
                                 <Grid Margin="0,0,0,4">
                                     <Grid.ColumnDefinitions>
@@ -1710,21 +2067,29 @@
                                         <ColumnDefinition Width="92" />
                                         <ColumnDefinition Width="92" />
                                         <ColumnDefinition Width="70" />
+                                        <ColumnDefinition Width="118" />
+                                        <ColumnDefinition Width="118" />
+                                        <ColumnDefinition Width="112" />
+                                        <ColumnDefinition Width="64" />
                                         <ColumnDefinition Width="52" />
                                         <ColumnDefinition Width="*" MinWidth="260" />
                                     </Grid.ColumnDefinitions>
                                     <TextBlock Text="Offset" FontWeight="SemiBold" />
                                     <TextBlock Grid.Column="1" Text="Before" FontWeight="SemiBold" />
                                     <TextBlock Grid.Column="2" Text="After" FontWeight="SemiBold" />
-                                    <TextBlock Grid.Column="3" Text="Changed" FontWeight="SemiBold" />
-                                    <TextBlock Grid.Column="4" Text="Score" FontWeight="SemiBold" />
-                                    <TextBlock Grid.Column="5" Text="Potential Meaning" FontWeight="SemiBold" />
+                                    <TextBlock Grid.Column="3" Text="Byte" FontWeight="SemiBold" />
+                                    <TextBlock Grid.Column="4" Text="Before bits" FontWeight="SemiBold" />
+                                    <TextBlock Grid.Column="5" Text="After bits" FontWeight="SemiBold" />
+                                    <TextBlock Grid.Column="6" Text="Bits changed" FontWeight="SemiBold" />
+                                    <TextBlock Grid.Column="7" Text="Bit count" FontWeight="SemiBold" />
+                                    <TextBlock Grid.Column="8" Text="Score" FontWeight="SemiBold" />
+                                    <TextBlock Grid.Column="9" Text="Potential Meaning" FontWeight="SemiBold" />
                                 </Grid>
 
                                 <ScrollViewer Height="230"
                                               VerticalScrollBarVisibility="Auto"
                                               HorizontalScrollBarVisibility="Auto"
-                                              Background="#F7F7F7"
+                                              Background="{DynamicResource ReadOnlyBackgroundBrush}"
                                               Margin="0,0,0,8">
                                     <ItemsControl ItemsSource="{Binding OwnershipDiscoveryRows}"
                                                   ItemTemplate="{StaticResource OwnershipDiscoveryRowTemplate}" />
@@ -1735,7 +2100,8 @@
                                            Margin="0,0,0,4" />
                                 <ScrollViewer Height="110"
                                               VerticalScrollBarVisibility="Auto"
-                                              Background="#F7F7F7">
+                                              Background="{DynamicResource ReadOnlyBackgroundBrush}"
+                                              Margin="0,0,0,12">
                                     <ItemsControl ItemsSource="{Binding OwnershipDiscoveryReportLines}">
                                         <ItemsControl.ItemTemplate>
                                             <DataTemplate>
@@ -1748,13 +2114,58 @@
                                         </ItemsControl.ItemTemplate>
                                     </ItemsControl>
                                 </ScrollViewer>
+
+                                <TextBlock Text="Ownership Correlation Report"
+                                           FontWeight="SemiBold"
+                                           Margin="0,0,0,4" />
+                                <TextBlock TextWrapping="Wrap"
+                                           Foreground="{DynamicResource SecondaryTextBrush}"
+                                           Margin="0,0,0,8"
+                                           Text="Load exported ownership-discovery JSON reports to group changed offsets across item gains. This helps separate repeated candidate bitfields from item-specific display or progression noise." />
+
+                                <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
+                                    <Button Content="Load JSON Exports"
+                                            Click="OwnershipCorrelationLoadSelected_Click" />
+                                    <Button Content="Analyze logs/research"
+                                            Click="OwnershipCorrelationAnalyzeFolder_Click" />
+                                </StackPanel>
+
+                                <TextBox x:Name="OwnershipCorrelationStatusText"
+                                         Text="Load multiple ownership discovery JSON exports to build a correlation report."
+                                         IsReadOnly="True"
+                                         TextWrapping="Wrap"
+                                         Background="{DynamicResource ReadOnlyBackgroundBrush}"
+                                         Margin="0,0,0,8" />
+
+                                <Grid Margin="0,0,0,4">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="74" />
+                                        <ColumnDefinition Width="96" />
+                                        <ColumnDefinition Width="*" MinWidth="240" />
+                                        <ColumnDefinition Width="*" MinWidth="240" />
+                                        <ColumnDefinition Width="*" MinWidth="320" />
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Text="Offset" FontWeight="SemiBold" />
+                                    <TextBlock Grid.Column="1" Text="Changed count" FontWeight="SemiBold" />
+                                    <TextBlock Grid.Column="2" Text="Associated item gains" FontWeight="SemiBold" />
+                                    <TextBlock Grid.Column="3" Text="Bits changed" FontWeight="SemiBold" />
+                                    <TextBlock Grid.Column="4" Text="Reports" FontWeight="SemiBold" />
+                                </Grid>
+
+                                <ScrollViewer Height="190"
+                                              VerticalScrollBarVisibility="Auto"
+                                              HorizontalScrollBarVisibility="Auto"
+                                              Background="{DynamicResource ReadOnlyBackgroundBrush}">
+                                    <ItemsControl ItemsSource="{Binding OwnershipCorrelationRows}"
+                                                  ItemTemplate="{StaticResource OwnershipCorrelationRowTemplate}" />
+                                </ScrollViewer>
                             </StackPanel>
                         </GroupBox>
 
                         <GroupBox Header="Research Snapshot Library">
                             <StackPanel>
                                 <TextBlock TextWrapping="Wrap"
-                                           Foreground="#555"
+                                           Foreground="{DynamicResource SecondaryTextBrush}"
                                            Margin="0,0,0,8"
                                            Text="Save named read-only snapshots to logs/snapshots, then compare saved game states without replaying sections." />
 
@@ -1816,7 +2227,7 @@
                                          Text="Snapshot library ready"
                                          IsReadOnly="True"
                                          TextWrapping="Wrap"
-                                         Background="#F7F7F7"
+                                         Background="{DynamicResource ReadOnlyBackgroundBrush}"
                                          Margin="0,0,0,8" />
 
                                 <Grid Margin="0,0,0,4">
@@ -1836,7 +2247,7 @@
                                          ItemsSource="{Binding ResearchSnapshots}"
                                          ItemTemplate="{StaticResource ResearchSnapshotTemplate}"
                                          Height="170"
-                                         Background="#F7F7F7" />
+                                         Background="{DynamicResource ReadOnlyBackgroundBrush}" />
 
                                 <StackPanel Orientation="Horizontal" Margin="0,8,0,8">
                                     <Button Content="Load As A"
@@ -1863,7 +2274,7 @@
                                              x:Name="ResearchSnapshotAText"
                                              Text="-"
                                              IsReadOnly="True"
-                                             Background="#F7F7F7"
+                                             Background="{DynamicResource ReadOnlyBackgroundBrush}"
                                              Margin="0,0,0,5" />
                                     <TextBlock Grid.Row="1" Text="Snapshot B" VerticalAlignment="Center" Margin="0,0,6,0" />
                                     <TextBox Grid.Row="1"
@@ -1871,7 +2282,7 @@
                                              x:Name="ResearchSnapshotBText"
                                              Text="-"
                                              IsReadOnly="True"
-                                             Background="#F7F7F7" />
+                                             Background="{DynamicResource ReadOnlyBackgroundBrush}" />
                                 </Grid>
                             </StackPanel>
                         </GroupBox>
@@ -1879,7 +2290,7 @@
                         <GroupBox Header="Snapshot Compare">
                             <StackPanel>
                                 <TextBlock TextWrapping="Wrap"
-                                           Foreground="#555"
+                                           Foreground="{DynamicResource SecondaryTextBrush}"
                                            Margin="0,0,0,8"
                                            Text="Compares two saved snapshots without requiring the game to be running. Changed rows are highlighted and exports are written to logs/research as JSON and CSV." />
 
@@ -1887,7 +2298,7 @@
                                          Text="Load Snapshot A and Snapshot B"
                                          IsReadOnly="True"
                                          TextWrapping="Wrap"
-                                         Background="#F7F7F7"
+                                         Background="{DynamicResource ReadOnlyBackgroundBrush}"
                                          Margin="0,0,0,8" />
 
                                 <Grid Margin="0,0,0,4">
@@ -1912,7 +2323,7 @@
                                 <ScrollViewer Height="220"
                                               VerticalScrollBarVisibility="Auto"
                                               HorizontalScrollBarVisibility="Auto"
-                                              Background="#F7F7F7"
+                                              Background="{DynamicResource ReadOnlyBackgroundBrush}"
                                               Margin="0,0,0,8">
                                     <ItemsControl ItemsSource="{Binding ResearchSnapshotCompareRows}"
                                                   ItemTemplate="{StaticResource ResearchSnapshotCompareRowTemplate}" />
@@ -1923,7 +2334,7 @@
                                            Margin="0,0,0,4" />
                                 <ScrollViewer Height="110"
                                               VerticalScrollBarVisibility="Auto"
-                                              Background="#F7F7F7">
+                                              Background="{DynamicResource ReadOnlyBackgroundBrush}">
                                     <ItemsControl ItemsSource="{Binding ResearchDiscoveryReportLines}">
                                         <ItemsControl.ItemTemplate>
                                             <DataTemplate>
@@ -1947,12 +2358,12 @@
                         <GroupBox Header="Inventory Diagnostics">
                             <StackPanel>
                                 <TextBlock Text="Also written to logs/inventory.log"
-                                           Foreground="#555"
+                                           Foreground="{DynamicResource SecondaryTextBrush}"
                                            Margin="0,0,0,6" />
                                 <ScrollViewer Height="190"
                                               VerticalScrollBarVisibility="Auto"
                                               HorizontalScrollBarVisibility="Auto"
-                                              Background="#F7F7F7">
+                                              Background="{DynamicResource ReadOnlyBackgroundBrush}">
                                     <ItemsControl ItemsSource="{Binding InventoryDiagnostics}">
                                         <ItemsControl.ItemTemplate>
                                             <DataTemplate>
@@ -1971,13 +2382,37 @@
                         <GroupBox Header="Inventory Ownership Diagnostics">
                             <StackPanel>
                                 <TextBlock Text="Also written to logs/inventory-ownership.log"
-                                           Foreground="#555"
+                                           Foreground="{DynamicResource SecondaryTextBrush}"
                                            Margin="0,0,0,6" />
                                 <ScrollViewer Height="190"
                                               VerticalScrollBarVisibility="Auto"
                                               HorizontalScrollBarVisibility="Auto"
-                                              Background="#F7F7F7">
+                                              Background="{DynamicResource ReadOnlyBackgroundBrush}">
                                     <ItemsControl ItemsSource="{Binding InventoryOwnershipDiagnostics}">
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate>
+                                                <TextBlock Text="{Binding}"
+                                                           FontFamily="Consolas"
+                                                           FontSize="11"
+                                                           TextWrapping="NoWrap"
+                                                           Margin="0,0,0,4" />
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+                                </ScrollViewer>
+                            </StackPanel>
+                        </GroupBox>
+
+                        <GroupBox Header="Inventory Removal Diagnostics">
+                            <StackPanel>
+                                <TextBlock Text="Also written to logs/inventory-removal.log"
+                                           Foreground="{DynamicResource SecondaryTextBrush}"
+                                           Margin="0,0,0,6" />
+                                <ScrollViewer Height="190"
+                                              VerticalScrollBarVisibility="Auto"
+                                              HorizontalScrollBarVisibility="Auto"
+                                              Background="{DynamicResource ReadOnlyBackgroundBrush}">
+                                    <ItemsControl ItemsSource="{Binding InventoryRemovalDiagnostics}">
                                         <ItemsControl.ItemTemplate>
                                             <DataTemplate>
                                                 <TextBlock Text="{Binding}"
@@ -1995,12 +2430,12 @@
                         <GroupBox Header="Collectibles Diagnostics">
                             <StackPanel>
                                 <TextBlock Text="Also written to logs/collectibles.log"
-                                           Foreground="#555"
+                                           Foreground="{DynamicResource SecondaryTextBrush}"
                                            Margin="0,0,0,6" />
                                 <ScrollViewer Height="190"
                                               VerticalScrollBarVisibility="Auto"
                                               HorizontalScrollBarVisibility="Auto"
-                                              Background="#F7F7F7">
+                                              Background="{DynamicResource ReadOnlyBackgroundBrush}">
                                     <ItemsControl ItemsSource="{Binding CollectiblesDiagnostics}">
                                         <ItemsControl.ItemTemplate>
                                             <DataTemplate>
@@ -2019,12 +2454,12 @@
                         <GroupBox Header="Equipment Diagnostics">
                             <StackPanel>
                                 <TextBlock Text="Also written to logs/equipment.log"
-                                           Foreground="#555"
+                                           Foreground="{DynamicResource SecondaryTextBrush}"
                                            Margin="0,0,0,6" />
                                 <ScrollViewer Height="190"
                                               VerticalScrollBarVisibility="Auto"
                                               HorizontalScrollBarVisibility="Auto"
-                                              Background="#F7F7F7">
+                                              Background="{DynamicResource ReadOnlyBackgroundBrush}">
                                     <ItemsControl ItemsSource="{Binding EquipmentDiagnostics}">
                                         <ItemsControl.ItemTemplate>
                                             <DataTemplate>
@@ -2047,7 +2482,7 @@
 
                         <GroupBox Header="Coordinate Display">
                             <TextBlock TextWrapping="Wrap"
-                                       Foreground="#555"
+                                       Foreground="{DynamicResource SecondaryTextBrush}"
                                        Text="Coordinate display and teleport tools are reserved for a future coordinate-base scan implementation." />
                         </GroupBox>
                     </UniformGrid>

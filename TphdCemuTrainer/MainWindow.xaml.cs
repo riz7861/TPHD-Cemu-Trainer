@@ -8,6 +8,7 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
 using System.Windows.Threading;
+using Microsoft.Win32;
 using TphdCemuTrainer.Cheats;
 using TphdCemuTrainer.Memory;
 using TphdCemuTrainer.Research;
@@ -36,11 +37,14 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     private bool _hasPlayerData;
     private bool _inventoryInitialized;
     private bool _equipmentInitialized;
+    private bool _isDarkMode;
     private byte? _researchSnapshotValue;
     private uint? _researchSnapshotOffset;
     private byte[]? _researchRangeSnapshotBytes;
     private uint _researchRangeSnapshotStart;
     private string _researchRangeSnapshotLabel = string.Empty;
+    private byte? _candidatePreviousValue;
+    private uint? _candidatePreviousOffset;
     private ResearchSnapshotViewModel? _snapshotA;
     private ResearchSnapshotViewModel? _snapshotB;
     private ResearchSnapshotDocument? _ownershipDiscoverySnapshotA;
@@ -79,8 +83,10 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             InventoryDefinitions.OwnershipItems.Select(item => new InventoryOwnershipItemViewModel(item)));
         FixedInventoryItems = new ObservableCollection<InventoryFixedSlotViewModel>(
             InventoryDefinitions.FixedSlots.Select(slot => new InventoryFixedSlotViewModel(slot)));
+        InventoryRemovalItems = [];
         InventoryDiagnostics = [];
         InventoryOwnershipDiagnostics = [];
+        InventoryRemovalDiagnostics = [];
         CollectiblesDiagnostics = [];
 
         EquipmentSlots = new ObservableCollection<EquipmentSlotViewModel>(
@@ -94,6 +100,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         ResearchDiscoveryReportLines = [];
         OwnershipDiscoveryRows = [];
         OwnershipDiscoveryReportLines = [];
+        OwnershipCorrelationRows = [];
 
         Weapons = CreateFutureFeatures(FutureFeatureCatalog.Weapons);
         Shields = CreateFutureFeatures(FutureFeatureCatalog.Shields);
@@ -106,6 +113,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
 
         InitializeComponent();
         DataContext = this;
+        IsDarkMode = LoadDarkModePreference();
 
         AobPatternText.Text = CheatCatalog.PlayerBaseAob;
         ApplyProgressionState(ProgressionStateService.CreateUnavailable());
@@ -127,6 +135,9 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     private static string InventoryOwnershipLogPath =>
         Path.Combine(AppContext.BaseDirectory, "logs", "inventory-ownership.log");
 
+    private static string InventoryRemovalLogPath =>
+        Path.Combine(AppContext.BaseDirectory, "logs", "inventory-removal.log");
+
     private static string EquipmentLogPath =>
         Path.Combine(AppContext.BaseDirectory, "logs", "equipment.log");
 
@@ -139,8 +150,19 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     private static string ResearchLogPath =>
         Path.Combine(AppContext.BaseDirectory, "logs", "research.log");
 
+    private static string CandidateTestingLogPath =>
+        Path.Combine(AppContext.BaseDirectory, "logs", "candidate-testing.log");
+
     private static string ScanLogPath =>
         Path.Combine(AppContext.BaseDirectory, "logs", "scan.log");
+
+    private static string UserSettingsDirectory =>
+        Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
+            "TPHD-Cemu-Trainer");
+
+    private static string ThemePreferencePath =>
+        Path.Combine(UserSettingsDirectory, "theme.txt");
 
     public TrainerValueViewModel CurrentHealth => _values[CheatId.CurrentHealth];
 
@@ -180,9 +202,13 @@ public partial class MainWindow : Window, INotifyPropertyChanged
 
     public ObservableCollection<InventoryFixedSlotViewModel> FixedInventoryItems { get; }
 
+    public ObservableCollection<InventoryRemovalItemViewModel> InventoryRemovalItems { get; }
+
     public ObservableCollection<string> InventoryDiagnostics { get; }
 
     public ObservableCollection<string> InventoryOwnershipDiagnostics { get; }
+
+    public ObservableCollection<string> InventoryRemovalDiagnostics { get; }
 
     public ObservableCollection<string> CollectiblesDiagnostics { get; }
 
@@ -212,6 +238,8 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     public ObservableCollection<OwnershipDiscoveryRowViewModel> OwnershipDiscoveryRows { get; }
 
     public ObservableCollection<string> OwnershipDiscoveryReportLines { get; }
+
+    public ObservableCollection<OwnershipCorrelationRowViewModel> OwnershipCorrelationRows { get; }
 
     public bool HoldInventoryValueAfterApply
     {
@@ -314,6 +342,21 @@ public partial class MainWindow : Window, INotifyPropertyChanged
                 UpdateProgressionStateDisplays();
                 UpdateInventoryEditGuard();
                 UpdateEquipmentEditGuard();
+            }
+        }
+    }
+
+    public bool IsDarkMode
+    {
+        get => _isDarkMode;
+        set
+        {
+            if (_isDarkMode != value)
+            {
+                _isDarkMode = value;
+                ApplyTheme(value);
+                SaveDarkModePreference(value);
+                OnPropertyChanged();
             }
         }
     }
@@ -617,6 +660,22 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         }
     }
 
+    private async void RemoveInventoryVisibleItem_Click(object sender, RoutedEventArgs e)
+    {
+        if ((sender as FrameworkElement)?.Tag is InventoryRemovalItemViewModel item)
+        {
+            await RemoveInventoryVisibleItemAsync(item);
+        }
+    }
+
+    private async void RestoreInventoryVisibleItem_Click(object sender, RoutedEventArgs e)
+    {
+        if ((sender as FrameworkElement)?.Tag is InventoryRemovalItemViewModel item)
+        {
+            await RestoreInventoryVisibleItemAsync(item);
+        }
+    }
+
     private void RefreshEquipmentButton_Click(object sender, RoutedEventArgs e)
     {
         RefreshEquipment(showStatus: true);
@@ -699,6 +758,181 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             : $"Changed at {offsetNote}: {FormatResearchByte(snapshotValue)} -> {FormatResearchByte(currentValue)}";
 
         SetStatus("Research byte compared.", StatusKind.Connected);
+    }
+
+    private void CandidatePreset_Click(object sender, RoutedEventArgs e)
+    {
+        if ((sender as FrameworkElement)?.Tag is string offset)
+        {
+            CandidateOffsetText.Text = offset;
+            CandidateStatusText.Text = $"Loaded candidate preset {offset}.";
+        }
+    }
+
+    private void CandidateReadCurrent_Click(object sender, RoutedEventArgs e)
+    {
+        if (!TryReadCandidateByte(out var offset, out var value, out var absoluteAddress))
+        {
+            return;
+        }
+
+        _candidatePreviousOffset = offset;
+        _candidatePreviousValue = value;
+        CandidatePreviousByteText.Text = FormatResearchByte(value);
+        CandidateStatusText.Text = $"Read _playerbase+0x{offset:X}: {FormatResearchByte(value)}. Restore baseline captured.";
+        SetStatus($"Read candidate byte at _playerbase+0x{offset:X}.", StatusKind.Connected);
+        AppendCandidateTestingLog(
+            "read",
+            offset,
+            absoluteAddress,
+            previousValue: null,
+            requestedValue: null,
+            readbackValue: value,
+            "read-current");
+    }
+
+    private void CandidateWriteValue_Click(object sender, RoutedEventArgs e)
+    {
+        if (!TryReadCandidateByte(out var offset, out var previousValue, out var absoluteAddress))
+        {
+            return;
+        }
+
+        if (!TryParseCandidateValue(CandidateValueText.Text, out var requestedValue, out var parseError))
+        {
+            CandidateStatusText.Text = parseError;
+            SetStatus(parseError, StatusKind.Warning);
+            return;
+        }
+
+        var memory = _memory;
+        if (memory is null)
+        {
+            CandidateStatusText.Text = "Not attached.";
+            SetStatus("Not attached. Attach to Cemu and rescan before testing candidate flags.", StatusKind.Neutral);
+            return;
+        }
+
+        _candidatePreviousOffset = offset;
+        _candidatePreviousValue = previousValue;
+        CandidatePreviousByteText.Text = FormatResearchByte(previousValue);
+
+        if (!memory.TryWriteBytes(absoluteAddress, [requestedValue], out var writeError))
+        {
+            CandidateStatusText.Text = $"Write failed: {writeError}";
+            SetStatus("Candidate test write failed.", StatusKind.Warning);
+            AppendCandidateTestingLog(
+                "write",
+                offset,
+                absoluteAddress,
+                previousValue,
+                requestedValue,
+                readbackValue: null,
+                $"write-failed: {writeError}");
+            return;
+        }
+
+        if (!TryReadCandidateByteAt(offset, absoluteAddress, out var readbackValue, out var readbackError))
+        {
+            CandidateStatusText.Text = $"Write issued, but verification failed: {readbackError}";
+            SetStatus("Candidate test verification failed.", StatusKind.Warning);
+            AppendCandidateTestingLog(
+                "write",
+                offset,
+                absoluteAddress,
+                previousValue,
+                requestedValue,
+                readbackValue: null,
+                $"verification-read-failed: {readbackError}");
+            return;
+        }
+
+        var verified = readbackValue == requestedValue;
+        CandidateCurrentByteText.Text = FormatResearchByte(readbackValue);
+        CandidateStatusText.Text = verified
+            ? $"Write verified at _playerbase+0x{offset:X}: {FormatResearchByte(readbackValue)}."
+            : $"Write failed: expected {FormatResearchByte(requestedValue)} but read {FormatResearchByte(readbackValue)}.";
+        SetStatus(
+            verified ? "Candidate test write verified." : "Candidate test write readback mismatch.",
+            verified ? StatusKind.Connected : StatusKind.Warning);
+        AppendCandidateTestingLog(
+            "write",
+            offset,
+            absoluteAddress,
+            previousValue,
+            requestedValue,
+            readbackValue,
+            verified ? "verified" : "readback-mismatch");
+    }
+
+    private void CandidateRestorePrevious_Click(object sender, RoutedEventArgs e)
+    {
+        if (!_candidatePreviousOffset.HasValue || !_candidatePreviousValue.HasValue)
+        {
+            CandidateStatusText.Text = "No previous value captured. Click Read Current or Write Value first.";
+            SetStatus("No candidate baseline captured.", StatusKind.Neutral);
+            return;
+        }
+
+        var memory = _memory;
+        if (memory is null || !_playerBaseAddress.HasValue)
+        {
+            CandidateStatusText.Text = "Not attached.";
+            SetStatus("Not attached. Attach to Cemu and rescan before restoring candidate flags.", StatusKind.Neutral);
+            return;
+        }
+
+        var offset = _candidatePreviousOffset.Value;
+        var previousValue = _candidatePreviousValue.Value;
+        var absoluteAddress = _playerBaseAddress.Value + offset;
+        CandidateOffsetText.Text = $"0x{offset:X}";
+
+        if (!memory.TryWriteBytes(absoluteAddress, [previousValue], out var writeError))
+        {
+            CandidateStatusText.Text = $"Restore failed: {writeError}";
+            SetStatus("Candidate restore failed.", StatusKind.Warning);
+            AppendCandidateTestingLog(
+                "restore",
+                offset,
+                absoluteAddress,
+                previousValue,
+                previousValue,
+                readbackValue: null,
+                $"restore-failed: {writeError}");
+            return;
+        }
+
+        if (!TryReadCandidateByteAt(offset, absoluteAddress, out var readbackValue, out var readbackError))
+        {
+            CandidateStatusText.Text = $"Restore issued, but verification failed: {readbackError}";
+            SetStatus("Candidate restore verification failed.", StatusKind.Warning);
+            AppendCandidateTestingLog(
+                "restore",
+                offset,
+                absoluteAddress,
+                previousValue,
+                previousValue,
+                readbackValue: null,
+                $"restore-verification-read-failed: {readbackError}");
+            return;
+        }
+
+        var verified = readbackValue == previousValue;
+        CandidateCurrentByteText.Text = FormatResearchByte(readbackValue);
+        CandidateStatusText.Text = verified
+            ? $"Restored _playerbase+0x{offset:X} to {FormatResearchByte(readbackValue)}."
+            : $"Restore mismatch: expected {FormatResearchByte(previousValue)} but read {FormatResearchByte(readbackValue)}.";
+        SetStatus(
+            verified ? "Candidate previous value restored." : "Candidate restore readback mismatch.",
+            verified ? StatusKind.Connected : StatusKind.Warning);
+        AppendCandidateTestingLog(
+            "restore",
+            offset,
+            absoluteAddress,
+            previousValue,
+            previousValue,
+            readbackValue,
+            verified ? "verified" : "restore-readback-mismatch");
     }
 
     private void ResearchPresetInventorySlots_Click(object sender, RoutedEventArgs e)
@@ -944,6 +1178,34 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             OwnershipDiscoveryStatusText.Text = $"Export failed: {ex.Message}";
             SetStatus("Ownership Discovery export failed.", StatusKind.Warning);
         }
+    }
+
+    private void OwnershipCorrelationLoadSelected_Click(object sender, RoutedEventArgs e)
+    {
+        var dialog = new OpenFileDialog
+        {
+            Title = "Select Ownership Discovery JSON exports",
+            Filter = "Ownership Discovery JSON (*.json)|*.json",
+            Multiselect = true,
+            InitialDirectory = Directory.Exists(ResearchSnapshotStore.ExportDirectory)
+                ? ResearchSnapshotStore.ExportDirectory
+                : AppContext.BaseDirectory
+        };
+
+        if (dialog.ShowDialog(this) != true)
+        {
+            OwnershipCorrelationStatusText.Text = "No ownership discovery exports selected.";
+            return;
+        }
+
+        var exports = ResearchSnapshotStore.LoadOwnershipDiscoveryExports(dialog.FileNames);
+        BuildOwnershipCorrelationReport(exports);
+    }
+
+    private void OwnershipCorrelationAnalyzeFolder_Click(object sender, RoutedEventArgs e)
+    {
+        var exports = ResearchSnapshotStore.LoadOwnershipDiscoveryExports();
+        BuildOwnershipCorrelationReport(exports);
     }
 
     private void RefreshTimer_Tick(object? sender, EventArgs e)
@@ -1207,6 +1469,8 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             item.SetCurrentItem(rawBytes[item.SlotIndex]);
         }
 
+        UpdateInventoryRemovalItems(rawBytes);
+
         if (!RefreshInventoryOwnership(rawBytes, preserveDirty: true))
         {
             return false;
@@ -1275,6 +1539,40 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         return true;
     }
 
+    private void UpdateInventoryRemovalItems(IReadOnlyList<byte> rawBytes)
+    {
+        var knownRowsBySlot = InventoryRemovalItems.ToDictionary(item => item.SlotIndex);
+
+        for (var slotIndex = 0; slotIndex < rawBytes.Count; slotIndex++)
+        {
+            var itemId = rawBytes[slotIndex];
+            if (!knownRowsBySlot.TryGetValue(slotIndex, out var row) &&
+                itemId == InventoryDefinitions.EmptyItemId)
+            {
+                continue;
+            }
+
+            if (row is null)
+            {
+                row = new InventoryRemovalItemViewModel(slotIndex);
+                InventoryRemovalItems.Add(row);
+                knownRowsBySlot[slotIndex] = row;
+            }
+
+            row.SetCurrentItem(itemId);
+        }
+
+        for (var index = InventoryRemovalItems.Count - 1; index >= 0; index--)
+        {
+            var row = InventoryRemovalItems[index];
+            if (row.SlotIndex >= rawBytes.Count ||
+                rawBytes[row.SlotIndex] == InventoryDefinitions.EmptyItemId && !row.CanRestore)
+            {
+                InventoryRemovalItems.RemoveAt(index);
+            }
+        }
+    }
+
     private bool CanWriteInventorySlot()
     {
         if (!InventoryInitialized && !AllowEditingUninitializedInventory)
@@ -1295,6 +1593,23 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         }
 
         return CanWriteInventorySlot();
+    }
+
+    private bool CanWriteInventoryRemoval()
+    {
+        if (_memory is null || !_playerBaseAddress.HasValue)
+        {
+            SetStatus("Not attached. Attach to Cemu and rescan before testing inventory removal.", StatusKind.Neutral);
+            return false;
+        }
+
+        if (!InventoryInitialized && !AllowEditingUninitializedInventory)
+        {
+            SetStatus("Inventory has not been initialized by the game yet. Removal testing needs a detected visible item.", StatusKind.Warning);
+            return false;
+        }
+
+        return true;
     }
 
     private bool CanWriteInventoryOwnership()
@@ -1577,6 +1892,150 @@ public partial class MainWindow : Window, INotifyPropertyChanged
                 ? Visibility.Visible
                 : Visibility.Collapsed;
         ApplyEquipmentOwnershipButton.IsEnabled = canEdit;
+    }
+
+    private async Task<bool> RemoveInventoryVisibleItemAsync(InventoryRemovalItemViewModel item)
+    {
+        if (!CanWriteInventoryRemoval())
+        {
+            return false;
+        }
+
+        if (!item.CurrentItemId.HasValue || item.CurrentItemId.Value == InventoryDefinitions.EmptyItemId)
+        {
+            SetStatus("No detected visible item is available to remove for this slot.", StatusKind.Neutral);
+            return false;
+        }
+
+        item.CapturePrevious(item.CurrentItemId.Value);
+        return await WriteInventoryRemovalSlotAsync(
+            item,
+            InventoryDefinitions.EmptyItemId,
+            "remove",
+            "Visible inventory slot removed for research.");
+    }
+
+    private async Task<bool> RestoreInventoryVisibleItemAsync(InventoryRemovalItemViewModel item)
+    {
+        if (!CanWriteInventoryRemoval())
+        {
+            return false;
+        }
+
+        if (!item.PreviousItemId.HasValue)
+        {
+            SetStatus("No previous visible inventory value is captured for this slot.", StatusKind.Neutral);
+            return false;
+        }
+
+        var restored = await WriteInventoryRemovalSlotAsync(
+            item,
+            item.PreviousItemId.Value,
+            "restore",
+            "Visible inventory slot restored for research.");
+
+        if (restored)
+        {
+            item.ClearPrevious();
+        }
+
+        return restored;
+    }
+
+    private async Task<bool> WriteInventoryRemovalSlotAsync(
+        InventoryRemovalItemViewModel item,
+        byte valueToWrite,
+        string action,
+        string successMessage)
+    {
+        var memory = _memory;
+        if (memory is null || !_playerBaseAddress.HasValue)
+        {
+            SetStatus("Not attached. Attach to Cemu and rescan before testing inventory removal.", StatusKind.Neutral);
+            return false;
+        }
+
+        byte? oldValue = null;
+        byte? immediateReadback = null;
+        var playerBaseAddress = _playerBaseAddress.Value;
+        var absoluteAddress = playerBaseAddress + item.OffsetValue;
+        var diagnosticStatus = "started";
+
+        try
+        {
+            if (!InventoryMemoryService.TryReadSlot(
+                    memory,
+                    playerBaseAddress,
+                    item.SlotIndex,
+                    out var oldItemId,
+                    out var oldReadError))
+            {
+                diagnosticStatus = $"old-read-failed: {oldReadError}";
+                item.Status = oldReadError;
+                SetStatus(oldReadError, StatusKind.Warning);
+                return false;
+            }
+
+            oldValue = oldItemId;
+
+            if (!InventoryMemoryService.TryWriteSlot(
+                    memory,
+                    playerBaseAddress,
+                    item.SlotIndex,
+                    valueToWrite,
+                    out var writeError))
+            {
+                diagnosticStatus = $"write-call-failed: {writeError}";
+                item.Status = $"Write failed: {writeError}";
+                SetStatus($"Inventory removal write failed: {writeError}", StatusKind.Warning);
+                return false;
+            }
+
+            if (!InventoryMemoryService.TryReadSlot(
+                    memory,
+                    playerBaseAddress,
+                    item.SlotIndex,
+                    out var immediateItemId,
+                    out var immediateReadError))
+            {
+                diagnosticStatus = $"immediate-read-failed: {immediateReadError}";
+                item.Status = immediateReadError;
+                SetStatus(immediateReadError, StatusKind.Warning);
+                return false;
+            }
+
+            immediateReadback = immediateItemId;
+
+            if (immediateReadback.Value != valueToWrite)
+            {
+                diagnosticStatus = "immediate-mismatch";
+                item.Status = $"Write failed: expected {valueToWrite} but read {immediateReadback.Value}.";
+                SetStatus(item.Status, StatusKind.Warning);
+                RefreshInventorySlots(showStatus: false);
+                return false;
+            }
+
+            diagnosticStatus = "immediate-verified";
+            item.Status = action == "remove"
+                ? "Removed; refresh/readback verified."
+                : "Restored; refresh/readback verified.";
+            SetStatus(successMessage, StatusKind.Connected);
+            RefreshInventorySlots(showStatus: false);
+            await Task.CompletedTask;
+            return true;
+        }
+        finally
+        {
+            AppendInventoryRemovalDiagnostic(
+                item,
+                action,
+                absoluteAddress,
+                oldValue,
+                valueToWrite,
+                immediateReadback,
+                diagnosticStatus);
+
+        }
     }
 
     private async Task<bool> WriteInventorySlotWithDiagnosticsAsync(
@@ -2038,6 +2497,49 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         AppendInventoryLogEntry(entry);
     }
 
+    private void AppendInventoryRemovalDiagnostic(
+        InventoryRemovalItemViewModel item,
+        string action,
+        ulong absoluteAddress,
+        byte? oldValue,
+        byte writtenValue,
+        byte? immediateReadback,
+        string diagnosticStatus)
+    {
+        var entry =
+            $"{DateTimeOffset.Now:O} kind=inventory-removal action={action} slot={item.SlotNumber} " +
+            $"offset={item.Offset} address=0x{absoluteAddress:X} old-item=\"{FormatInventoryItemName(oldValue)}\" " +
+            $"old={FormatEquipmentByte(oldValue)} wrote={FormatEquipmentByte(writtenValue)} " +
+            $"immediate={FormatEquipmentByte(immediateReadback)} previous={FormatEquipmentByte(item.PreviousItemId)} " +
+            $"status={diagnosticStatus}";
+
+        AppendInventoryRemovalLogEntry(entry);
+    }
+
+    private void AppendInventoryRemovalLogEntry(string entry)
+    {
+        InventoryRemovalDiagnostics.Insert(0, entry);
+        while (InventoryRemovalDiagnostics.Count > 100)
+        {
+            InventoryRemovalDiagnostics.RemoveAt(InventoryRemovalDiagnostics.Count - 1);
+        }
+
+        try
+        {
+            var logDirectory = Path.GetDirectoryName(InventoryRemovalLogPath);
+            if (!string.IsNullOrWhiteSpace(logDirectory))
+            {
+                Directory.CreateDirectory(logDirectory);
+            }
+
+            File.AppendAllText(InventoryRemovalLogPath, entry + Environment.NewLine);
+        }
+        catch (Exception ex)
+        {
+            InventoryRemovalDiagnostics.Insert(0, $"{DateTimeOffset.Now:O} inventory-removal-log-write-failed: {ex.Message}");
+        }
+    }
+
     private void AppendInventoryStateDiagnostic(string state)
     {
         var rawSlots = string.Join(
@@ -2402,6 +2904,65 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         value = bytes[0];
         ResearchCurrentByteText.Text = FormatResearchByte(value);
         ResearchAbsoluteAddressText.Text = $"0x{absoluteAddress:X}";
+        return true;
+    }
+
+    private bool TryReadCandidateByte(out uint offset, out byte value, out ulong absoluteAddress)
+    {
+        offset = 0;
+        value = 0;
+        absoluteAddress = 0;
+
+        if (_memory is null || !_playerBaseAddress.HasValue)
+        {
+            CandidateCurrentByteText.Text = "Not attached";
+            CandidateAbsoluteAddressText.Text = "-";
+            CandidateStatusText.Text = "Not attached. Attach to Cemu and rescan before testing candidate flags.";
+            SetStatus("Not attached. Attach to Cemu and rescan before testing candidate flags.", StatusKind.Neutral);
+            return false;
+        }
+
+        if (!TryParseResearchOffset(CandidateOffsetText.Text, out offset, out var parseError))
+        {
+            CandidateCurrentByteText.Text = parseError;
+            CandidateAbsoluteAddressText.Text = "-";
+            CandidateStatusText.Text = parseError;
+            return false;
+        }
+
+        absoluteAddress = _playerBaseAddress.Value + offset;
+        if (!TryReadCandidateByteAt(offset, absoluteAddress, out value, out var readError))
+        {
+            CandidateCurrentByteText.Text = "Read failed";
+            CandidateAbsoluteAddressText.Text = $"0x{absoluteAddress:X}";
+            CandidateStatusText.Text = readError;
+            SetStatus($"Could not read candidate byte at _playerbase+0x{offset:X}.", StatusKind.Warning);
+            return false;
+        }
+
+        CandidateCurrentByteText.Text = FormatResearchByte(value);
+        CandidateAbsoluteAddressText.Text = $"0x{absoluteAddress:X}";
+        return true;
+    }
+
+    private bool TryReadCandidateByteAt(uint offset, ulong absoluteAddress, out byte value, out string error)
+    {
+        value = 0;
+
+        if (_memory is null)
+        {
+            error = "Not attached.";
+            return false;
+        }
+
+        if (!_memory.TryReadBytes(absoluteAddress, 1, out var bytes, out var bytesRead) || bytesRead != 1)
+        {
+            error = $"Could not read candidate byte at _playerbase+0x{offset:X} / 0x{absoluteAddress:X}.";
+            return false;
+        }
+
+        value = bytes[0];
+        error = string.Empty;
         return true;
     }
 
@@ -2798,6 +3359,124 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             $"Summary: changed={changedRows.Count}; visible-inventory-changes={visibleChanges}; strong-candidates={strongCandidates}.");
     }
 
+    private void BuildOwnershipCorrelationReport(
+        IReadOnlyList<(string Path, OwnershipDiscoveryExport Export)> exports)
+    {
+        OwnershipCorrelationRows.Clear();
+        if (exports.Count == 0)
+        {
+            OwnershipCorrelationStatusText.Text = "No ownership discovery JSON exports found.";
+            SetStatus("No ownership discovery exports found for correlation.", StatusKind.Neutral);
+            return;
+        }
+
+        var offsets = new Dictionary<uint, OwnershipCorrelationAccumulator>();
+        foreach (var (path, export) in exports)
+        {
+            var itemGains = InferOwnershipDiscoveryItemGains(export);
+            var context = itemGains.Count == 0
+                ? $"{export.SnapshotAName} -> {export.SnapshotBName}"
+                : string.Join(" / ", itemGains);
+            var reportName = $"{Path.GetFileName(path)}: {export.SnapshotAName} -> {export.SnapshotBName}";
+            var countedOffsets = new HashSet<uint>();
+
+            foreach (var row in export.Rows.Where(row => row.Changed))
+            {
+                if (!TryParseResearchOffset(row.Offset, out var offset, out _) ||
+                    !countedOffsets.Add(offset))
+                {
+                    continue;
+                }
+
+                if (!offsets.TryGetValue(offset, out var accumulator))
+                {
+                    accumulator = new OwnershipCorrelationAccumulator(offset);
+                    offsets[offset] = accumulator;
+                }
+
+                accumulator.ChangedCount++;
+                accumulator.ReportNames.Add(reportName);
+                accumulator.AssociatedItemGains.Add(context);
+
+                var bitChange = string.IsNullOrWhiteSpace(row.ChangedBits)
+                    ? FormatChangedBits(row.BeforeValue, row.AfterValue)
+                    : row.ChangedBits;
+                if (bitChange != "-")
+                {
+                    accumulator.BitChanges.Add($"{context}: {bitChange}");
+                }
+            }
+        }
+
+        foreach (var row in offsets.Values
+                     .OrderByDescending(offset => offset.ChangedCount)
+                     .ThenBy(offset => offset.OffsetValue))
+        {
+            OwnershipCorrelationRows.Add(new OwnershipCorrelationRowViewModel(
+                row.OffsetValue,
+                row.ChangedCount,
+                row.AssociatedItemGains,
+                row.ReportNames,
+                row.BitChanges));
+        }
+
+        OwnershipCorrelationStatusText.Text =
+            $"Loaded {exports.Count} ownership discovery export(s). Correlated {OwnershipCorrelationRows.Count} changed offset(s).";
+        SetStatus("Ownership correlation report built.", StatusKind.Connected);
+    }
+
+    private static List<string> InferOwnershipDiscoveryItemGains(OwnershipDiscoveryExport export)
+    {
+        var itemGains = new List<string>();
+        foreach (var row in export.Rows.Where(row => row.Changed && row.AfterValue.HasValue))
+        {
+            var afterValue = row.AfterValue.GetValueOrDefault();
+            if (!TryParseResearchOffset(row.Offset, out var offset, out _) ||
+                offset < InventoryDefinitions.FirstSlotOffset ||
+                offset >= InventoryDefinitions.FirstSlotOffset + InventoryDefinitions.SlotCount ||
+                afterValue == InventoryDefinitions.EmptyItemId ||
+                afterValue is < byte.MinValue or > byte.MaxValue)
+            {
+                continue;
+            }
+
+            var itemName = InventoryDefinitions.GetKnownItemName((byte)afterValue);
+            if (itemName != "-" && itemName != "Nothing")
+            {
+                itemGains.Add(itemName);
+            }
+        }
+
+        return itemGains
+            .Distinct(StringComparer.Ordinal)
+            .ToList();
+    }
+
+    private static string FormatChangedBits(int? beforeValue, int? afterValue)
+    {
+        if (!beforeValue.HasValue || !afterValue.HasValue)
+        {
+            return "n/a";
+        }
+
+        var changedMask = (byte)(beforeValue.Value ^ afterValue.Value);
+        if (changedMask == 0)
+        {
+            return "-";
+        }
+
+        var bits = new List<string>();
+        for (var bitIndex = 0; bitIndex < 8; bitIndex++)
+        {
+            if ((changedMask & (1 << bitIndex)) != 0)
+            {
+                bits.Add($"bit {bitIndex}");
+            }
+        }
+
+        return string.Join(", ", bits);
+    }
+
     private static ResearchComparisonExport CreateComparisonExport(
         ResearchSnapshotViewModel snapshotA,
         ResearchSnapshotViewModel snapshotB,
@@ -2842,6 +3521,10 @@ public partial class MainWindow : Window, INotifyPropertyChanged
                 BeforeValue = row.BeforeValue,
                 AfterValue = row.AfterValue,
                 Changed = row.IsChanged,
+                BeforeBinary = row.BeforeBinary,
+                AfterBinary = row.AfterBinary,
+                ChangedBits = row.ChangedBits,
+                ChangedBitCount = row.ChangedBitCount,
                 PersistedAfterReload = row.PersistedAfterReload,
                 OutsideVisibleInventorySlots = row.IsOutsideVisibleInventorySlots,
                 Score = row.Score,
@@ -2888,6 +3571,36 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         catch (Exception ex)
         {
             ResearchRangeStatusText.Text = $"Research log write failed: {ex.Message}";
+        }
+    }
+
+    private void AppendCandidateTestingLog(
+        string action,
+        uint offset,
+        ulong absoluteAddress,
+        byte? previousValue,
+        byte? requestedValue,
+        byte? readbackValue,
+        string status)
+    {
+        var entry =
+            $"{DateTimeOffset.Now:O} action={action} offset=0x{offset:X} address=0x{absoluteAddress:X} " +
+            $"previous={FormatCandidateLogByte(previousValue)} requested={FormatCandidateLogByte(requestedValue)} " +
+            $"readback={FormatCandidateLogByte(readbackValue)} status=\"{status}\"";
+
+        try
+        {
+            var logDirectory = Path.GetDirectoryName(CandidateTestingLogPath);
+            if (!string.IsNullOrWhiteSpace(logDirectory))
+            {
+                Directory.CreateDirectory(logDirectory);
+            }
+
+            File.AppendAllText(CandidateTestingLogPath, entry + Environment.NewLine);
+        }
+        catch (Exception ex)
+        {
+            CandidateStatusText.Text = $"Candidate log write failed: {ex.Message}";
         }
     }
 
@@ -2959,9 +3672,34 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         return true;
     }
 
+    private static bool TryParseCandidateValue(string text, out byte value, out string error)
+    {
+        value = 0;
+
+        if (!TryParseResearchOffset(text, out var parsedValue, out error))
+        {
+            error = "Invalid candidate value";
+            return false;
+        }
+
+        if (parsedValue > byte.MaxValue)
+        {
+            error = "Candidate value must be between 0 and 255 / 0xFF.";
+            return false;
+        }
+
+        value = (byte)parsedValue;
+        return true;
+    }
+
     private static string FormatResearchByte(byte value)
     {
         return $"{value} / 0x{value:X2}";
+    }
+
+    private static string FormatCandidateLogByte(byte? value)
+    {
+        return value.HasValue ? $"{value.Value}(0x{value.Value:X2})" : "n/a";
     }
 
     private static string DecodeKnownResearchByte(byte value)
@@ -2982,6 +3720,11 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     private static string FormatEquipmentByte(byte? value)
     {
         return value.HasValue ? $"{value.Value} (0x{value.Value:X2})" : "n/a";
+    }
+
+    private static string FormatInventoryItemName(byte? value)
+    {
+        return value.HasValue ? InventoryDefinitions.GetItemName(value.Value) : "n/a";
     }
 
     private void ApplyLocks()
@@ -3371,6 +4114,11 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             item.MarkNotRead();
         }
 
+        foreach (var item in InventoryRemovalItems)
+        {
+            item.MarkNotRead();
+        }
+
         foreach (var slot in EquipmentSlots)
         {
             slot.MarkNotRead();
@@ -3423,6 +4171,11 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             item.MarkNotRead();
         }
 
+        foreach (var item in InventoryRemovalItems)
+        {
+            item.MarkNotRead();
+        }
+
         foreach (var slot in EquipmentSlots)
         {
             slot.MarkNotRead();
@@ -3436,6 +4189,12 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         ApplyProgressionState(ProgressionStateService.CreateUnavailable());
 
         GoldenBugsCountText.Text = "Not read";
+        _candidatePreviousOffset = null;
+        _candidatePreviousValue = null;
+        CandidateAbsoluteAddressText.Text = "-";
+        CandidateCurrentByteText.Text = "Not read";
+        CandidatePreviousByteText.Text = "Not captured";
+        CandidateStatusText.Text = "Ready. No automatic writes.";
         UpdateDerivedDisplays();
 
         if (clearStatus)
@@ -3448,6 +4207,75 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     {
         AttachButton.IsEnabled = enabled;
         TrainerTabs.IsEnabled = enabled;
+    }
+
+    private void ApplyTheme(bool darkMode)
+    {
+        if (darkMode)
+        {
+            SetBrush("AppBackgroundBrush", 0x1E, 0x1F, 0x22);
+            SetBrush("PanelBackgroundBrush", 0x27, 0x29, 0x2D);
+            SetBrush("ControlBackgroundBrush", 0x33, 0x35, 0x3A);
+            SetBrush("ReadOnlyBackgroundBrush", 0x2B, 0x2D, 0x31);
+            SetBrush("TextBrush", 0xF2, 0xF2, 0xF2);
+            SetBrush("SecondaryTextBrush", 0xC4, 0xC7, 0xCC);
+            SetBrush("BorderBrush", 0x54, 0x58, 0x60);
+            SetBrush("WarningBackgroundBrush", 0x3B, 0x31, 0x1C);
+            SetBrush("WarningBorderBrush", 0xC4, 0x8A, 0x2B);
+            SetBrush("WarningTextBrush", 0xF2, 0xD3, 0x92);
+            SetBrush("ChangedRowBackgroundBrush", 0x4B, 0x42, 0x20);
+            SetBrush("StrongCandidateBackgroundBrush", 0x1F, 0x45, 0x31);
+            SetBrush("ChangedBitBackgroundBrush", 0x8A, 0x66, 0x19);
+            SetBrush("StatusNeutralBrush", 0xA5, 0xA8, 0xAE);
+        }
+        else
+        {
+            SetBrush("AppBackgroundBrush", 0xF0, 0xF0, 0xF0);
+            SetBrush("PanelBackgroundBrush", 0xFA, 0xFA, 0xFA);
+            SetBrush("ControlBackgroundBrush", 0xFF, 0xFF, 0xFF);
+            SetBrush("ReadOnlyBackgroundBrush", 0xF7, 0xF7, 0xF7);
+            SetBrush("TextBrush", 0x11, 0x11, 0x11);
+            SetBrush("SecondaryTextBrush", 0x55, 0x55, 0x55);
+            SetBrush("BorderBrush", 0xB8, 0xB8, 0xB8);
+            SetBrush("WarningBackgroundBrush", 0xFF, 0xF8, 0xE6);
+            SetBrush("WarningBorderBrush", 0xD9, 0xA2, 0x3A);
+            SetBrush("WarningTextBrush", 0x6F, 0x47, 0x00);
+            SetBrush("ChangedRowBackgroundBrush", 0xFF, 0xF3, 0xC4);
+            SetBrush("StrongCandidateBackgroundBrush", 0xDF, 0xF4, 0xE7);
+            SetBrush("ChangedBitBackgroundBrush", 0xFF, 0xC6, 0x4D);
+            SetBrush("StatusNeutralBrush", 0x80, 0x80, 0x80);
+        }
+    }
+
+    private void SetBrush(string key, byte red, byte green, byte blue)
+    {
+        Resources[key] = new SolidColorBrush(Color.FromRgb(red, green, blue));
+    }
+
+    private static bool LoadDarkModePreference()
+    {
+        try
+        {
+            return File.Exists(ThemePreferencePath) &&
+                string.Equals(File.ReadAllText(ThemePreferencePath).Trim(), "dark", StringComparison.OrdinalIgnoreCase);
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    private static void SaveDarkModePreference(bool darkMode)
+    {
+        try
+        {
+            Directory.CreateDirectory(UserSettingsDirectory);
+            File.WriteAllText(ThemePreferencePath, darkMode ? "dark" : "light");
+        }
+        catch
+        {
+            // Theme persistence should never interfere with trainer startup or memory tools.
+        }
     }
 
     private void SetStatus(string message, StatusKind kind)
@@ -3486,6 +4314,24 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     }
 
     private readonly record struct OwnershipDiscoveryRangePreset(string Label, uint StartOffset, int Length);
+
+    private sealed class OwnershipCorrelationAccumulator
+    {
+        public OwnershipCorrelationAccumulator(uint offsetValue)
+        {
+            OffsetValue = offsetValue;
+        }
+
+        public uint OffsetValue { get; }
+
+        public int ChangedCount { get; set; }
+
+        public HashSet<string> AssociatedItemGains { get; } = new(StringComparer.Ordinal);
+
+        public HashSet<string> ReportNames { get; } = new(StringComparer.Ordinal);
+
+        public HashSet<string> BitChanges { get; } = new(StringComparer.Ordinal);
+    }
 
     private enum StatusKind
     {

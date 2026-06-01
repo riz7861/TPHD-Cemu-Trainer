@@ -16,7 +16,7 @@ This trainer is external only. It does not inject DLLs, install drivers, hook em
 The UI is organized as a tabbed trainer/save-editor hybrid so new systems can be added without crowding one large grid.
 
 - **General**: health, max health, heart container summary, lantern oil, wallet, rupees, Poe Souls, Golden Bugs count
-- **Inventory**: ownership-first item detection, read-only current slot view, and unsafe raw CT writes for research
+- **Inventory**: ownership-first item detection, read-only current slot view, unsafe removal testing, and unsafe raw CT writes for research
 - **Equipment**: ownership flag editor with read-only current equipped armor/sword/shield diagnostics
 - **Ammo & Upgrades**: wallet, quiver, bomb bag, and seed capacity-aware edits
 - **Collectibles**: verified Poe Souls editing, Golden Bugs research-only bitfield display, and health/heart summaries
@@ -24,6 +24,8 @@ The UI is organized as a tabbed trainer/save-editor hybrid so new systems can be
 - **Hidden Skills**: reserved hidden-skill tracking
 - **Quest Items**: reserved quest item/progression tracking
 - **Debug**: player base, AOB pattern, progression diagnostics, research snapshots, Ownership Discovery Mode, raw CT-backed values, and future memory tools
+
+The top bar includes a **Dark Mode** toggle. The app defaults to Light mode and stores the local preference under the user's AppData folder when possible.
 
 ## Implemented Memory Edits
 
@@ -40,6 +42,7 @@ The UI is organized as a tabbed trainer/save-editor hybrid so new systems can be
 - Bomb bag capacity
 - Golden Bugs raw CT bitfield and detected count display
 - Read-only inventory slot detection at `_playerbase+0x258` through `_playerbase+0x26F`
+- Unsafe inventory removal testing at `_playerbase+0x258` through `_playerbase+0x26F`
 - Unsafe raw inventory slot writes at `_playerbase+0x258` through `_playerbase+0x26F`
 - Read-only equipped armor at `_playerbase+0x1D1`
 - Read-only equipped sword at `_playerbase+0x1D2`
@@ -129,6 +132,10 @@ The checked CT source currently does not expose real ownership flag offsets/bits
 The **Current Inventory Slots (Read Only)** section shows all 24 CT-derived bytes: slot, offset, raw item ID, decoded item name, and notes. Slot 21 / `_playerbase+0x26C` is labeled as the Fishing Rod field with the note: **Game-managed. Direct writes revert. Real ownership/progression flag not identified yet.**
 
 The trainer should eventually grant inventory through ownership/progression flags rather than raw slot forcing. Raw slots are still useful for detection and research, especially when comparing before/after saves or snapshots.
+
+The **Advanced / Inventory Removal Testing (Unsafe)** section is research-only. It lists detected visible inventory items, captures each slot's previous byte, writes `0xFF` / `Nothing` to that visible CT slot, verifies immediate readback, refreshes inventory, and can restore the captured byte. Results are shown in Debug under **Inventory Removal Diagnostics** and written to `logs/inventory-removal.log`.
+
+Inventory removal writes directly to visible game-managed slots. TPHD may revert the value, rebuild it from authoritative state, or leave the save in an unexpected state. Use only on copied saves or save states. This tool is intended to help discover which visible values are authoritative and which are rebuilt by the game. It does not add items, does not write item IDs other than `0xFF` for removal, and does not write ownership/progression flags.
 
 The **Advanced / Raw Inventory Writes (Unsafe)** section keeps the existing raw write diagnostics behind **Enable unsafe raw inventory writes**. Raw mode exposes the broad CT dropdown, **Apply**, and **Clear** for research only. Raw inventory writes are experimental; TPHD may immediately revert invalid writes. Use only on copied saves or save states.
 
@@ -249,6 +256,8 @@ The app does not parse or execute Cheat Engine scripts at runtime. The relevant 
 - Missing player data is handled as a rescan state, not an application failure.
 - Story flags, hidden skills, and quest items are laid out for future expansion but not yet written.
 - Inventory ownership editing uses detected/desired/apply where real flags are mapped. Current listed inventory items remain read-only because their ownership flags are not identified yet.
+- Adding inventory items is not solved yet. Candidate ownership tests can persist without granting items, so normal Inventory ownership editing remains disabled.
+- Inventory removal testing is unsafe/research-only and may be reverted by game-managed visible slots.
 - Unsafe raw inventory writes may be reverted by game-managed visible slots.
 - Equipment editing grants ownership flags only. Current equipped armor, sword, and shield are game-managed and read-only in the trainer.
 - Early Ordon intro saves may accept byte writes in memory while TPHD ignores ownership edits. Progress past the intro arc and rescan, or use the manual overrides only for diagnostics on copied saves.

@@ -23,6 +23,13 @@ public sealed class OwnershipDiscoveryRowViewModel
             (PersistedAfterReload ? 1 : 0);
         IsStrongCandidate = IsChanged && IsOutsideVisibleInventorySlots && PersistedAfterReload;
         PotentialMeaning = GetPotentialMeaning(offset, beforeValue, afterValue, itemContext);
+        BeforeBinary = FormatBinary(beforeValue);
+        AfterBinary = FormatBinary(afterValue);
+        ChangedBitMask = FormatChangedBitMask(beforeValue, afterValue);
+        ChangedBits = FormatChangedBits(beforeValue, afterValue);
+        ChangedBitCount = CountChangedBits(beforeValue, afterValue);
+        BeforeBitCells = CreateBitCells(beforeValue, beforeValue, afterValue);
+        AfterBitCells = CreateBitCells(afterValue, beforeValue, afterValue);
     }
 
     public uint OffsetValue { get; }
@@ -38,6 +45,22 @@ public sealed class OwnershipDiscoveryRowViewModel
     public string AfterByte => FormatByte(AfterValue);
 
     public bool IsChanged => BeforeValue != AfterValue;
+
+    public string ByteChanged => IsChanged ? "Yes" : "No";
+
+    public string BeforeBinary { get; }
+
+    public string AfterBinary { get; }
+
+    public string ChangedBitMask { get; }
+
+    public string ChangedBits { get; }
+
+    public int ChangedBitCount { get; }
+
+    public IReadOnlyList<BitDisplayViewModel> BeforeBitCells { get; }
+
+    public IReadOnlyList<BitDisplayViewModel> AfterBitCells { get; }
 
     public bool PersistedAfterReload { get; }
 
@@ -106,5 +129,95 @@ public sealed class OwnershipDiscoveryRowViewModel
     private static string FormatByte(byte? value)
     {
         return value.HasValue ? $"{value.Value} / 0x{value.Value:X2}" : "n/a";
+    }
+
+    private static string FormatBinary(byte? value)
+    {
+        return value.HasValue
+            ? Convert.ToString(value.Value, 2).PadLeft(8, '0')
+            : "--------";
+    }
+
+    private static string FormatChangedBitMask(byte? beforeValue, byte? afterValue)
+    {
+        if (!beforeValue.HasValue || !afterValue.HasValue)
+        {
+            return "--------";
+        }
+
+        var changedMask = beforeValue.Value ^ afterValue.Value;
+        var characters = new char[8];
+        for (var displayIndex = 0; displayIndex < characters.Length; displayIndex++)
+        {
+            var bitIndex = 7 - displayIndex;
+            characters[displayIndex] = ((changedMask & (1 << bitIndex)) != 0) ? '^' : '.';
+        }
+
+        return new string(characters);
+    }
+
+    private static string FormatChangedBits(byte? beforeValue, byte? afterValue)
+    {
+        if (!beforeValue.HasValue || !afterValue.HasValue)
+        {
+            return "n/a";
+        }
+
+        var changedMask = beforeValue.Value ^ afterValue.Value;
+        if (changedMask == 0)
+        {
+            return "-";
+        }
+
+        var bits = new List<string>();
+        for (var bitIndex = 0; bitIndex < 8; bitIndex++)
+        {
+            if ((changedMask & (1 << bitIndex)) != 0)
+            {
+                bits.Add($"bit {bitIndex}");
+            }
+        }
+
+        return string.Join(", ", bits);
+    }
+
+    private static int CountChangedBits(byte? beforeValue, byte? afterValue)
+    {
+        if (!beforeValue.HasValue || !afterValue.HasValue)
+        {
+            return 0;
+        }
+
+        var changedMask = beforeValue.Value ^ afterValue.Value;
+        var count = 0;
+        for (var bitIndex = 0; bitIndex < 8; bitIndex++)
+        {
+            if ((changedMask & (1 << bitIndex)) != 0)
+            {
+                count++;
+            }
+        }
+
+        return count;
+    }
+
+    private static IReadOnlyList<BitDisplayViewModel> CreateBitCells(
+        byte? displayedValue,
+        byte? beforeValue,
+        byte? afterValue)
+    {
+        var changedMask = beforeValue.HasValue && afterValue.HasValue
+            ? beforeValue.Value ^ afterValue.Value
+            : 0;
+        var cells = new List<BitDisplayViewModel>(8);
+        for (var bitIndex = 7; bitIndex >= 0; bitIndex--)
+        {
+            var value = displayedValue.HasValue
+                ? ((displayedValue.Value & (1 << bitIndex)) != 0 ? '1' : '0')
+                : '-';
+            cells.Add(new BitDisplayViewModel(bitIndex, value, (changedMask & (1 << bitIndex)) != 0));
+        }
+
+        return cells;
     }
 }

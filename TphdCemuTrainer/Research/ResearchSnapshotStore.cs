@@ -55,6 +55,42 @@ public static class ResearchSnapshotStore
             .ToList();
     }
 
+    public static IReadOnlyList<(string Path, OwnershipDiscoveryExport Export)> LoadOwnershipDiscoveryExports(
+        IEnumerable<string>? paths = null)
+    {
+        var exportPaths = paths?.ToList();
+        if (exportPaths is null)
+        {
+            if (!Directory.Exists(ExportDirectory))
+            {
+                return [];
+            }
+
+            exportPaths = Directory.EnumerateFiles(ExportDirectory, "*ownership-discovery*.json").ToList();
+        }
+
+        var exports = new List<(string Path, OwnershipDiscoveryExport Export)>();
+        foreach (var path in exportPaths)
+        {
+            try
+            {
+                var export = JsonSerializer.Deserialize<OwnershipDiscoveryExport>(File.ReadAllText(path), JsonOptions);
+                if (export is not null && export.Rows.Count > 0)
+                {
+                    exports.Add((path, export));
+                }
+            }
+            catch
+            {
+                // Ignore malformed or unrelated JSON so batch correlation remains usable.
+            }
+        }
+
+        return exports
+            .OrderByDescending(item => item.Export.Timestamp)
+            .ToList();
+    }
+
     public static (string JsonPath, string CsvPath) ExportComparison(ResearchComparisonExport comparison)
     {
         Directory.CreateDirectory(ExportDirectory);
@@ -105,7 +141,7 @@ public static class ResearchSnapshotStore
 
     private static IEnumerable<string> CreateOwnershipDiscoveryCsvLines(OwnershipDiscoveryExport export)
     {
-        yield return "Offset,Before Value,After Value,Changed,Persisted After Reload,Outside Visible Inventory Slots,Score,Strong Candidate,Potential Meaning";
+        yield return "Offset,Before Value,After Value,Before Binary,After Binary,Changed Bits,Changed Bit Count,Changed,Persisted After Reload,Outside Visible Inventory Slots,Score,Strong Candidate,Potential Meaning";
 
         foreach (var row in export.Rows)
         {
@@ -114,6 +150,10 @@ public static class ResearchSnapshotStore
                 Csv(row.Offset),
                 Csv(row.BeforeValue?.ToString() ?? string.Empty),
                 Csv(row.AfterValue?.ToString() ?? string.Empty),
+                Csv(row.BeforeBinary),
+                Csv(row.AfterBinary),
+                Csv(row.ChangedBits),
+                Csv(row.ChangedBitCount.ToString()),
                 Csv(row.Changed.ToString()),
                 Csv(row.PersistedAfterReload.ToString()),
                 Csv(row.OutsideVisibleInventorySlots.ToString()),

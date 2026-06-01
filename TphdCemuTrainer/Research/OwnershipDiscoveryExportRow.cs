@@ -10,6 +10,14 @@ public sealed class OwnershipDiscoveryExportRow
 
     public bool Changed { get; set; }
 
+    public string BeforeBinary { get; set; } = string.Empty;
+
+    public string AfterBinary { get; set; } = string.Empty;
+
+    public string ChangedBits { get; set; } = string.Empty;
+
+    public int ChangedBitCount { get; set; }
+
     public bool PersistedAfterReload { get; set; }
 
     public bool OutsideVisibleInventorySlots { get; set; }
