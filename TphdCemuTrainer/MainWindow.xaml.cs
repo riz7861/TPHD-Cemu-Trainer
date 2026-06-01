@@ -1,6 +1,7 @@
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Globalization;
+using System.IO;
 using System.Runtime.CompilerServices;
 using System.Windows;
 using System.Windows.Controls;
@@ -21,6 +22,16 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     private ulong? _playerBaseAddress;
     private bool _isAttaching;
     private bool _isRefreshing;
+    private bool _inventoryDiagnosticInProgress;
+    private bool _equipmentDiagnosticInProgress;
+    private bool _holdInventoryValueAfterApply;
+    private bool _allowEditingUninitializedInventory;
+    private bool _allowEditingUninitializedEquipment;
+    private bool _advancedEquipmentEditing;
+    private bool _hasPlayerData;
+    private bool _inventoryInitialized;
+    private bool _equipmentInitialized;
+    private ProgressionState _progressionState = ProgressionStateService.CreateUnavailable();
 
     public MainWindow()
     {
@@ -37,7 +48,19 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         RawMemoryValues = new ObservableCollection<TrainerValueViewModel>(
             CheatCatalog.Values.Select(value => _values[value.Id]));
 
-        InventoryItems = CreateFutureFeatures(FutureFeatureCatalog.InventoryItems);
+        InventorySlots = new ObservableCollection<InventorySlotViewModel>(
+            Enumerable.Range(0, InventoryDefinitions.SlotCount)
+                .Select(slotIndex => new InventorySlotViewModel(slotIndex, InventoryDefinitions.SafeItems)));
+        FixedInventoryItems = new ObservableCollection<InventoryFixedSlotViewModel>(
+            InventoryDefinitions.FixedSlots.Select(slot => new InventoryFixedSlotViewModel(slot)));
+        InventoryDiagnostics = [];
+
+        EquipmentSlots = new ObservableCollection<EquipmentSlotViewModel>(
+            EquipmentDefinitions.Slots.Select(slot => new EquipmentSlotViewModel(slot)));
+        EquipmentFlags = new ObservableCollection<EquipmentFlagViewModel>(
+            EquipmentDefinitions.OwnershipFlags.Select(flag => new EquipmentFlagViewModel(flag)));
+        EquipmentDiagnostics = [];
+
         Weapons = CreateFutureFeatures(FutureFeatureCatalog.Weapons);
         Shields = CreateFutureFeatures(FutureFeatureCatalog.Shields);
         Armor = CreateFutureFeatures(FutureFeatureCatalog.Armor);
@@ -51,6 +74,8 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         DataContext = this;
 
         AobPatternText.Text = CheatCatalog.PlayerBaseAob;
+        ApplyProgressionState(ProgressionStateService.CreateUnavailable());
+        UpdateEquipmentEditGuard();
 
         _refreshTimer = new DispatcherTimer
         {
@@ -60,6 +85,15 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     }
 
     public event PropertyChangedEventHandler? PropertyChanged;
+
+    private static string InventoryLogPath =>
+        Path.Combine(AppContext.BaseDirectory, "logs", "inventory.log");
+
+    private static string EquipmentLogPath =>
+        Path.Combine(AppContext.BaseDirectory, "logs", "equipment.log");
+
+    private static string ProgressionLogPath =>
+        Path.Combine(AppContext.BaseDirectory, "logs", "progression.log");
 
     public TrainerValueViewModel CurrentHealth => _values[CheatId.CurrentHealth];
 
@@ -93,7 +127,90 @@ public partial class MainWindow : Window, INotifyPropertyChanged
 
     public ObservableCollection<TrainerValueViewModel> RawMemoryValues { get; }
 
-    public ObservableCollection<FutureFeatureViewModel> InventoryItems { get; }
+    public ObservableCollection<InventorySlotViewModel> InventorySlots { get; }
+
+    public ObservableCollection<InventoryFixedSlotViewModel> FixedInventoryItems { get; }
+
+    public ObservableCollection<string> InventoryDiagnostics { get; }
+
+    public ObservableCollection<EquipmentSlotViewModel> EquipmentSlots { get; }
+
+    public ObservableCollection<EquipmentFlagViewModel> EquipmentFlags { get; }
+
+    public ObservableCollection<string> EquipmentDiagnostics { get; }
+
+    public bool HoldInventoryValueAfterApply
+    {
+        get => _holdInventoryValueAfterApply;
+        set
+        {
+            if (_holdInventoryValueAfterApply != value)
+            {
+                _holdInventoryValueAfterApply = value;
+                OnPropertyChanged();
+            }
+        }
+    }
+
+    public bool HasPlayerData
+    {
+        get => _hasPlayerData;
+        private set => SetMainProperty(ref _hasPlayerData, value);
+    }
+
+    public bool InventoryInitialized
+    {
+        get => _inventoryInitialized;
+        private set => SetMainProperty(ref _inventoryInitialized, value);
+    }
+
+    public bool EquipmentInitialized
+    {
+        get => _equipmentInitialized;
+        private set => SetMainProperty(ref _equipmentInitialized, value);
+    }
+
+    public bool AllowEditingUninitializedInventory
+    {
+        get => _allowEditingUninitializedInventory;
+        set
+        {
+            if (_allowEditingUninitializedInventory != value)
+            {
+                _allowEditingUninitializedInventory = value;
+                OnPropertyChanged();
+                UpdateInventoryEditGuard();
+            }
+        }
+    }
+
+    public bool AllowEditingUninitializedEquipment
+    {
+        get => _allowEditingUninitializedEquipment;
+        set
+        {
+            if (_allowEditingUninitializedEquipment != value)
+            {
+                _allowEditingUninitializedEquipment = value;
+                OnPropertyChanged();
+                UpdateEquipmentEditGuard();
+            }
+        }
+    }
+
+    public bool AdvancedEquipmentEditing
+    {
+        get => _advancedEquipmentEditing;
+        set
+        {
+            if (_advancedEquipmentEditing != value)
+            {
+                _advancedEquipmentEditing = value;
+                OnPropertyChanged();
+                UpdateEquipmentEditGuard();
+            }
+        }
+    }
 
     public ObservableCollection<FutureFeatureViewModel> Weapons { get; }
 
@@ -165,6 +282,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
                 PidText.Text = "-";
                 PlayerBaseText.Text = "-";
                 DebugPlayerBaseText.Text = "-";
+                ApplyProgressionState(ProgressionStateService.CreateUnavailable());
                 SetStatus("Cemu found. Load into gameplay and rescan.", StatusKind.Warning);
                 return;
             }
@@ -176,7 +294,21 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             DetachButton.IsEnabled = true;
             _refreshTimer.Start();
 
-            SetStatus("Player data found. Game loaded.", StatusKind.Connected);
+            var progressionRead = RefreshProgressionState();
+            if (!progressionRead)
+            {
+                SetStatus("Player data found, but initialization state could not be read. Load into gameplay and rescan.", StatusKind.Warning);
+            }
+            else if (!InventoryInitialized || !EquipmentInitialized)
+            {
+                SetStatus("Player data found. Inventory or equipment is not initialized yet.", StatusKind.Warning);
+            }
+            else
+            {
+                SetStatus("Player data found. Game loaded.", StatusKind.Connected);
+            }
+
+            AppendProgressionDiagnostic();
             RefreshTrainer(applyLocks: false);
         }
         catch (Exception ex)
@@ -242,6 +374,110 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         SetStatus($"{capacity.Name} set to {capacity.CurrentCapacity}.", StatusKind.Connected);
     }
 
+    private void RefreshInventoryButton_Click(object sender, RoutedEventArgs e)
+    {
+        RefreshInventorySlots(showStatus: true);
+    }
+
+    private async void ApplyFixedInventoryItem_Click(object sender, RoutedEventArgs e)
+    {
+        if ((sender as FrameworkElement)?.Tag is InventoryFixedSlotViewModel item)
+        {
+            if (!CanWriteInventorySlot())
+            {
+                return;
+            }
+
+            await WriteInventorySlotWithDiagnosticsAsync(
+                item.SlotIndex,
+                item.SlotNumber,
+                item.OffsetValue,
+                item.Offset,
+                item.SelectedItem.ItemId,
+                holdAfterWrite: HoldInventoryValueAfterApply,
+                successMessage: $"{item.Name} set to {item.SelectedItem.Name}.");
+        }
+    }
+
+    private async void ApplyInventorySlot_Click(object sender, RoutedEventArgs e)
+    {
+        if ((sender as FrameworkElement)?.Tag is InventorySlotViewModel slot)
+        {
+            if (!CanWriteInventorySlot())
+            {
+                return;
+            }
+
+            await WriteInventorySlotWithDiagnosticsAsync(
+                slot.SlotIndex,
+                slot.SlotNumber,
+                slot.OffsetValue,
+                slot.Offset,
+                slot.SelectedItem.ItemId,
+                holdAfterWrite: HoldInventoryValueAfterApply,
+                successMessage: $"{slot.SelectedItem.Name} applied to slot {slot.SlotNumber}.");
+        }
+    }
+
+    private async void ClearInventorySlot_Click(object sender, RoutedEventArgs e)
+    {
+        if ((sender as FrameworkElement)?.Tag is InventorySlotViewModel slot)
+        {
+            if (!CanWriteInventorySlot())
+            {
+                return;
+            }
+
+            await WriteInventorySlotWithDiagnosticsAsync(
+                slot.SlotIndex,
+                slot.SlotNumber,
+                slot.OffsetValue,
+                slot.Offset,
+                InventoryDefinitions.EmptyItemId,
+                holdAfterWrite: false,
+                successMessage: $"Slot {slot.SlotNumber} cleared.");
+        }
+    }
+
+    private void RefreshEquipmentButton_Click(object sender, RoutedEventArgs e)
+    {
+        RefreshEquipment(showStatus: true);
+    }
+
+    private async void ApplyEquippedEquipment_Click(object sender, RoutedEventArgs e)
+    {
+        if ((sender as FrameworkElement)?.Tag is EquipmentSlotViewModel slot)
+        {
+            if (!CanWriteEquipment())
+            {
+                return;
+            }
+
+            await WriteEquippedEquipmentWithDiagnosticsAsync(
+                slot,
+                slot.SelectedOption.Value,
+                $"{slot.Name} set to {slot.SelectedOption.Name}.");
+        }
+    }
+
+    private async void EquipmentFlag_Click(object sender, RoutedEventArgs e)
+    {
+        if ((sender as CheckBox)?.Tag is EquipmentFlagViewModel flag)
+        {
+            if (!CanWriteEquipment())
+            {
+                RefreshEquipment(showStatus: false);
+                return;
+            }
+
+            var desiredValue = ((CheckBox)sender).IsChecked == true;
+            await WriteEquipmentFlagWithDiagnosticsAsync(
+                flag,
+                desiredValue,
+                $"{flag.Name} ownership set to {(desiredValue ? "Yes" : "No")}.");
+        }
+    }
+
     private void RefreshTimer_Tick(object? sender, EventArgs e)
     {
         RefreshTrainer(applyLocks: true);
@@ -280,6 +516,16 @@ public partial class MainWindow : Window, INotifyPropertyChanged
                 {
                     return;
                 }
+            }
+
+            if (!_inventoryDiagnosticInProgress && !RefreshInventorySlots(showStatus: false))
+            {
+                return;
+            }
+
+            if (!_equipmentDiagnosticInProgress && !RefreshEquipment(showStatus: false))
+            {
+                return;
             }
 
             UpdateDerivedDisplays();
@@ -344,6 +590,919 @@ public partial class MainWindow : Window, INotifyPropertyChanged
 
         value.SetCurrentValue(currentValue, initializeTarget: true);
         return true;
+    }
+
+    private bool RefreshProgressionState()
+    {
+        if (_memory is null || !_playerBaseAddress.HasValue)
+        {
+            ApplyProgressionState(ProgressionStateService.CreateUnavailable());
+            return false;
+        }
+
+        if (!ProgressionStateService.TryReadState(
+                _memory,
+                _playerBaseAddress.Value,
+                out var state,
+                out _))
+        {
+            ApplyProgressionState(ProgressionStateService.CreateUnavailable());
+            return false;
+        }
+
+        ApplyProgressionState(state);
+        return true;
+    }
+
+    private void ApplyProgressionState(ProgressionState state)
+    {
+        _progressionState = state;
+        HasPlayerData = state.HasPlayerData;
+        InventoryInitialized = state.InventoryInitialized;
+        EquipmentInitialized = state.EquipmentInitialized;
+
+        UpdateProgressionStateDisplays();
+        UpdateInventoryEditGuard();
+        UpdateEquipmentEditGuard();
+    }
+
+    private void UpdateProgressionStateDisplays()
+    {
+        PlayerDataStateText.Text = _progressionState.PlayerDataStatus;
+        InventoryStateText.Text = HasPlayerData ? _progressionState.InventoryStatus : "-";
+        EquipmentStateText.Text = HasPlayerData ? _progressionState.EquipmentStatus : "-";
+
+        ProgressionPlayerBaseText.Text = _progressionState.PlayerBaseText;
+        ProgressionInventoryInitializedText.Text = HasPlayerData
+            ? _progressionState.InventoryStatus
+            : "-";
+        ProgressionEquipmentInitializedText.Text = HasPlayerData
+            ? _progressionState.EquipmentStatus
+            : "-";
+        ProgressionInventoryRawBytesText.Text = _progressionState.InventoryRawBytesText;
+        ProgressionEquipmentOwnershipBytesText.Text = HasPlayerData
+            ? _progressionState.EquipmentOwnershipBytesText
+            : "Not read";
+        ProgressionEquipmentEquippedBytesText.Text = HasPlayerData
+            ? _progressionState.EquipmentEquippedBytesText
+            : "Not read";
+    }
+
+    private bool RefreshInventorySlots(bool showStatus)
+    {
+        if (_memory is null || !_playerBaseAddress.HasValue)
+        {
+            if (showStatus)
+            {
+                SetStatus("Not attached. Attach to Cemu and rescan before refreshing inventory.", StatusKind.Neutral);
+            }
+
+            return false;
+        }
+
+        var allSlotsEmpty = true;
+        var rawBytes = new byte[InventoryDefinitions.SlotCount];
+
+        foreach (var slot in InventorySlots)
+        {
+            if (!InventoryMemoryService.TryReadSlot(
+                    _memory,
+                    _playerBaseAddress.Value,
+                    slot.SlotIndex,
+                    out var itemId,
+                    out _))
+            {
+                MarkMemoryUnavailable();
+                return false;
+            }
+
+            slot.SetCurrentItem(itemId);
+            rawBytes[slot.SlotIndex] = itemId;
+            allSlotsEmpty &= itemId == InventoryDefinitions.EmptyItemId;
+        }
+
+        foreach (var item in FixedInventoryItems)
+        {
+            item.SetCurrentItem(rawBytes[item.SlotIndex]);
+        }
+
+        SetInventoryInitialized(!allSlotsEmpty, rawBytes);
+
+        if (allSlotsEmpty && showStatus)
+        {
+            AppendInventoryStateDiagnostic("inventory-all-255-empty-or-uninitialized");
+            SetStatus("Inventory has not been initialized by the game yet.", StatusKind.Warning);
+        }
+        else if (!allSlotsEmpty && showStatus)
+        {
+            SetStatus("Inventory slots refreshed.", StatusKind.Connected);
+        }
+
+        if (showStatus)
+        {
+            UpdateInventoryEditGuard();
+        }
+
+        return true;
+    }
+
+    private bool CanWriteInventorySlot()
+    {
+        if (!InventoryInitialized && !AllowEditingUninitializedInventory)
+        {
+            SetStatus("Inventory has not been initialized by the game yet. Enable the advanced override to edit it.", StatusKind.Warning);
+            return false;
+        }
+
+        return true;
+    }
+
+    private void SetInventoryInitialized(bool initialized, byte[]? rawBytes)
+    {
+        InventoryInitialized = initialized;
+
+        if (rawBytes is not null)
+        {
+            _progressionState = _progressionState with
+            {
+                InventoryInitialized = initialized,
+                InventoryRawBytes = rawBytes
+            };
+        }
+
+        UpdateProgressionStateDisplays();
+        UpdateInventoryEditGuard();
+    }
+
+    private void UpdateInventoryEditGuard()
+    {
+        var canEdit = HasPlayerData && (InventoryInitialized || AllowEditingUninitializedInventory);
+        foreach (var slot in InventorySlots)
+        {
+            slot.CanEdit = canEdit;
+        }
+
+        foreach (var item in FixedInventoryItems)
+        {
+            item.CanEdit = canEdit;
+        }
+
+        InventoryInitializationWarningText.Visibility = HasPlayerData && !InventoryInitialized
+            ? Visibility.Visible
+            : Visibility.Collapsed;
+    }
+
+    private bool RefreshEquipment(bool showStatus)
+    {
+        if (_memory is null || !_playerBaseAddress.HasValue)
+        {
+            if (showStatus)
+            {
+                SetStatus("Not attached. Attach to Cemu and rescan before refreshing equipment.", StatusKind.Neutral);
+            }
+
+            UpdateEquipmentEditGuard();
+            return false;
+        }
+
+        byte equippedArmor = 0;
+        byte equippedSword = 0;
+        byte equippedShield = 0;
+
+        foreach (var slot in EquipmentSlots)
+        {
+            if (!EquipmentMemoryService.TryReadEquipped(
+                    _memory,
+                    _playerBaseAddress.Value,
+                    slot.Definition,
+                    out var value,
+                    out _))
+            {
+                MarkMemoryUnavailable();
+                return false;
+            }
+
+            slot.SetCurrentValue(value);
+            if (slot.Definition == EquipmentDefinitions.ArmorSlot)
+            {
+                equippedArmor = value;
+            }
+            else if (slot.Definition == EquipmentDefinitions.SwordSlot)
+            {
+                equippedSword = value;
+            }
+            else if (slot.Definition == EquipmentDefinitions.ShieldSlot)
+            {
+                equippedShield = value;
+            }
+        }
+
+        var backingBytes = new Dictionary<uint, byte>();
+        foreach (var flag in EquipmentFlags)
+        {
+            if (!EquipmentMemoryService.TryReadFlag(
+                    _memory,
+                    _playerBaseAddress.Value,
+                    flag.Definition,
+                    out var isOwned,
+                    out var backingValue,
+                    out _))
+            {
+                MarkMemoryUnavailable();
+                return false;
+            }
+
+            flag.SetCurrentValue(isOwned, backingValue);
+            backingBytes[flag.OffsetValue] = backingValue;
+        }
+
+        backingBytes.TryGetValue(ProgressionStateService.ArmorOwnershipOffset, out var armorOwnershipByte);
+        backingBytes.TryGetValue(ProgressionStateService.EquipmentOwnershipOffset, out var equipmentOwnershipByte);
+        backingBytes.TryGetValue(ProgressionStateService.MasterSwordInfusedOffset, out var masterSwordInfusedByte);
+
+        var equipmentInitialized = ProgressionStateService.IsEquipmentInitialized(
+            armorOwnershipByte,
+            equipmentOwnershipByte,
+            masterSwordInfusedByte,
+            equippedArmor,
+            equippedSword,
+            equippedShield);
+
+        SetEquipmentInitialized(
+            equipmentInitialized,
+            armorOwnershipByte,
+            equipmentOwnershipByte,
+            masterSwordInfusedByte,
+            equippedArmor,
+            equippedSword,
+            equippedShield);
+
+        if (showStatus)
+        {
+            SetStatus(
+                !equipmentInitialized
+                    ? "Equipment has not been initialized by the game yet."
+                    : "Equipment data refreshed.",
+                !equipmentInitialized ? StatusKind.Warning : StatusKind.Connected);
+        }
+
+        return true;
+    }
+
+    private bool CanWriteEquipment()
+    {
+        if (!AdvancedEquipmentEditing)
+        {
+            SetStatus("Enable Advanced equipment editing before writing equipment.", StatusKind.Warning);
+            return false;
+        }
+
+        if (_memory is null || !_playerBaseAddress.HasValue)
+        {
+            SetStatus("Not attached. Attach to Cemu and rescan before editing equipment.", StatusKind.Neutral);
+            return false;
+        }
+
+        if (!EquipmentInitialized && !AllowEditingUninitializedEquipment)
+        {
+            SetStatus("Equipment has not been initialized by the game yet. Enable the advanced override to edit it.", StatusKind.Warning);
+            return false;
+        }
+
+        return true;
+    }
+
+    private void SetEquipmentInitialized(
+        bool initialized,
+        byte armorOwnershipByte,
+        byte equipmentOwnershipByte,
+        byte masterSwordInfusedByte,
+        byte equippedArmor,
+        byte equippedSword,
+        byte equippedShield)
+    {
+        EquipmentInitialized = initialized;
+
+        _progressionState = _progressionState with
+        {
+            EquipmentInitialized = initialized,
+            ArmorOwnershipByte = armorOwnershipByte,
+            EquipmentOwnershipByte = equipmentOwnershipByte,
+            MasterSwordInfusedByte = masterSwordInfusedByte,
+            EquippedArmor = equippedArmor,
+            EquippedSword = equippedSword,
+            EquippedShield = equippedShield
+        };
+
+        UpdateProgressionStateDisplays();
+        UpdateEquipmentEditGuard();
+    }
+
+    private void UpdateEquipmentEditGuard()
+    {
+        var canEdit =
+            AdvancedEquipmentEditing &&
+            HasPlayerData &&
+            (EquipmentInitialized || AllowEditingUninitializedEquipment);
+        foreach (var slot in EquipmentSlots)
+        {
+            slot.CanEdit = canEdit;
+        }
+
+        foreach (var flag in EquipmentFlags)
+        {
+            flag.CanEdit = canEdit;
+        }
+
+        EquipmentInitializationWarningText.Visibility = HasPlayerData && !EquipmentInitialized
+            ? Visibility.Visible
+            : Visibility.Collapsed;
+    }
+
+    private async Task<bool> WriteInventorySlotWithDiagnosticsAsync(
+        int slotIndex,
+        int slotNumber,
+        uint offsetValue,
+        string offset,
+        byte itemId,
+        bool holdAfterWrite,
+        string successMessage)
+    {
+        var memory = _memory;
+        if (memory is null || !_playerBaseAddress.HasValue)
+        {
+            SetStatus("Not attached. Attach to Cemu and rescan before editing inventory.", StatusKind.Neutral);
+            return false;
+        }
+
+        _inventoryDiagnosticInProgress = true;
+
+        byte? oldValue = null;
+        byte? immediateReadback = null;
+        byte? delayed250Readback = null;
+        byte? delayed1000Readback = null;
+        var expectedValue = itemId;
+        var playerBaseAddress = _playerBaseAddress.Value;
+        var absoluteAddress = playerBaseAddress + offsetValue;
+        var diagnosticStatus = "started";
+        var isGameManagedSlot = InventoryDefinitions.IsGameManagedSlot(slotIndex);
+
+        try
+        {
+            if (!InventoryMemoryService.TryReadSlot(
+                    memory,
+                    playerBaseAddress,
+                    slotIndex,
+                    out var oldItemId,
+                    out var oldReadError))
+            {
+                diagnosticStatus = $"old-read-failed: {oldReadError}";
+                SetStatus(oldReadError, StatusKind.Warning);
+                return false;
+            }
+
+            oldValue = oldItemId;
+
+            if (!InventoryMemoryService.TryWriteSlot(
+                    memory,
+                    playerBaseAddress,
+                    slotIndex,
+                    expectedValue,
+                    out var writeError))
+            {
+                diagnosticStatus = $"write-call-failed: {writeError}";
+                SetStatus($"Write failed: {writeError}", StatusKind.Warning);
+                return false;
+            }
+
+            if (!InventoryMemoryService.TryReadSlot(
+                    memory,
+                    playerBaseAddress,
+                    slotIndex,
+                    out var immediateItemId,
+                    out var immediateReadError))
+            {
+                diagnosticStatus = $"immediate-read-failed: {immediateReadError}";
+                SetStatus(immediateReadError, StatusKind.Warning);
+                return false;
+            }
+
+            immediateReadback = immediateItemId;
+
+            if (immediateReadback.Value != expectedValue)
+            {
+                diagnosticStatus = "immediate-mismatch";
+                SetStatus($"Write failed: expected {expectedValue} but read {immediateReadback.Value}", StatusKind.Warning);
+                RefreshInventorySlots(showStatus: false);
+                return false;
+            }
+
+            var holdTask = holdAfterWrite
+                ? HoldInventoryValueAsync(
+                    memory,
+                    playerBaseAddress,
+                    slotIndex,
+                    expectedValue,
+                    TimeSpan.FromSeconds(2),
+                    TimeSpan.FromMilliseconds(50))
+                : Task.CompletedTask;
+
+            await Task.Delay(250);
+            if (InventoryMemoryService.TryReadSlot(
+                    memory,
+                    playerBaseAddress,
+                    slotIndex,
+                    out var delayed250ItemId,
+                    out _))
+            {
+                delayed250Readback = delayed250ItemId;
+            }
+
+            await Task.Delay(750);
+            if (InventoryMemoryService.TryReadSlot(
+                    memory,
+                    playerBaseAddress,
+                    slotIndex,
+                    out var delayed1000ItemId,
+                    out _))
+            {
+                delayed1000Readback = delayed1000ItemId;
+            }
+
+            await holdTask;
+
+            var laterReverted =
+                delayed250Readback.HasValue && delayed250Readback.Value != expectedValue ||
+                delayed1000Readback.HasValue && delayed1000Readback.Value != expectedValue;
+
+            if (laterReverted)
+            {
+                diagnosticStatus = isGameManagedSlot ? "later-reverted-game-managed" : "later-reverted";
+                SetStatus(
+                    isGameManagedSlot
+                        ? "This slot appears game-managed. Use the specific item editor instead."
+                        : "Write succeeded, but value later reverted",
+                    StatusKind.Warning);
+            }
+            else
+            {
+                diagnosticStatus = holdAfterWrite ? "held-and-verified" : "verified";
+                SetStatus(successMessage, StatusKind.Connected);
+            }
+
+            RefreshInventorySlots(showStatus: false);
+            return !laterReverted;
+        }
+        finally
+        {
+            AppendInventoryDiagnostic(
+                slotNumber,
+                offset,
+                absoluteAddress,
+                oldValue,
+                expectedValue,
+                immediateReadback,
+                delayed250Readback,
+                delayed1000Readback,
+                holdAfterWrite,
+                diagnosticStatus);
+
+            _inventoryDiagnosticInProgress = false;
+        }
+    }
+
+    private async Task<bool> WriteEquippedEquipmentWithDiagnosticsAsync(
+        EquipmentSlotViewModel slot,
+        byte expectedValue,
+        string successMessage)
+    {
+        var memory = _memory;
+        if (memory is null || !_playerBaseAddress.HasValue)
+        {
+            SetStatus("Not attached. Attach to Cemu and rescan before editing equipment.", StatusKind.Neutral);
+            return false;
+        }
+
+        _equipmentDiagnosticInProgress = true;
+
+        byte? oldValue = null;
+        byte? immediateReadback = null;
+        byte? delayed250Readback = null;
+        byte? delayed1000Readback = null;
+        var playerBaseAddress = _playerBaseAddress.Value;
+        var absoluteAddress = playerBaseAddress + slot.OffsetValue;
+        var diagnosticStatus = "started";
+        var refreshAfterWrite = false;
+
+        try
+        {
+            if (!EquipmentMemoryService.TryReadEquipped(
+                    memory,
+                    playerBaseAddress,
+                    slot.Definition,
+                    out var oldEquippedValue,
+                    out var oldReadError))
+            {
+                diagnosticStatus = $"old-read-failed: {oldReadError}";
+                SetStatus(oldReadError, StatusKind.Warning);
+                return false;
+            }
+
+            oldValue = oldEquippedValue;
+
+            if (!EquipmentMemoryService.TryWriteEquipped(
+                    memory,
+                    playerBaseAddress,
+                    slot.Definition,
+                    expectedValue,
+                    out var writeError))
+            {
+                diagnosticStatus = $"write-call-failed: {writeError}";
+                SetStatus("Write failed or wrong address.", StatusKind.Warning);
+                return false;
+            }
+
+            refreshAfterWrite = true;
+
+            if (!EquipmentMemoryService.TryReadEquipped(
+                    memory,
+                    playerBaseAddress,
+                    slot.Definition,
+                    out var immediateValue,
+                    out var immediateReadError))
+            {
+                diagnosticStatus = $"immediate-read-failed: {immediateReadError}";
+                SetStatus("Write failed or wrong address.", StatusKind.Warning);
+                return false;
+            }
+
+            immediateReadback = immediateValue;
+
+            if (immediateReadback.Value != expectedValue)
+            {
+                diagnosticStatus = "immediate-mismatch";
+                SetStatus("Write failed or wrong address.", StatusKind.Warning);
+                return false;
+            }
+
+            await Task.Delay(250);
+            if (EquipmentMemoryService.TryReadEquipped(
+                    memory,
+                    playerBaseAddress,
+                    slot.Definition,
+                    out var delayed250Value,
+                    out _))
+            {
+                delayed250Readback = delayed250Value;
+            }
+
+            await Task.Delay(750);
+            if (EquipmentMemoryService.TryReadEquipped(
+                    memory,
+                    playerBaseAddress,
+                    slot.Definition,
+                    out var delayed1000Value,
+                    out _))
+            {
+                delayed1000Readback = delayed1000Value;
+            }
+
+            var laterReverted =
+                delayed250Readback.HasValue && delayed250Readback.Value != expectedValue ||
+                delayed1000Readback.HasValue && delayed1000Readback.Value != expectedValue;
+
+            if (laterReverted)
+            {
+                diagnosticStatus = "later-reverted";
+                SetStatus("Write succeeded, but game reverted it.", StatusKind.Warning);
+            }
+            else
+            {
+                diagnosticStatus = "verified";
+                SetStatus(successMessage, StatusKind.Connected);
+            }
+
+            return !laterReverted;
+        }
+        finally
+        {
+            if (refreshAfterWrite)
+            {
+                RefreshEquipment(showStatus: false);
+            }
+
+            AppendEquipmentDiagnostic(
+                "equipped",
+                slot.Name,
+                slot.Offset,
+                absoluteAddress,
+                oldValue,
+                expectedValue,
+                immediateReadback,
+                delayed250Readback,
+                delayed1000Readback,
+                diagnosticStatus);
+
+            _equipmentDiagnosticInProgress = false;
+            UpdateEquipmentEditGuard();
+        }
+    }
+
+    private async Task<bool> WriteEquipmentFlagWithDiagnosticsAsync(
+        EquipmentFlagViewModel flag,
+        bool desiredValue,
+        string successMessage)
+    {
+        var memory = _memory;
+        if (memory is null || !_playerBaseAddress.HasValue)
+        {
+            SetStatus("Not attached. Attach to Cemu and rescan before editing equipment.", StatusKind.Neutral);
+            return false;
+        }
+
+        _equipmentDiagnosticInProgress = true;
+
+        byte? oldValue = null;
+        byte? writtenValue = null;
+        byte? immediateReadback = null;
+        byte? delayed250Readback = null;
+        byte? delayed1000Readback = null;
+        var playerBaseAddress = _playerBaseAddress.Value;
+        var absoluteAddress = playerBaseAddress + flag.OffsetValue;
+        var diagnosticStatus = "started";
+        var refreshAfterWrite = false;
+
+        try
+        {
+            if (!EquipmentMemoryService.TryWriteFlag(
+                    memory,
+                    playerBaseAddress,
+                    flag.Definition,
+                    desiredValue,
+                    out var oldBackingValue,
+                    out var writtenBackingValue,
+                    out var writeError))
+            {
+                diagnosticStatus = $"write-call-failed: {writeError}";
+                SetStatus("Write failed or wrong address.", StatusKind.Warning);
+                return false;
+            }
+
+            oldValue = oldBackingValue;
+            writtenValue = writtenBackingValue;
+            refreshAfterWrite = true;
+
+            if (!EquipmentMemoryService.TryReadByte(
+                    memory,
+                    playerBaseAddress,
+                    flag.OffsetValue,
+                    flag.Name,
+                    out var immediateValue,
+                    out var immediateReadError))
+            {
+                diagnosticStatus = $"immediate-read-failed: {immediateReadError}";
+                SetStatus("Write failed or wrong address.", StatusKind.Warning);
+                return false;
+            }
+
+            immediateReadback = immediateValue;
+
+            if (!DoesFlagMatch(immediateValue, flag.Definition.Mask, desiredValue))
+            {
+                diagnosticStatus = "immediate-mismatch";
+                SetStatus("Write failed or wrong address.", StatusKind.Warning);
+                return false;
+            }
+
+            await Task.Delay(250);
+            if (EquipmentMemoryService.TryReadByte(
+                    memory,
+                    playerBaseAddress,
+                    flag.OffsetValue,
+                    flag.Name,
+                    out var delayed250Value,
+                    out _))
+            {
+                delayed250Readback = delayed250Value;
+            }
+
+            await Task.Delay(750);
+            if (EquipmentMemoryService.TryReadByte(
+                    memory,
+                    playerBaseAddress,
+                    flag.OffsetValue,
+                    flag.Name,
+                    out var delayed1000Value,
+                    out _))
+            {
+                delayed1000Readback = delayed1000Value;
+            }
+
+            var laterReverted =
+                delayed250Readback.HasValue && !DoesFlagMatch(delayed250Readback.Value, flag.Definition.Mask, desiredValue) ||
+                delayed1000Readback.HasValue && !DoesFlagMatch(delayed1000Readback.Value, flag.Definition.Mask, desiredValue);
+
+            if (laterReverted)
+            {
+                diagnosticStatus = "later-reverted";
+                SetStatus("Write succeeded, but game reverted it.", StatusKind.Warning);
+            }
+            else
+            {
+                diagnosticStatus = "verified";
+                SetStatus(successMessage, StatusKind.Connected);
+            }
+
+            return !laterReverted;
+        }
+        finally
+        {
+            if (refreshAfterWrite)
+            {
+                RefreshEquipment(showStatus: false);
+            }
+
+            AppendEquipmentDiagnostic(
+                "ownership-flag",
+                $"{flag.Name} bit {flag.Bit}",
+                flag.Offset,
+                absoluteAddress,
+                oldValue,
+                writtenValue,
+                immediateReadback,
+                delayed250Readback,
+                delayed1000Readback,
+                diagnosticStatus);
+
+            _equipmentDiagnosticInProgress = false;
+            UpdateEquipmentEditGuard();
+        }
+    }
+
+    private static bool DoesFlagMatch(byte value, byte mask, bool expected)
+    {
+        return ((value & mask) != 0) == expected;
+    }
+
+    private async Task HoldInventoryValueAsync(
+        ProcessMemory memory,
+        ulong playerBaseAddress,
+        int slotIndex,
+        byte itemId,
+        TimeSpan duration,
+        TimeSpan interval)
+    {
+        var stopAt = DateTimeOffset.UtcNow + duration;
+        while (DateTimeOffset.UtcNow < stopAt)
+        {
+            if (memory.HasExited)
+            {
+                return;
+            }
+
+            InventoryMemoryService.TryWriteSlot(
+                memory,
+                playerBaseAddress,
+                slotIndex,
+                itemId,
+                out _);
+
+            await Task.Delay(interval);
+        }
+    }
+
+    private void AppendInventoryDiagnostic(
+        int slotNumber,
+        string offset,
+        ulong absoluteAddress,
+        byte? oldValue,
+        byte writtenValue,
+        byte? immediateReadback,
+        byte? delayed250Readback,
+        byte? delayed1000Readback,
+        bool holdEnabled,
+        string diagnosticStatus)
+    {
+        var entry =
+            $"{DateTimeOffset.Now:O} slot={slotNumber} offset={offset} address=0x{absoluteAddress:X} " +
+            $"old={FormatByte(oldValue)} wrote={writtenValue} immediate={FormatByte(immediateReadback)} " +
+            $"read250ms={FormatByte(delayed250Readback)} read1000ms={FormatByte(delayed1000Readback)} " +
+            $"hold2s={holdEnabled} status={diagnosticStatus}";
+
+        AppendInventoryLogEntry(entry);
+    }
+
+    private void AppendInventoryStateDiagnostic(string state)
+    {
+        AppendInventoryLogEntry(
+            $"{DateTimeOffset.Now:O} inventory-state={state} slots={InventoryDefinitions.SlotCount} " +
+            $"empty-id={InventoryDefinitions.EmptyItemId} override={AllowEditingUninitializedInventory}");
+    }
+
+    private void AppendInventoryLogEntry(string entry)
+    {
+        InventoryDiagnostics.Insert(0, entry);
+        while (InventoryDiagnostics.Count > 100)
+        {
+            InventoryDiagnostics.RemoveAt(InventoryDiagnostics.Count - 1);
+        }
+
+        try
+        {
+            var logDirectory = Path.GetDirectoryName(InventoryLogPath);
+            if (!string.IsNullOrWhiteSpace(logDirectory))
+            {
+                Directory.CreateDirectory(logDirectory);
+            }
+
+            File.AppendAllText(InventoryLogPath, entry + Environment.NewLine);
+        }
+        catch (Exception ex)
+        {
+            InventoryDiagnostics.Insert(0, $"{DateTimeOffset.Now:O} inventory-log-write-failed: {ex.Message}");
+        }
+    }
+
+    private void AppendEquipmentDiagnostic(
+        string kind,
+        string name,
+        string offset,
+        ulong absoluteAddress,
+        byte? oldValue,
+        byte? writtenValue,
+        byte? immediateReadback,
+        byte? delayed250Readback,
+        byte? delayed1000Readback,
+        string diagnosticStatus)
+    {
+        var entry =
+            $"{DateTimeOffset.Now:O} kind={kind} name=\"{name}\" offset={offset} address=0x{absoluteAddress:X} " +
+            $"old={FormatEquipmentByte(oldValue)} wrote={FormatEquipmentByte(writtenValue)} " +
+            $"immediate={FormatEquipmentByte(immediateReadback)} read250ms={FormatEquipmentByte(delayed250Readback)} " +
+            $"read1000ms={FormatEquipmentByte(delayed1000Readback)} final={FormatEquipmentByte(delayed1000Readback)} " +
+            $"status={diagnosticStatus}";
+
+        AppendEquipmentLogEntry(entry);
+    }
+
+    private void AppendEquipmentLogEntry(string entry)
+    {
+        EquipmentDiagnostics.Insert(0, entry);
+        while (EquipmentDiagnostics.Count > 100)
+        {
+            EquipmentDiagnostics.RemoveAt(EquipmentDiagnostics.Count - 1);
+        }
+
+        try
+        {
+            var logDirectory = Path.GetDirectoryName(EquipmentLogPath);
+            if (!string.IsNullOrWhiteSpace(logDirectory))
+            {
+                Directory.CreateDirectory(logDirectory);
+            }
+
+            File.AppendAllText(EquipmentLogPath, entry + Environment.NewLine);
+        }
+        catch (Exception ex)
+        {
+            EquipmentDiagnostics.Insert(0, $"{DateTimeOffset.Now:O} equipment-log-write-failed: {ex.Message}");
+        }
+    }
+
+    private void AppendProgressionDiagnostic()
+    {
+        var entry =
+            $"{DateTimeOffset.Now:O} player-base={_progressionState.PlayerBaseText} " +
+            $"has-player-data={HasPlayerData} inventory-initialized={InventoryInitialized} " +
+            $"equipment-initialized={EquipmentInitialized} inventory-bytes=\"{_progressionState.InventoryRawBytesText}\" " +
+            $"equipment-ownership-bytes=\"{_progressionState.EquipmentOwnershipBytesText}\" " +
+            $"equipment-equipped-bytes=\"{_progressionState.EquipmentEquippedBytesText}\" " +
+            $"status=\"{StatusText.Text}\"";
+
+        try
+        {
+            var logDirectory = Path.GetDirectoryName(ProgressionLogPath);
+            if (!string.IsNullOrWhiteSpace(logDirectory))
+            {
+                Directory.CreateDirectory(logDirectory);
+            }
+
+            File.AppendAllText(ProgressionLogPath, entry + Environment.NewLine);
+        }
+        catch (Exception ex)
+        {
+            EquipmentDiagnostics.Insert(0, $"{DateTimeOffset.Now:O} progression-log-write-failed: {ex.Message}");
+        }
+    }
+
+    private static string FormatByte(byte? value)
+    {
+        return value.HasValue ? value.Value.ToString(CultureInfo.InvariantCulture) : "n/a";
+    }
+
+    private static string FormatEquipmentByte(byte? value)
+    {
+        return value.HasValue ? $"{value.Value} (0x{value.Value:X2})" : "n/a";
     }
 
     private void ApplyLocks()
@@ -648,6 +1807,28 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             capacity.MarkNotRead();
         }
 
+        foreach (var slot in InventorySlots)
+        {
+            slot.MarkNotRead();
+        }
+
+        foreach (var item in FixedInventoryItems)
+        {
+            item.MarkNotRead();
+        }
+
+        foreach (var slot in EquipmentSlots)
+        {
+            slot.MarkNotRead();
+        }
+
+        foreach (var flag in EquipmentFlags)
+        {
+            flag.MarkNotRead();
+        }
+
+        ApplyProgressionState(ProgressionStateService.CreateUnavailable());
+
         UpdateDerivedDisplays();
         SetStatus("Player data could not be read. Load into gameplay and rescan.", StatusKind.Warning);
     }
@@ -673,6 +1854,28 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             capacity.MarkNotRead();
         }
 
+        foreach (var slot in InventorySlots)
+        {
+            slot.MarkNotRead();
+        }
+
+        foreach (var item in FixedInventoryItems)
+        {
+            item.MarkNotRead();
+        }
+
+        foreach (var slot in EquipmentSlots)
+        {
+            slot.MarkNotRead();
+        }
+
+        foreach (var flag in EquipmentFlags)
+        {
+            flag.MarkNotRead();
+        }
+
+        ApplyProgressionState(ProgressionStateService.CreateUnavailable());
+
         GoldenBugsCountText.Text = "Not read";
         UpdateDerivedDisplays();
 
@@ -691,6 +1894,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     private void SetStatus(string message, StatusKind kind)
     {
         StatusText.Text = message;
+        ProgressionStatusMessageText.Text = message;
         StatusDot.Fill = kind switch
         {
             StatusKind.Connected => new SolidColorBrush(Color.FromRgb(24, 163, 98)),
@@ -709,6 +1913,17 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     private void OnPropertyChanged([CallerMemberName] string? propertyName = null)
     {
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
+    }
+
+    private void SetMainProperty<T>(ref T field, T value, [CallerMemberName] string? propertyName = null)
+    {
+        if (EqualityComparer<T>.Default.Equals(field, value))
+        {
+            return;
+        }
+
+        field = value;
+        OnPropertyChanged(propertyName);
     }
 
     private enum StatusKind
