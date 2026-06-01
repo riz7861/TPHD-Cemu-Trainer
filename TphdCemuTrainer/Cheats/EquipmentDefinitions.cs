@@ -105,6 +105,27 @@ public static class EquipmentDefinitions
             "TPHD 2.2.CT: Have Master Sword Imbued With Light, _playerbase+0x292 bit 1")
     ];
 
+    public static IReadOnlyList<string> SwordFlagIds { get; } =
+    [
+        "ordon-sword",
+        "master-sword",
+        "master-sword-infused"
+    ];
+
+    public static IReadOnlyList<string> ShieldFlagIds { get; } =
+    [
+        "ordon-shield",
+        "wooden-shield",
+        "hylian-shield"
+    ];
+
+    public static IReadOnlyList<string> ArmorFlagIds { get; } =
+    [
+        "heros-clothes",
+        "zora-armor",
+        "magic-armor"
+    ];
+
     public static string GetSlotValueName(EquipmentSlotDefinition slot, byte value)
     {
         return slot.Options.FirstOrDefault(option => option.Value == value)?.Name

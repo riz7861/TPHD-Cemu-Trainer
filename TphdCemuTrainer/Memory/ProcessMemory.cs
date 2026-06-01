@@ -4,6 +4,8 @@ using System.Runtime.InteropServices;
 
 namespace TphdCemuTrainer.Memory;
 
+public sealed record ProcessAttachDiagnostics(TimeSpan ProcessDiscoveryTime, TimeSpan HandleOpenTime);
+
 public sealed class ProcessMemory : IDisposable
 {
     private const string CemuProcessName = "Cemu";
@@ -43,17 +45,33 @@ public sealed class ProcessMemory : IDisposable
 
     public static bool TryAttachToCemu(out ProcessMemory? memory, out string error)
     {
+        return TryAttachToCemu(out memory, out error, out _);
+    }
+
+    public static bool TryAttachToCemu(
+        out ProcessMemory? memory,
+        out string error,
+        out ProcessAttachDiagnostics diagnostics)
+    {
         memory = null;
         error = string.Empty;
+        diagnostics = new ProcessAttachDiagnostics(TimeSpan.Zero, TimeSpan.Zero);
 
+        var discoveryWatch = Stopwatch.StartNew();
         var process = Process.GetProcessesByName(CemuProcessName).FirstOrDefault();
+        discoveryWatch.Stop();
         if (process is null)
         {
+            diagnostics = diagnostics with { ProcessDiscoveryTime = discoveryWatch.Elapsed };
             error = "Cemu.exe is not running.";
             return false;
         }
 
+        var handleWatch = Stopwatch.StartNew();
         var handle = OpenProcess(DesiredAccess, false, process.Id);
+        handleWatch.Stop();
+        diagnostics = new ProcessAttachDiagnostics(discoveryWatch.Elapsed, handleWatch.Elapsed);
+
         if (handle == IntPtr.Zero)
         {
             error = $"Could not open Cemu.exe: {GetLastWin32ErrorMessage()}";
@@ -132,7 +150,8 @@ public sealed class ProcessMemory : IDisposable
             ToUInt64(info.BaseAddress),
             info.RegionSize.ToUInt64(),
             info.State,
-            info.Protect);
+            info.Protect,
+            info.Type);
 
         return true;
     }

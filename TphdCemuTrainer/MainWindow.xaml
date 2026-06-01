@@ -133,6 +133,95 @@
                        Foreground="#555" />
         </DataTemplate>
 
+        <DataTemplate x:Key="InventoryOwnershipItemTemplate">
+            <Border BorderBrush="#D8D8D8"
+                    BorderThickness="0,0,0,1"
+                    Padding="0,5"
+                    ToolTip="{Binding Notes}">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="140" />
+                        <ColumnDefinition Width="230" />
+                        <ColumnDefinition Width="150" />
+                        <ColumnDefinition Width="82" />
+                        <ColumnDefinition Width="105" />
+                        <ColumnDefinition Width="*" MinWidth="220" />
+                    </Grid.ColumnDefinitions>
+
+                    <TextBlock Text="{Binding Name}"
+                               VerticalAlignment="Center" />
+                    <TextBlock Grid.Column="1"
+                               Text="{Binding CurrentDetectedState, Mode=OneWay}"
+                               TextTrimming="CharacterEllipsis"
+                               VerticalAlignment="Center"
+                               Margin="6,0" />
+                    <TextBlock Grid.Column="2"
+                               Text="{Binding FlagLocation}"
+                               Foreground="#7A4A00"
+                               VerticalAlignment="Center"
+                               Margin="6,0" />
+                    <CheckBox Grid.Column="3"
+                              IsChecked="{Binding TargetOwned, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                              IsEnabled="{Binding CanEdit}"
+                              HorizontalAlignment="Center"
+                              VerticalAlignment="Center" />
+                    <TextBlock Grid.Column="4"
+                               Text="{Binding EditStatus}"
+                               Foreground="#555"
+                               VerticalAlignment="Center"
+                               Margin="6,0" />
+                    <TextBlock Grid.Column="5"
+                               Text="{Binding Notes}"
+                               TextTrimming="CharacterEllipsis"
+                               VerticalAlignment="Center"
+                               Margin="6,0" />
+                </Grid>
+            </Border>
+        </DataTemplate>
+
+        <DataTemplate x:Key="InventorySlotReadOnlyTemplate">
+            <Border BorderBrush="#D8D8D8"
+                    BorderThickness="0,0,0,1"
+                    Padding="0,4"
+                    ToolTip="{Binding Notes}">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="150" />
+                        <ColumnDefinition Width="74" />
+                        <ColumnDefinition Width="92" />
+                        <ColumnDefinition Width="*" MinWidth="150" />
+                        <ColumnDefinition Width="166" />
+                        <ColumnDefinition Width="300" />
+                    </Grid.ColumnDefinitions>
+
+                    <TextBlock Text="{Binding SlotLabel}"
+                               VerticalAlignment="Center" />
+                    <TextBlock Grid.Column="1"
+                               Text="{Binding Offset}"
+                               FontFamily="Consolas"
+                               VerticalAlignment="Center" />
+                    <TextBlock Grid.Column="2"
+                               Text="{Binding CurrentItemId, Mode=OneWay}"
+                               VerticalAlignment="Center" />
+                    <TextBlock Grid.Column="3"
+                               Text="{Binding CurrentItemName, Mode=OneWay}"
+                               TextTrimming="CharacterEllipsis"
+                               VerticalAlignment="Center" />
+                    <TextBlock Grid.Column="4"
+                               Text="{Binding ManagementStatus}"
+                               Foreground="#7A4A00"
+                               TextTrimming="CharacterEllipsis"
+                               VerticalAlignment="Center"
+                               Margin="6,0" />
+                    <TextBlock Grid.Column="5"
+                               Text="{Binding Notes}"
+                               TextTrimming="CharacterEllipsis"
+                               VerticalAlignment="Center"
+                               Margin="6,0" />
+                </Grid>
+            </Border>
+        </DataTemplate>
+
         <DataTemplate x:Key="InventorySlotTemplate">
             <Border BorderBrush="#D8D8D8"
                     BorderThickness="0,0,0,1"
@@ -186,59 +275,6 @@
             </Border>
         </DataTemplate>
 
-        <DataTemplate x:Key="InventoryFixedSlotTemplate">
-            <Border BorderBrush="#D8D8D8"
-                    BorderThickness="0,0,0,1"
-                    Padding="0,5"
-                    ToolTip="{Binding Notes}">
-                <Grid>
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="130" />
-                        <ColumnDefinition Width="54" />
-                        <ColumnDefinition Width="74" />
-                        <ColumnDefinition Width="92" />
-                        <ColumnDefinition Width="*" MinWidth="150" />
-                        <ColumnDefinition Width="260" />
-                        <ColumnDefinition Width="70" />
-                        <ColumnDefinition Width="112" />
-                    </Grid.ColumnDefinitions>
-
-                    <TextBlock Text="{Binding Name}"
-                               VerticalAlignment="Center" />
-                    <TextBlock Grid.Column="1"
-                               Text="{Binding SlotNumber}"
-                               VerticalAlignment="Center" />
-                    <TextBlock Grid.Column="2"
-                               Text="{Binding Offset}"
-                               FontFamily="Consolas"
-                               VerticalAlignment="Center" />
-                    <TextBlock Grid.Column="3"
-                               Text="{Binding CurrentItemId, Mode=OneWay}"
-                               VerticalAlignment="Center" />
-                    <TextBlock Grid.Column="4"
-                               Text="{Binding CurrentItemName, Mode=OneWay}"
-                               TextTrimming="CharacterEllipsis"
-                               VerticalAlignment="Center" />
-                    <ComboBox Grid.Column="5"
-                              ItemsSource="{Binding AllowedItems}"
-                              DisplayMemberPath="DisplayName"
-                              SelectedItem="{Binding SelectedItem, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                              IsEnabled="{Binding CanEdit}"
-                              Margin="6,0" />
-                    <Button Grid.Column="6"
-                            Content="Apply"
-                            IsEnabled="{Binding CanEdit}"
-                            Tag="{Binding}"
-                            Click="ApplyFixedInventoryItem_Click" />
-                    <TextBlock Grid.Column="7"
-                               Text="{Binding ManagementStatus}"
-                               Foreground="#7A4A00"
-                               VerticalAlignment="Center"
-                               Margin="6,0" />
-                </Grid>
-            </Border>
-        </DataTemplate>
-
         <DataTemplate x:Key="EquipmentSlotTemplate">
             <Border BorderBrush="#D8D8D8"
                     BorderThickness="0,0,0,1"
@@ -250,8 +286,6 @@
                         <ColumnDefinition Width="76" />
                         <ColumnDefinition Width="78" />
                         <ColumnDefinition Width="*" MinWidth="150" />
-                        <ColumnDefinition Width="230" />
-                        <ColumnDefinition Width="70" />
                     </Grid.ColumnDefinitions>
 
                     <TextBlock Text="{Binding Name}"
@@ -267,16 +301,6 @@
                                Text="{Binding CurrentName, Mode=OneWay}"
                                TextTrimming="CharacterEllipsis"
                                VerticalAlignment="Center" />
-                    <ComboBox Grid.Column="4"
-                              ItemsSource="{Binding Options}"
-                              DisplayMemberPath="DisplayName"
-                              SelectedItem="{Binding SelectedOption, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                              Margin="6,0" />
-                    <Button Grid.Column="5"
-                            Content="Apply"
-                            IsEnabled="{Binding CanEdit}"
-                            Tag="{Binding}"
-                            Click="ApplyEquippedEquipment_Click" />
                 </Grid>
             </Border>
         </DataTemplate>
@@ -289,28 +313,150 @@
                 <Grid>
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="*" MinWidth="180" />
+                        <ColumnDefinition Width="70" />
                         <ColumnDefinition Width="76" />
                         <ColumnDefinition Width="58" />
                         <ColumnDefinition Width="90" />
+                        <ColumnDefinition Width="52" />
                     </Grid.ColumnDefinitions>
 
                     <CheckBox Content="{Binding Name}"
-                              IsChecked="{Binding IsOwned, Mode=OneWay}"
+                              IsChecked="{Binding IsOwnedDesired, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                               IsEnabled="{Binding CanEdit}"
-                              Tag="{Binding}"
-                              Click="EquipmentFlag_Click"
                               VerticalAlignment="Center" />
                     <TextBlock Grid.Column="1"
+                               Text="{Binding IsOwnedDetected, Mode=OneWay}"
+                               VerticalAlignment="Center" />
+                    <TextBlock Grid.Column="2"
                                Text="{Binding Offset}"
                                FontFamily="Consolas"
                                VerticalAlignment="Center" />
-                    <TextBlock Grid.Column="2"
+                    <TextBlock Grid.Column="3"
                                Text="{Binding Bit}"
                                VerticalAlignment="Center" />
-                    <TextBlock Grid.Column="3"
+                    <TextBlock Grid.Column="4"
                                Text="{Binding BackingValue, Mode=OneWay}"
                                FontFamily="Consolas"
                                VerticalAlignment="Center" />
+                    <TextBlock Grid.Column="5"
+                               Text="{Binding IsDirty, Mode=OneWay}"
+                               VerticalAlignment="Center" />
+                </Grid>
+            </Border>
+        </DataTemplate>
+
+        <DataTemplate x:Key="ResearchRangeRowTemplate">
+            <Border BorderBrush="#D8D8D8"
+                    BorderThickness="0,0,0,1"
+                    Padding="0,4">
+                <Border.Style>
+                    <Style TargetType="Border">
+                        <Setter Property="Background" Value="Transparent" />
+                        <Style.Triggers>
+                            <DataTrigger Binding="{Binding IsChanged}" Value="True">
+                                <Setter Property="Background" Value="#FFF3C4" />
+                            </DataTrigger>
+                        </Style.Triggers>
+                    </Style>
+                </Border.Style>
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="74" />
+                        <ColumnDefinition Width="92" />
+                        <ColumnDefinition Width="92" />
+                        <ColumnDefinition Width="*" MinWidth="120" />
+                        <ColumnDefinition Width="*" MinWidth="120" />
+                        <ColumnDefinition Width="70" />
+                    </Grid.ColumnDefinitions>
+
+                    <TextBlock Text="{Binding Offset}"
+                               FontFamily="Consolas"
+                               VerticalAlignment="Center" />
+                    <TextBlock Grid.Column="1"
+                               Text="{Binding BeforeByte}"
+                               FontFamily="Consolas"
+                               VerticalAlignment="Center" />
+                    <TextBlock Grid.Column="2"
+                               Text="{Binding CurrentByte}"
+                               FontFamily="Consolas"
+                               VerticalAlignment="Center" />
+                    <TextBlock Grid.Column="3"
+                               Text="{Binding BeforeItemName}"
+                               TextTrimming="CharacterEllipsis"
+                               VerticalAlignment="Center" />
+                    <TextBlock Grid.Column="4"
+                               Text="{Binding CurrentItemName}"
+                               TextTrimming="CharacterEllipsis"
+                               VerticalAlignment="Center" />
+                    <TextBlock Grid.Column="5"
+                               Text="{Binding IsChanged}"
+                               FontWeight="SemiBold"
+                               VerticalAlignment="Center" />
+                </Grid>
+            </Border>
+        </DataTemplate>
+
+        <DataTemplate x:Key="ResearchSnapshotTemplate">
+            <Border BorderBrush="#D8D8D8"
+                    BorderThickness="0,0,0,1"
+                    Padding="0,5">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" MinWidth="130" />
+                        <ColumnDefinition Width="120" />
+                        <ColumnDefinition Width="*" MinWidth="130" />
+                        <ColumnDefinition Width="70" />
+                    </Grid.ColumnDefinitions>
+                    <TextBlock Text="{Binding Name}"
+                               FontWeight="SemiBold"
+                               TextTrimming="CharacterEllipsis"
+                               VerticalAlignment="Center" />
+                    <TextBlock Grid.Column="1"
+                               Text="{Binding TimestampText}"
+                               VerticalAlignment="Center" />
+                    <TextBlock Grid.Column="2"
+                               Text="{Binding Notes}"
+                               TextTrimming="CharacterEllipsis"
+                               VerticalAlignment="Center" />
+                    <TextBlock Grid.Column="3"
+                               Text="{Binding RangeCount}"
+                               HorizontalAlignment="Center"
+                               VerticalAlignment="Center" />
+                </Grid>
+            </Border>
+        </DataTemplate>
+
+        <DataTemplate x:Key="ResearchSnapshotCompareRowTemplate">
+            <Border BorderBrush="#D8D8D8"
+                    BorderThickness="0,0,0,1"
+                    Padding="0,4">
+                <Border.Style>
+                    <Style TargetType="Border">
+                        <Setter Property="Background" Value="Transparent" />
+                        <Style.Triggers>
+                            <DataTrigger Binding="{Binding IsChanged}" Value="True">
+                                <Setter Property="Background" Value="#FFF3C4" />
+                            </DataTrigger>
+                        </Style.Triggers>
+                    </Style>
+                </Border.Style>
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="74" />
+                        <ColumnDefinition Width="92" />
+                        <ColumnDefinition Width="92" />
+                        <ColumnDefinition Width="70" />
+                        <ColumnDefinition Width="*" MinWidth="110" />
+                        <ColumnDefinition Width="*" MinWidth="110" />
+                        <ColumnDefinition Width="70" />
+                    </Grid.ColumnDefinitions>
+                    <TextBlock Text="{Binding Offset}" FontFamily="Consolas" VerticalAlignment="Center" />
+                    <TextBlock Grid.Column="1" Text="{Binding SnapshotAByte}" FontFamily="Consolas" VerticalAlignment="Center" />
+                    <TextBlock Grid.Column="2" Text="{Binding SnapshotBByte}" FontFamily="Consolas" VerticalAlignment="Center" />
+                    <TextBlock Grid.Column="3" Text="{Binding Difference}" FontFamily="Consolas" VerticalAlignment="Center" />
+                    <TextBlock Grid.Column="4" Text="{Binding SnapshotADecode}" TextTrimming="CharacterEllipsis" VerticalAlignment="Center" />
+                    <TextBlock Grid.Column="5" Text="{Binding SnapshotBDecode}" TextTrimming="CharacterEllipsis" VerticalAlignment="Center" />
+                    <TextBlock Grid.Column="6" Text="{Binding IsChanged}" FontWeight="SemiBold" VerticalAlignment="Center" />
                 </Grid>
             </Border>
         </DataTemplate>
@@ -486,12 +632,12 @@
             <TabItem Header="Inventory">
                 <ScrollViewer VerticalScrollBarVisibility="Auto">
                     <StackPanel Margin="6">
-                        <GroupBox Header="Inventory Items">
+                        <GroupBox Header="Owned / Unlocked Inventory Items">
                             <StackPanel>
                                 <TextBlock TextWrapping="Wrap"
                                            Foreground="#7A4A00"
                                            Margin="0,0,0,8"
-                                           Text="Use item-specific editors when available. The raw 24 inventory bytes appear to be fixed/game-managed slots, not arbitrary bag slots." />
+                                           Text="Inventory ownership/progression flags have not been mapped yet. Visible inventory slots appear to be rebuilt from authoritative flags, so these items are detection-only for now." />
 
                                 <Border BorderBrush="#D9A23A"
                                         BorderThickness="1"
@@ -501,7 +647,18 @@
                                     <TextBlock TextWrapping="Wrap"
                                                Foreground="#6F4700"
                                                FontWeight="SemiBold"
-                                               Text="This field appears game-managed. Real ownership/progression flags are not identified yet." />
+                                               Text="Ownership flag unknown. Raw inventory slots are game-managed and may revert. The trainer will not fake ownership by writing raw inventory slots." />
+                                </Border>
+
+                                <Border BorderBrush="#D9A23A"
+                                        BorderThickness="1"
+                                        Background="#FFF8E6"
+                                        Padding="8"
+                                        Margin="0,0,0,8">
+                                    <TextBlock TextWrapping="Wrap"
+                                               Foreground="#6F4700"
+                                               FontWeight="SemiBold"
+                                               Text="If the in-game inventory menu is already open, close and reopen it after applying future ownership changes to refresh displayed items." />
                                 </Border>
 
                                 <Border x:Name="InventoryInitializationWarningText"
@@ -520,7 +677,7 @@
                                 <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
                                     <Button Content="Refresh Inventory"
                                             Click="RefreshInventoryButton_Click" />
-                                    <TextBlock Text="Known fixed-slot editors restrict choices to variants that belong in that slot."
+                                    <TextBlock Text="Current detected state is read from CT-derived visible slots and is not proof of an authoritative ownership flag."
                                                VerticalAlignment="Center"
                                                Margin="10,0,0,0"
                                                Foreground="#555" />
@@ -528,77 +685,115 @@
 
                                 <Grid Margin="0,0,0,4">
                                     <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="130" />
-                                        <ColumnDefinition Width="54" />
+                                        <ColumnDefinition Width="140" />
+                                        <ColumnDefinition Width="230" />
+                                        <ColumnDefinition Width="150" />
+                                        <ColumnDefinition Width="82" />
+                                        <ColumnDefinition Width="105" />
+                                        <ColumnDefinition Width="*" MinWidth="220" />
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Text="Item" FontWeight="SemiBold" />
+                                    <TextBlock Grid.Column="1" Text="Current detected state" FontWeight="SemiBold" Margin="6,0" />
+                                    <TextBlock Grid.Column="2" Text="Ownership flag" FontWeight="SemiBold" Margin="6,0" />
+                                    <TextBlock Grid.Column="3" Text="Owned" FontWeight="SemiBold" HorizontalAlignment="Center" />
+                                    <TextBlock Grid.Column="4" Text="Edit status" FontWeight="SemiBold" Margin="6,0" />
+                                    <TextBlock Grid.Column="5" Text="Notes" FontWeight="SemiBold" Margin="6,0" />
+                                </Grid>
+
+                                <ItemsControl ItemsSource="{Binding InventoryOwnershipItems}"
+                                              ItemTemplate="{StaticResource InventoryOwnershipItemTemplate}" />
+                            </StackPanel>
+                        </GroupBox>
+
+                        <GroupBox Header="Current Inventory Slots (Read Only)">
+                            <StackPanel>
+                                <TextBlock TextWrapping="Wrap"
+                                           Foreground="#555"
+                                           Margin="0,0,0,8"
+                                           Text="These 24 bytes are CT-derived visible inventory fields from _playerbase+0x258 through _playerbase+0x26F. They are shown for detection and research; normal inventory editing does not write them." />
+
+                                <Grid Margin="0,0,0,4">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="150" />
                                         <ColumnDefinition Width="74" />
                                         <ColumnDefinition Width="92" />
                                         <ColumnDefinition Width="*" MinWidth="150" />
-                                        <ColumnDefinition Width="260" />
-                                        <ColumnDefinition Width="70" />
-                                        <ColumnDefinition Width="112" />
+                                        <ColumnDefinition Width="166" />
+                                        <ColumnDefinition Width="300" />
                                     </Grid.ColumnDefinitions>
-                                    <TextBlock Text="Item" FontWeight="SemiBold" />
-                                    <TextBlock Grid.Column="1" Text="Slot" FontWeight="SemiBold" />
-                                    <TextBlock Grid.Column="2" Text="Offset" FontWeight="SemiBold" />
-                                    <TextBlock Grid.Column="3" Text="Item ID" FontWeight="SemiBold" />
-                                    <TextBlock Grid.Column="4" Text="Current item" FontWeight="SemiBold" />
-                                    <TextBlock Grid.Column="5" Text="Allowed variant" FontWeight="SemiBold" Margin="6,0" />
-                                    <TextBlock Grid.Column="7" Text="Status" FontWeight="SemiBold" Margin="6,0" />
+                                    <TextBlock Text="Slot" FontWeight="SemiBold" />
+                                    <TextBlock Grid.Column="1" Text="Offset" FontWeight="SemiBold" />
+                                    <TextBlock Grid.Column="2" Text="Raw item ID" FontWeight="SemiBold" />
+                                    <TextBlock Grid.Column="3" Text="Decoded item name" FontWeight="SemiBold" />
+                                    <TextBlock Grid.Column="4" Text="Managed field" FontWeight="SemiBold" Margin="6,0" />
+                                    <TextBlock Grid.Column="5" Text="Notes" FontWeight="SemiBold" Margin="6,0" />
                                 </Grid>
 
-                                <ItemsControl ItemsSource="{Binding FixedInventoryItems}"
-                                              ItemTemplate="{StaticResource InventoryFixedSlotTemplate}" />
+                                <ItemsControl ItemsSource="{Binding InventorySlots}"
+                                              ItemTemplate="{StaticResource InventorySlotReadOnlyTemplate}" />
+                            </StackPanel>
+                        </GroupBox>
 
-                                <GroupBox Header="Advanced diagnostics" Margin="0,0,0,8">
-                                    <StackPanel>
-                                        <CheckBox Content="Hold inventory value for 2 seconds after Apply"
-                                                  IsChecked="{Binding HoldInventoryValueAfterApply, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                                                  ToolTip="Repeats the selected byte write for two seconds after Apply to test whether the game is overwriting the slot."
-                                                  Margin="0,2" />
-                                        <CheckBox Content="Allow editing uninitialized inventory"
-                                                  IsChecked="{Binding AllowEditingUninitializedInventory, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                                                  ToolTip="Allows Apply/Clear while all 24 CT inventory slots read as 255 / Nothing."
-                                                  Margin="0,4,0,2" />
-                                    </StackPanel>
-                                </GroupBox>
-
-                                <Expander Header="Advanced / Raw Inventory (Unsafe)" IsExpanded="False">
-                                    <StackPanel Margin="0,8,0,0">
+                        <Expander Header="Advanced / Raw Inventory Writes (Unsafe)" IsExpanded="False">
+                            <GroupBox Header="Unsafe Raw Inventory Writes">
+                                <StackPanel>
+                                    <Border BorderBrush="#D9A23A"
+                                            BorderThickness="1"
+                                            Background="#FFF8E6"
+                                            Padding="8"
+                                            Margin="0,0,0,8">
                                         <TextBlock TextWrapping="Wrap"
-                                                   Foreground="#7A4A00"
-                                                   Margin="0,0,0,8"
-                                                   Text="Raw mode exposes all CT item IDs for diagnostics. These are not arbitrary free inventory slots; game-managed slots may revert because the real ownership/progression flags are elsewhere." />
+                                                   Foreground="#6F4700"
+                                                   FontWeight="SemiBold"
+                                                   Text="Raw inventory writes are experimental. TPHD may immediately revert invalid writes. Use only for research on copied saves." />
+                                    </Border>
 
+                                    <TextBlock TextWrapping="Wrap"
+                                               Foreground="#7A4A00"
+                                               Margin="0,0,0,8"
+                                               Text="This section exposes all CT item IDs for diagnostics. Raw inventory slots are game-managed and may revert; the game likely rebuilds them from ownership/progression flags elsewhere." />
+
+                                    <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
                                         <CheckBox Content="Enable unsafe raw inventory writes"
                                                   IsChecked="{Binding AllowUnsafeRawInventoryWrites, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                                                   ToolTip="Required before Apply/Clear buttons in raw inventory mode can write bytes."
-                                                  Margin="0,0,0,8" />
-
-                                        <Grid Margin="0,0,0,4">
-                                            <Grid.ColumnDefinitions>
-                                                <ColumnDefinition Width="54" />
-                                                <ColumnDefinition Width="74" />
-                                                <ColumnDefinition Width="92" />
-                                                <ColumnDefinition Width="*" MinWidth="150" />
-                                                <ColumnDefinition Width="112" />
-                                                <ColumnDefinition Width="260" />
-                                                <ColumnDefinition Width="62" />
-                                                <ColumnDefinition Width="62" />
-                                            </Grid.ColumnDefinitions>
-                                            <TextBlock Text="Slot" FontWeight="SemiBold" />
-                                            <TextBlock Grid.Column="1" Text="Offset" FontWeight="SemiBold" />
-                                            <TextBlock Grid.Column="2" Text="Item ID" FontWeight="SemiBold" />
-                                            <TextBlock Grid.Column="3" Text="Current item" FontWeight="SemiBold" />
-                                            <TextBlock Grid.Column="4" Text="Status" FontWeight="SemiBold" Margin="6,0" />
-                                            <TextBlock Grid.Column="5" Text="Replacement item" FontWeight="SemiBold" Margin="6,0" />
-                                        </Grid>
-
-                                        <ItemsControl ItemsSource="{Binding InventorySlots}"
-                                                      ItemTemplate="{StaticResource InventorySlotTemplate}" />
+                                                  VerticalAlignment="Center" />
+                                        <CheckBox Content="Hold inventory value for 2 seconds after Apply"
+                                                  IsChecked="{Binding HoldInventoryValueAfterApply, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                                  ToolTip="Repeats the selected byte write for two seconds after Apply to test whether the game is overwriting the slot."
+                                                  VerticalAlignment="Center"
+                                                  Margin="14,0,0,0" />
+                                        <CheckBox Content="Allow editing uninitialized inventory"
+                                                  IsChecked="{Binding AllowEditingUninitializedInventory, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                                  ToolTip="Allows Apply/Clear while all 24 CT inventory slots read as 255 / Nothing."
+                                                  VerticalAlignment="Center"
+                                                  Margin="14,0,0,0" />
                                     </StackPanel>
-                                </Expander>
-                            </StackPanel>
-                        </GroupBox>
+
+                                    <Grid Margin="0,0,0,4">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="54" />
+                                            <ColumnDefinition Width="74" />
+                                            <ColumnDefinition Width="92" />
+                                            <ColumnDefinition Width="*" MinWidth="150" />
+                                            <ColumnDefinition Width="112" />
+                                            <ColumnDefinition Width="260" />
+                                            <ColumnDefinition Width="62" />
+                                            <ColumnDefinition Width="62" />
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock Text="Slot" FontWeight="SemiBold" />
+                                        <TextBlock Grid.Column="1" Text="Offset" FontWeight="SemiBold" />
+                                        <TextBlock Grid.Column="2" Text="Item ID" FontWeight="SemiBold" />
+                                        <TextBlock Grid.Column="3" Text="Current item" FontWeight="SemiBold" />
+                                        <TextBlock Grid.Column="4" Text="Status" FontWeight="SemiBold" Margin="6,0" />
+                                        <TextBlock Grid.Column="5" Text="Replacement item" FontWeight="SemiBold" Margin="6,0" />
+                                    </Grid>
+
+                                    <ItemsControl ItemsSource="{Binding InventorySlots}"
+                                                  ItemTemplate="{StaticResource InventorySlotTemplate}" />
+                                </StackPanel>
+                            </GroupBox>
+                        </Expander>
                     </StackPanel>
                 </ScrollViewer>
             </TabItem>
@@ -611,7 +806,18 @@
                                 <TextBlock TextWrapping="Wrap"
                                            Foreground="#7A4A00"
                                            Margin="0,0,0,8"
-                                           Text="Equipment values and ownership flags are CT-derived bytes. Uninitialized structures or active game state can reject writes." />
+                                           Text="Ownership flags are the authoritative equipment data. Grant ownership here, then equip owned items through the in-game equipment screen." />
+
+                                <Border BorderBrush="#D9A23A"
+                                        BorderThickness="1"
+                                        Background="#FFF8E6"
+                                        Padding="8"
+                                        Margin="0,0,0,8">
+                                    <TextBlock TextWrapping="Wrap"
+                                               Foreground="#6F4700"
+                                               FontWeight="SemiBold"
+                                               Text="Changes may not appear immediately if the equipment screen is currently open. Close the in-game equipment menu and reopen it to refresh the displayed equipment." />
+                                </Border>
 
                                 <Border x:Name="EquipmentInitializationWarningText"
                                         Visibility="Collapsed"
@@ -629,17 +835,15 @@
                                 <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
                                     <Button Content="Refresh Equipment"
                                             Click="RefreshEquipmentButton_Click" />
-                                    <CheckBox Content="Advanced equipment editing"
-                                              IsChecked="{Binding AdvancedEquipmentEditing, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                                              ToolTip="Enables explicit writes to equipped gear bytes and ownership flag bits."
-                                              VerticalAlignment="Center"
-                                              Margin="12,0,0,0" />
                                     <CheckBox Content="Allow editing uninitialized equipment"
                                               IsChecked="{Binding AllowEditingUninitializedEquipment, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                                              ToolTip="Allows equipment writes while the CT equipment bytes appear uninitialized."
+                                              ToolTip="Allows ownership flag writes while the CT equipment bytes appear uninitialized."
                                               VerticalAlignment="Center"
                                               Margin="12,0,0,0" />
-                                    <TextBlock Text="Writes are disabled until advanced editing is enabled."
+                                    <Button Content="Apply Ownership Changes"
+                                            Click="ApplyEquipmentOwnership_Click"
+                                            Margin="12,0,0,0" />
+                                    <TextBlock Text="Equipment should be equipped through the in-game menu after ownership is granted."
                                                VerticalAlignment="Center"
                                                Margin="12,0,0,0"
                                                Foreground="#555" />
@@ -647,50 +851,50 @@
                             </StackPanel>
                         </GroupBox>
 
-                        <GroupBox Header="Equipped Gear">
+                        <GroupBox Header="Owned Equipment">
                             <StackPanel>
+                                <TextBlock TextWrapping="Wrap"
+                                           Foreground="#555"
+                                           Margin="0,0,0,8"
+                                           Text="Checkboxes edit desired ownership. Detected ownership is read from memory and dirty rows are preserved across background refresh until Apply Ownership Changes is clicked." />
+                                <UniformGrid Columns="3">
+                                    <GroupBox Header="Swords">
+                                        <ItemsControl ItemsSource="{Binding SwordOwnershipFlags}"
+                                                      ItemTemplate="{StaticResource EquipmentFlagTemplate}" />
+                                    </GroupBox>
+                                    <GroupBox Header="Shields">
+                                        <ItemsControl ItemsSource="{Binding ShieldOwnershipFlags}"
+                                                      ItemTemplate="{StaticResource EquipmentFlagTemplate}" />
+                                    </GroupBox>
+                                    <GroupBox Header="Armor">
+                                        <ItemsControl ItemsSource="{Binding ArmorOwnershipFlags}"
+                                                      ItemTemplate="{StaticResource EquipmentFlagTemplate}" />
+                                    </GroupBox>
+                                </UniformGrid>
+                            </StackPanel>
+                        </GroupBox>
+
+                        <GroupBox Header="Current Equipment (Read Only)">
+                            <StackPanel>
+                                <TextBlock TextWrapping="Wrap"
+                                           Foreground="#555"
+                                           Margin="0,0,0,8"
+                                           Text="Current equipment values are game-managed and are shown for diagnostics only." />
                                 <Grid Margin="0,0,0,4">
                                     <Grid.ColumnDefinitions>
                                         <ColumnDefinition Width="150" />
                                         <ColumnDefinition Width="76" />
                                         <ColumnDefinition Width="78" />
                                         <ColumnDefinition Width="*" MinWidth="150" />
-                                        <ColumnDefinition Width="230" />
-                                        <ColumnDefinition Width="70" />
                                     </Grid.ColumnDefinitions>
                                     <TextBlock Text="Slot" FontWeight="SemiBold" />
                                     <TextBlock Grid.Column="1" Text="Offset" FontWeight="SemiBold" />
                                     <TextBlock Grid.Column="2" Text="Value" FontWeight="SemiBold" />
                                     <TextBlock Grid.Column="3" Text="Current" FontWeight="SemiBold" />
-                                    <TextBlock Grid.Column="4" Text="Replacement" FontWeight="SemiBold" Margin="6,0" />
                                 </Grid>
 
                                 <ItemsControl ItemsSource="{Binding EquipmentSlots}"
                                               ItemTemplate="{StaticResource EquipmentSlotTemplate}" />
-                            </StackPanel>
-                        </GroupBox>
-
-                        <GroupBox Header="Ownership Flags">
-                            <StackPanel>
-                                <TextBlock TextWrapping="Wrap"
-                                           Foreground="#555"
-                                           Margin="0,0,0,8"
-                                           Text="Flag checkboxes write individual CT bit values inside their backing bytes. They remain disabled until Advanced equipment editing is enabled." />
-                                <Grid Margin="0,0,0,4">
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="*" MinWidth="180" />
-                                        <ColumnDefinition Width="76" />
-                                        <ColumnDefinition Width="58" />
-                                        <ColumnDefinition Width="90" />
-                                    </Grid.ColumnDefinitions>
-                                    <TextBlock Text="Owned" FontWeight="SemiBold" />
-                                    <TextBlock Grid.Column="1" Text="Offset" FontWeight="SemiBold" />
-                                    <TextBlock Grid.Column="2" Text="Bit" FontWeight="SemiBold" />
-                                    <TextBlock Grid.Column="3" Text="Byte" FontWeight="SemiBold" />
-                                </Grid>
-
-                                <ItemsControl ItemsSource="{Binding EquipmentFlags}"
-                                              ItemTemplate="{StaticResource EquipmentFlagTemplate}" />
                             </StackPanel>
                         </GroupBox>
                     </StackPanel>
@@ -854,6 +1058,22 @@
                                          IsReadOnly="True"
                                          FontFamily="Consolas"
                                          TextWrapping="Wrap"
+                                         Background="#F7F7F7" />
+                            </StackPanel>
+                        </GroupBox>
+
+                        <GroupBox Header="AOB Scan Diagnostics">
+                            <StackPanel>
+                                <TextBlock Text="Also written to logs/scan.log after Attach / Rescan"
+                                           Foreground="#555"
+                                           Margin="0,0,0,6" />
+                                <TextBox x:Name="ScanDiagnosticsText"
+                                         Text="No scan has run yet."
+                                         IsReadOnly="True"
+                                         TextWrapping="Wrap"
+                                         AcceptsReturn="True"
+                                         MinHeight="150"
+                                         FontFamily="Consolas"
                                          Background="#F7F7F7" />
                             </StackPanel>
                         </GroupBox>
@@ -1051,6 +1271,292 @@
                                              TextWrapping="Wrap"
                                              Background="#F7F7F7" />
                                 </Grid>
+                            </StackPanel>
+                        </GroupBox>
+
+                        <GroupBox Header="Research Range Snapshot">
+                            <StackPanel>
+                                <TextBlock TextWrapping="Wrap"
+                                           Foreground="#555"
+                                           Margin="0,0,0,8"
+                                           Text="Capture a byte range before an in-game pickup, then compare after the pickup to identify changed inventory, equipment, or progression bytes. This tool only reads memory." />
+
+                                <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
+                                    <Button Content="Inventory Slots"
+                                            Click="ResearchPresetInventorySlots_Click" />
+                                    <Button Content="Equipment/Ownership"
+                                            Click="ResearchPresetEquipmentOwnership_Click" />
+                                    <Button Content="Equipped Gear"
+                                            Click="ResearchPresetEquippedGear_Click" />
+                                </StackPanel>
+
+                                <Grid Margin="0,0,0,8">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="94" />
+                                        <ColumnDefinition Width="110" />
+                                        <ColumnDefinition Width="62" />
+                                        <ColumnDefinition Width="90" />
+                                        <ColumnDefinition Width="52" />
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+
+                                    <TextBlock Text="Start offset"
+                                               VerticalAlignment="Center"
+                                               Margin="0,0,6,0" />
+                                    <TextBox Grid.Column="1"
+                                             x:Name="ResearchRangeStartOffsetText"
+                                             Text="0x258"
+                                             FontFamily="Consolas"
+                                             Margin="0,0,8,0" />
+
+                                    <TextBlock Grid.Column="2"
+                                               Text="Length"
+                                               VerticalAlignment="Center"
+                                               Margin="0,0,6,0" />
+                                    <TextBox Grid.Column="3"
+                                             x:Name="ResearchRangeLengthText"
+                                             Text="0x18"
+                                             FontFamily="Consolas"
+                                             Margin="0,0,8,0" />
+
+                                    <TextBlock Grid.Column="4"
+                                               Text="Label"
+                                               VerticalAlignment="Center"
+                                               Margin="0,0,6,0" />
+                                    <TextBox Grid.Column="5"
+                                             x:Name="ResearchRangeLabelText"
+                                             Text="Before Slingshot"
+                                             Margin="0,0,8,0" />
+
+                                    <Button Grid.Column="6"
+                                            Content="Capture Snapshot"
+                                            Click="ResearchCaptureRangeSnapshot_Click" />
+                                    <Button Grid.Column="7"
+                                            Content="Compare Current"
+                                            Click="ResearchCompareRangeSnapshot_Click" />
+                                </Grid>
+
+                                <TextBox x:Name="ResearchRangeStatusText"
+                                         Text="No range snapshot captured"
+                                         IsReadOnly="True"
+                                         TextWrapping="Wrap"
+                                         Background="#F7F7F7"
+                                         Margin="0,0,0,8" />
+
+                                <Grid Margin="0,0,0,4">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="74" />
+                                        <ColumnDefinition Width="92" />
+                                        <ColumnDefinition Width="92" />
+                                        <ColumnDefinition Width="*" MinWidth="120" />
+                                        <ColumnDefinition Width="*" MinWidth="120" />
+                                        <ColumnDefinition Width="70" />
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Text="Offset" FontWeight="SemiBold" />
+                                    <TextBlock Grid.Column="1" Text="Before" FontWeight="SemiBold" />
+                                    <TextBlock Grid.Column="2" Text="Current" FontWeight="SemiBold" />
+                                    <TextBlock Grid.Column="3" Text="Before item" FontWeight="SemiBold" />
+                                    <TextBlock Grid.Column="4" Text="Current item" FontWeight="SemiBold" />
+                                    <TextBlock Grid.Column="5" Text="Changed" FontWeight="SemiBold" />
+                                </Grid>
+
+                                <ScrollViewer Height="230"
+                                              VerticalScrollBarVisibility="Auto"
+                                              HorizontalScrollBarVisibility="Auto"
+                                              Background="#F7F7F7">
+                                    <ItemsControl ItemsSource="{Binding ResearchRangeRows}"
+                                                  ItemTemplate="{StaticResource ResearchRangeRowTemplate}" />
+                                </ScrollViewer>
+                            </StackPanel>
+                        </GroupBox>
+
+                        <GroupBox Header="Research Snapshot Library">
+                            <StackPanel>
+                                <TextBlock TextWrapping="Wrap"
+                                           Foreground="#555"
+                                           Margin="0,0,0,8"
+                                           Text="Save named read-only snapshots to logs/snapshots, then compare saved game states without replaying sections." />
+
+                                <Grid Margin="0,0,0,8">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="92" />
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="84" />
+                                        <ColumnDefinition Width="*" />
+                                    </Grid.ColumnDefinitions>
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="Auto" />
+                                        <RowDefinition Height="Auto" />
+                                    </Grid.RowDefinitions>
+
+                                    <TextBlock Text="Name" VerticalAlignment="Center" Margin="0,0,6,5" />
+                                    <TextBox Grid.Column="1"
+                                             x:Name="ResearchSnapshotNameText"
+                                             Text="Slingshot Obtained"
+                                             Margin="0,0,8,5" />
+                                    <TextBlock Grid.Column="2" Text="Game state" VerticalAlignment="Center" Margin="0,0,6,5" />
+                                    <TextBox Grid.Column="3"
+                                             x:Name="ResearchSnapshotGameStateText"
+                                             Text="After item pickup"
+                                             Margin="0,0,0,5" />
+
+                                    <TextBlock Grid.Row="1" Text="Notes" VerticalAlignment="Center" Margin="0,0,6,0" />
+                                    <TextBox Grid.Row="1"
+                                             Grid.Column="1"
+                                             Grid.ColumnSpan="3"
+                                             x:Name="ResearchSnapshotNotesText"
+                                             Text="Natural progression snapshot" />
+                                </Grid>
+
+                                <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
+                                    <CheckBox x:Name="ResearchSaveInventoryRangeCheckBox"
+                                              Content="Inventory"
+                                              IsChecked="True"
+                                              Margin="0,0,12,0" />
+                                    <CheckBox x:Name="ResearchSaveEquipmentRangeCheckBox"
+                                              Content="Equipment"
+                                              IsChecked="True"
+                                              Margin="0,0,12,0" />
+                                    <CheckBox x:Name="ResearchSaveOwnershipRangeCheckBox"
+                                              Content="Ownership"
+                                              IsChecked="True"
+                                              Margin="0,0,12,0" />
+                                    <CheckBox x:Name="ResearchSaveCustomRangeCheckBox"
+                                              Content="Custom range"
+                                              ToolTip="Uses the start offset, length, and label from Research Range Snapshot."
+                                              Margin="0,0,12,0" />
+                                    <Button Content="Save Snapshot"
+                                            Click="ResearchSaveSnapshot_Click" />
+                                    <Button Content="Refresh Library"
+                                            Click="ResearchRefreshSnapshots_Click" />
+                                </StackPanel>
+
+                                <TextBox x:Name="ResearchSnapshotLibraryStatusText"
+                                         Text="Snapshot library ready"
+                                         IsReadOnly="True"
+                                         TextWrapping="Wrap"
+                                         Background="#F7F7F7"
+                                         Margin="0,0,0,8" />
+
+                                <Grid Margin="0,0,0,4">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*" MinWidth="130" />
+                                        <ColumnDefinition Width="120" />
+                                        <ColumnDefinition Width="*" MinWidth="130" />
+                                        <ColumnDefinition Width="70" />
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Text="Snapshot Name" FontWeight="SemiBold" />
+                                    <TextBlock Grid.Column="1" Text="Date" FontWeight="SemiBold" />
+                                    <TextBlock Grid.Column="2" Text="Notes" FontWeight="SemiBold" />
+                                    <TextBlock Grid.Column="3" Text="Ranges" FontWeight="SemiBold" HorizontalAlignment="Center" />
+                                </Grid>
+
+                                <ListBox x:Name="ResearchSnapshotListBox"
+                                         ItemsSource="{Binding ResearchSnapshots}"
+                                         ItemTemplate="{StaticResource ResearchSnapshotTemplate}"
+                                         Height="170"
+                                         Background="#F7F7F7" />
+
+                                <StackPanel Orientation="Horizontal" Margin="0,8,0,8">
+                                    <Button Content="Load As A"
+                                            Click="ResearchLoadSnapshotA_Click" />
+                                    <Button Content="Load As B"
+                                            Click="ResearchLoadSnapshotB_Click" />
+                                    <Button Content="Delete"
+                                            Click="ResearchDeleteSnapshot_Click" />
+                                    <Button Content="Compare A/B"
+                                            Click="ResearchCompareSavedSnapshots_Click" />
+                                </StackPanel>
+
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="86" />
+                                        <ColumnDefinition Width="*" />
+                                    </Grid.ColumnDefinitions>
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="Auto" />
+                                        <RowDefinition Height="Auto" />
+                                    </Grid.RowDefinitions>
+                                    <TextBlock Text="Snapshot A" VerticalAlignment="Center" Margin="0,0,6,5" />
+                                    <TextBox Grid.Column="1"
+                                             x:Name="ResearchSnapshotAText"
+                                             Text="-"
+                                             IsReadOnly="True"
+                                             Background="#F7F7F7"
+                                             Margin="0,0,0,5" />
+                                    <TextBlock Grid.Row="1" Text="Snapshot B" VerticalAlignment="Center" Margin="0,0,6,0" />
+                                    <TextBox Grid.Row="1"
+                                             Grid.Column="1"
+                                             x:Name="ResearchSnapshotBText"
+                                             Text="-"
+                                             IsReadOnly="True"
+                                             Background="#F7F7F7" />
+                                </Grid>
+                            </StackPanel>
+                        </GroupBox>
+
+                        <GroupBox Header="Snapshot Compare">
+                            <StackPanel>
+                                <TextBlock TextWrapping="Wrap"
+                                           Foreground="#555"
+                                           Margin="0,0,0,8"
+                                           Text="Compares two saved snapshots without requiring the game to be running. Changed rows are highlighted and exports are written to logs/research as JSON and CSV." />
+
+                                <TextBox x:Name="ResearchSnapshotCompareStatusText"
+                                         Text="Load Snapshot A and Snapshot B"
+                                         IsReadOnly="True"
+                                         TextWrapping="Wrap"
+                                         Background="#F7F7F7"
+                                         Margin="0,0,0,8" />
+
+                                <Grid Margin="0,0,0,4">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="74" />
+                                        <ColumnDefinition Width="92" />
+                                        <ColumnDefinition Width="92" />
+                                        <ColumnDefinition Width="70" />
+                                        <ColumnDefinition Width="*" MinWidth="110" />
+                                        <ColumnDefinition Width="*" MinWidth="110" />
+                                        <ColumnDefinition Width="70" />
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Text="Offset" FontWeight="SemiBold" />
+                                    <TextBlock Grid.Column="1" Text="Snapshot A" FontWeight="SemiBold" />
+                                    <TextBlock Grid.Column="2" Text="Snapshot B" FontWeight="SemiBold" />
+                                    <TextBlock Grid.Column="3" Text="Diff" FontWeight="SemiBold" />
+                                    <TextBlock Grid.Column="4" Text="A Decode" FontWeight="SemiBold" />
+                                    <TextBlock Grid.Column="5" Text="B Decode" FontWeight="SemiBold" />
+                                    <TextBlock Grid.Column="6" Text="Changed" FontWeight="SemiBold" />
+                                </Grid>
+
+                                <ScrollViewer Height="220"
+                                              VerticalScrollBarVisibility="Auto"
+                                              HorizontalScrollBarVisibility="Auto"
+                                              Background="#F7F7F7"
+                                              Margin="0,0,0,8">
+                                    <ItemsControl ItemsSource="{Binding ResearchSnapshotCompareRows}"
+                                                  ItemTemplate="{StaticResource ResearchSnapshotCompareRowTemplate}" />
+                                </ScrollViewer>
+
+                                <TextBlock Text="Discovery Report"
+                                           FontWeight="SemiBold"
+                                           Margin="0,0,0,4" />
+                                <ScrollViewer Height="110"
+                                              VerticalScrollBarVisibility="Auto"
+                                              Background="#F7F7F7">
+                                    <ItemsControl ItemsSource="{Binding ResearchDiscoveryReportLines}">
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate>
+                                                <TextBlock Text="{Binding}"
+                                                           TextWrapping="Wrap"
+                                                           FontFamily="Consolas"
+                                                           FontSize="11"
+                                                           Margin="0,0,0,4" />
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+                                </ScrollViewer>
                             </StackPanel>
                         </GroupBox>
 

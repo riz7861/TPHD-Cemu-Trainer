@@ -14,16 +14,6 @@ public static class EquipmentMemoryService
         return TryReadByte(memory, playerBaseAddress, slot.Offset, slot.Name, out value, out error);
     }
 
-    public static bool TryWriteEquipped(
-        ProcessMemory memory,
-        ulong playerBaseAddress,
-        EquipmentSlotDefinition slot,
-        byte value,
-        out string error)
-    {
-        return TryWriteByte(memory, playerBaseAddress, slot.Offset, value, slot.Name, out error);
-    }
-
     public static bool TryReadFlag(
         ProcessMemory memory,
         ulong playerBaseAddress,

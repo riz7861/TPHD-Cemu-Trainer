@@ -101,10 +101,85 @@ public static class InventoryDefinitions
             "TPHD appears to manage this fixed slot and may restore it when unrelated item IDs are written.")
     ];
 
+    public static IReadOnlyList<InventoryOwnershipDefinition> OwnershipItems { get; } =
+    [
+        CreateUnknownOwnership(
+            "fishing-rod",
+            "Fishing Rod",
+            [74, 91, 92, 93, 94, 95],
+            "Visible CT slot 21 / _playerbase+0x26C reflects fishing rod state, but direct writes revert. Real ownership/progression flag not identified yet."),
+        CreateUnknownOwnership(
+            "slingshot",
+            "Slingshot",
+            [75],
+            "Detected from raw CT item ID 75 when present. Ownership/progression flag not identified yet."),
+        CreateUnknownOwnership(
+            "lantern",
+            "Lantern",
+            [72, 248],
+            "Detected from raw CT lantern item IDs when present. Ownership/progression flag not identified yet."),
+        CreateUnknownOwnership(
+            "heros-bow",
+            "Hero's Bow",
+            [67, 89, 90],
+            "Detected from raw CT bow item IDs when present. Ownership/progression flag not identified yet."),
+        CreateUnknownOwnership(
+            "gale-boomerang",
+            "Gale Boomerang",
+            [64],
+            "Detected from raw CT item ID 64 when present. Ownership/progression flag not identified yet."),
+        CreateUnknownOwnership(
+            "clawshot",
+            "Clawshot",
+            [68],
+            "Detected from raw CT item ID 68 when present. Ownership/progression flag not identified yet."),
+        CreateUnknownOwnership(
+            "double-clawshots",
+            "Double Clawshots",
+            [71],
+            "Detected from raw CT item ID 71 when present. Ownership/progression flag not identified yet."),
+        CreateUnknownOwnership(
+            "spinner",
+            "Spinner",
+            [65],
+            "Detected from raw CT item ID 65 when present. Ownership/progression flag not identified yet."),
+        CreateUnknownOwnership(
+            "dominion-rod",
+            "Dominion Rod",
+            [70, 76],
+            "Detected from raw CT dominion rod item IDs when present. Ownership/progression flag not identified yet."),
+        CreateUnknownOwnership(
+            "ball-and-chain",
+            "Ball and Chain",
+            [66],
+            "Detected from raw CT item ID 66 when present. Ownership/progression flag not identified yet."),
+        CreateUnknownOwnership(
+            "hawkeye",
+            "Hawkeye",
+            [62, 90],
+            "Detected from raw CT hawkeye-related item IDs when present. Ownership/progression flag not identified yet."),
+        CreateUnknownOwnership(
+            "horse-call",
+            "Horse Call",
+            [132],
+            "Detected from raw CT item ID 132 when present. Ownership/progression flag not identified yet."),
+        CreateUnknownOwnership(
+            "bottles",
+            "Bottles",
+            [96, 97, 98, 99, 100, 101, 102, 103, 106, 107, 108, 115, 116, 118, 119, 120, 121, 122, 123, 124, 125, 126, 127, 158, 159],
+            "Detected from raw CT bottle-content item IDs when present. Bottle ownership/progression flags are not identified yet.")
+    ];
+
     public static string GetItemName(byte itemId)
     {
         return SafeItems.FirstOrDefault(item => item.ItemId == itemId)?.Name
             ?? $"Unknown / unsafe item ({itemId})";
+    }
+
+    public static string GetKnownItemName(byte itemId)
+    {
+        return SafeItems.FirstOrDefault(item => item.ItemId == itemId)?.Name
+            ?? "-";
     }
 
     public static InventoryItemDefinition GetDefaultSelection(byte itemId)
@@ -123,16 +198,52 @@ public static class InventoryDefinitions
 
     public static bool IsGameManagedSlot(int slotIndex)
     {
-        return FixedSlots.Any(slot => slot.SlotIndex == slotIndex && slot.IsGameManaged);
+        return slotIndex >= 0 && slotIndex < SlotCount;
     }
 
     public static string GetManagementStatus(int slotIndex)
     {
-        return IsGameManagedSlot(slotIndex) ? "Game-managed" : "Raw / unknown";
+        var fixedSlot = FixedSlots.FirstOrDefault(slot => slot.SlotIndex == slotIndex);
+        return fixedSlot is not null ? $"{fixedSlot.Name} field" : "Game-managed raw slot";
+    }
+
+    public static string GetSlotLabel(int slotIndex)
+    {
+        var fixedSlot = FixedSlots.FirstOrDefault(slot => slot.SlotIndex == slotIndex);
+        return fixedSlot is not null ? $"Slot {slotIndex + 1} / {fixedSlot.Name} field" : $"Slot {slotIndex + 1}";
+    }
+
+    public static string GetSlotNotes(int slotIndex)
+    {
+        var fixedSlot = FixedSlots.FirstOrDefault(slot => slot.SlotIndex == slotIndex);
+        return fixedSlot is not null
+            ? "Game-managed. Direct writes revert. Real ownership/progression flag not identified yet."
+            : "Game-managed CT-derived visible inventory slot. Useful for detection/research; not an ownership flag.";
+    }
+
+    public static string GetSlotOffset(int slotIndex)
+    {
+        return $"0x{FirstSlotOffset + (uint)slotIndex:X}";
     }
 
     private static InventoryItemDefinition GetItemDefinition(byte itemId)
     {
         return SafeItems.First(item => item.ItemId == itemId);
+    }
+
+    private static InventoryOwnershipDefinition CreateUnknownOwnership(
+        string id,
+        string name,
+        IReadOnlyList<byte> detectedItemIds,
+        string notes)
+    {
+        return new InventoryOwnershipDefinition(
+            id,
+            name,
+            detectedItemIds,
+            null,
+            null,
+            false,
+            notes);
     }
 }

@@ -24,9 +24,13 @@ public sealed class InventorySlotViewModel : ObservableObject
 
     public uint OffsetValue { get; }
 
-    public string Offset => $"0x{OffsetValue:X}";
+    public string Offset => InventoryDefinitions.GetSlotOffset(SlotIndex);
+
+    public string SlotLabel => InventoryDefinitions.GetSlotLabel(SlotIndex);
 
     public string ManagementStatus => InventoryDefinitions.GetManagementStatus(SlotIndex);
+
+    public string Notes => InventoryDefinitions.GetSlotNotes(SlotIndex);
 
     public IReadOnlyList<InventoryItemDefinition> AvailableItems { get; }
 
