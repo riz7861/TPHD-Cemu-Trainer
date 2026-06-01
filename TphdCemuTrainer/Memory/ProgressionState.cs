@@ -2,11 +2,20 @@ using System.Globalization;
 
 namespace TphdCemuTrainer.Memory;
 
+public enum OwnershipEditAcceptance
+{
+    Unknown,
+    LikelyNo,
+    LikelyYes
+}
+
 public sealed record ProgressionState(
     ulong PlayerBaseAddress,
     bool HasPlayerData,
     bool InventoryInitialized,
     bool EquipmentInitialized,
+    OwnershipEditAcceptance GameAcceptsOwnershipEdits,
+    string OwnershipEditDetectionReason,
     byte[] InventoryRawBytes,
     byte ArmorOwnershipByte,
     byte EquipmentOwnershipByte,
@@ -24,6 +33,17 @@ public sealed record ProgressionState(
     public string InventoryStatus => InventoryInitialized ? "Ready" : "Not Initialized";
 
     public string EquipmentStatus => EquipmentInitialized ? "Ready" : "Not Initialized";
+
+    public bool MemoryInitialized => InventoryInitialized && EquipmentInitialized;
+
+    public string MemoryInitializedStatus => MemoryInitialized ? "Ready" : "Not Ready";
+
+    public string OwnershipEditAcceptanceText => GameAcceptsOwnershipEdits switch
+    {
+        OwnershipEditAcceptance.LikelyYes => "Likely Yes",
+        OwnershipEditAcceptance.LikelyNo => "Likely No",
+        _ => "Unknown"
+    };
 
     public string InventoryRawBytesText => InventoryRawBytes.Length == 0
         ? "Not read"

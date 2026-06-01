@@ -70,6 +70,21 @@ public static class ResearchSnapshotStore
         return (jsonPath, csvPath);
     }
 
+    public static (string JsonPath, string CsvPath) ExportOwnershipDiscovery(OwnershipDiscoveryExport export)
+    {
+        Directory.CreateDirectory(ExportDirectory);
+
+        var baseName =
+            $"{export.Timestamp:yyyyMMdd_HHmmss}_ownership-discovery_{SanitizeFileName(export.SnapshotAName)}_vs_{SanitizeFileName(export.SnapshotBName)}";
+        var jsonPath = Path.Combine(ExportDirectory, baseName + ".json");
+        var csvPath = Path.Combine(ExportDirectory, baseName + ".csv");
+
+        File.WriteAllText(jsonPath, JsonSerializer.Serialize(export, JsonOptions));
+        File.WriteAllLines(csvPath, CreateOwnershipDiscoveryCsvLines(export));
+
+        return (jsonPath, csvPath);
+    }
+
     private static IEnumerable<string> CreateCsvLines(ResearchComparisonExport comparison)
     {
         yield return "Offset,Snapshot A,Snapshot B,Snapshot A Decode,Snapshot B Decode,Difference,Changed";
@@ -85,6 +100,26 @@ public static class ResearchSnapshotStore
                 Csv(row.SnapshotBDecode),
                 Csv(row.Difference),
                 Csv(row.Changed.ToString()));
+        }
+    }
+
+    private static IEnumerable<string> CreateOwnershipDiscoveryCsvLines(OwnershipDiscoveryExport export)
+    {
+        yield return "Offset,Before Value,After Value,Changed,Persisted After Reload,Outside Visible Inventory Slots,Score,Strong Candidate,Potential Meaning";
+
+        foreach (var row in export.Rows)
+        {
+            yield return string.Join(
+                ",",
+                Csv(row.Offset),
+                Csv(row.BeforeValue?.ToString() ?? string.Empty),
+                Csv(row.AfterValue?.ToString() ?? string.Empty),
+                Csv(row.Changed.ToString()),
+                Csv(row.PersistedAfterReload.ToString()),
+                Csv(row.OutsideVisibleInventorySlots.ToString()),
+                Csv(row.Score.ToString()),
+                Csv(row.StrongCandidate.ToString()),
+                Csv(row.PotentialMeaning));
         }
     }
 

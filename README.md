@@ -19,11 +19,11 @@ The UI is organized as a tabbed trainer/save-editor hybrid so new systems can be
 - **Inventory**: ownership-first item detection, read-only current slot view, and unsafe raw CT writes for research
 - **Equipment**: ownership flag editor with read-only current equipped armor/sword/shield diagnostics
 - **Ammo & Upgrades**: wallet, quiver, bomb bag, and seed capacity-aware edits
-- **Collectibles**: Poe Souls, Golden Bugs summary, heart containers, future heart-piece tracking
+- **Collectibles**: verified Poe Souls editing, Golden Bugs research-only bitfield display, and health/heart summaries
 - **Story Flags**: reserved progression flags
 - **Hidden Skills**: reserved hidden-skill tracking
 - **Quest Items**: reserved quest item/progression tracking
-- **Debug**: player base, AOB pattern, progression diagnostics, raw CT-backed values, and future memory tools
+- **Debug**: player base, AOB pattern, progression diagnostics, research snapshots, Ownership Discovery Mode, raw CT-backed values, and future memory tools
 
 ## Implemented Memory Edits
 
@@ -34,11 +34,11 @@ The UI is organized as a tabbed trainer/save-editor hybrid so new systems can be
 - Arrows
 - Bomb slots 1-3
 - Seeds
-- Poe souls
+- Poe souls at `_playerbase+0x2C8`, clamped to 0-60 with readback diagnostics
 - Wallet capacity
 - Quiver capacity
 - Bomb bag capacity
-- Golden Bugs count display from the CT bitfield
+- Golden Bugs raw CT bitfield and detected count display
 - Read-only inventory slot detection at `_playerbase+0x258` through `_playerbase+0x26F`
 - Unsafe raw inventory slot writes at `_playerbase+0x258` through `_playerbase+0x26F`
 - Read-only equipped armor at `_playerbase+0x1D1`
@@ -74,9 +74,20 @@ Equipment is considered initialized once the CT-backed ownership bytes or equipp
 - Master Sword Infused bit: `_playerbase+0x292` bit 1
 - Equipped armor/sword/shield: `_playerbase+0x1D1`, `_playerbase+0x1D2`, `_playerbase+0x1D3`
 
-Once a structure is initialized, the trainer removes the initialization restriction for supported writes. Equipment writes are ownership-flag writes only. Inventory ownership writes remain disabled until real ownership or progression flags are identified. The top bar shows **Player Data**, **Inventory**, and **Equipment** readiness after **Attach / Rescan**.
+The trainer also tracks a separate **Ownership Edits** state. This is intentionally separate from player data and memory initialization because early Ordon Village intro saves may expose readable player memory and may even accept writes briefly, while TPHD still ignores or rebuilds ownership state internally.
 
-Progression diagnostics are shown on the Debug tab and written to `logs/progression.log` after each **Attach / Rescan**.
+For now this is a conservative heuristic, not a mapped story flag:
+
+- No player data: **Unknown**
+- Player data with inventory/equipment not both initialized: **Likely No**
+- Inventory and equipment both initialized: **Likely Yes**
+- Manual override checked: **Likely Yes**
+
+Starter saves should be treated as **Likely No**. Forest Temple and later saves are known to honor equipment ownership edits and should normally show **Likely Yes**. If automatic detection is too conservative, the UI has **I am past the Ordon Village intro arc** and **Allow ownership edits before intro completion** overrides.
+
+Once a structure is initialized and ownership edits are likely accepted, the trainer removes the initialization restriction for supported writes. Equipment writes are ownership-flag writes only. Inventory ownership writes remain disabled until real ownership or progression flags are identified. The top bar shows **Player Data**, **Inventory**, **Equipment**, and **Ownership Edits** readiness after **Attach / Rescan**.
+
+Progression diagnostics are shown on the Debug tab and written to `logs/progression.log` after each **Attach / Rescan**. The diagnostics include player data, memory initialization, ownership-edit acceptance, and the detection reason.
 
 The Debug tab also includes research tools for finding real item ownership/progression flags. The single-byte watcher can read one `_playerbase`-relative offset while playing. The **Research Range Snapshot** tool captures a read-only byte range before an in-game event, then compares the current range afterward and highlights changed bytes.
 
@@ -92,19 +103,28 @@ The **Research Snapshot Library** saves named permanent snapshots as JSON under 
 
 Snapshot-to-snapshot comparisons display offset, Snapshot A value, Snapshot B value, difference, known item decode, and changed status. The discovery report calls out potential item discoveries and possible ownership/progression flags. Comparison exports are written to `logs/research/` as JSON and CSV.
 
+The Debug tab also includes **Ownership Discovery Mode** for comparing temple/progression saves while hunting authoritative inventory ownership flags. It captures the same read-only ranges for Save A and Save B:
+
+- Inventory Slots: `0x258`, length `0x18`
+- Equipment Ownership: `0x28D`, length `0x08`
+- Candidate Ownership Region: `0x240`, length `0xA0`
+- Collectibles: `0x2A1`, length `0x30`
+
+The Ownership Diff Report shows offset, before value, after value, changed status, score, and potential meaning. Bytes score higher when they changed, are outside the visible inventory slots, and Save B was captured after reload/persistence. This is intended to help identify candidates for Slingshot, Lantern, Bow, Bottle, and dungeon item ownership without manually searching offsets. It does not write memory. Reports export to `logs/research/` as JSON and CSV.
+
 ## Inventory Editor
 
 The Inventory tab reads the 24 CT-backed visible inventory bytes from `_playerbase+0x258` through `_playerbase+0x26F`. Research indicates these bytes are game-managed display/current-state fields, not arbitrary bag slots. TPHD may rebuild them from authoritative ownership or progression flags and may immediately revert direct writes.
 
-The normal **Owned / Unlocked Inventory Items** section now uses the same detected/desired/apply model as Equipment where authoritative flags are known:
+The normal **Owned / Unlocked Inventory Items** section is ownership-first, but currently detection-only because the checked CT source does not identify authoritative inventory ownership/progression flags:
 
-- **Detected**: current ownership flag state, or visible-slot detection for unknown rows.
-- **Desired**: editable checkbox target when a real ownership flag is mapped.
-- **Dirty**: desired value differs from detected value.
+- **Detected**: visible-slot detection for the listed item families.
+- **Desired**: reserved for future editable checkbox targets when a real ownership flag is mapped.
+- **Dirty**: reserved for future mapped ownership rows.
 
-Click **Apply Inventory Ownership Changes** to write desired ownership flags in bulk. The trainer writes ownership/progression flags only; it does not fake ownership by writing raw visible inventory slots. Writes are verified with immediate and delayed readback, then logged to `logs/inventory-ownership.log`.
+When mapped flags are added later, **Apply Inventory Ownership Changes** will write desired ownership flags in bulk. The trainer writes ownership/progression flags only; it does not fake ownership by writing raw visible inventory slots. Future mapped writes will be verified with immediate and delayed readback, then logged to `logs/inventory-ownership.log`.
 
-The checked CT source currently does not expose real ownership flag offsets/bits for Fishing Rod, Slingshot, Lantern, Hero's Bow, Gale Boomerang, Clawshot, Double Clawshots, Spinner, Dominion Rod, Ball and Chain, Hawkeye, Horse Call, or Bottles. Those rows remain **Not implemented**, editing stays disabled, and the UI shows **Ownership flag unknown** until the flags are mapped.
+The checked CT source currently does not expose real ownership flag offsets/bits for Fishing Rod, Slingshot, Lantern, Hero's Bow, Gale Boomerang, Clawshot, Double Clawshots, Spinner, Dominion Rod, Ball and Chain, Hawkeye, Horse Call, or Bottles. Those rows remain **Detection only**, editing stays disabled, and the UI shows **Detected from visible inventory. Ownership/progression flag not mapped yet.**
 
 The **Current Inventory Slots (Read Only)** section shows all 24 CT-derived bytes: slot, offset, raw item ID, decoded item name, and notes. Slot 21 / `_playerbase+0x26C` is labeled as the Fishing Rod field with the note: **Game-managed. Direct writes revert. Real ownership/progression flag not identified yet.**
 
@@ -119,6 +139,18 @@ Unsafe raw writes include diagnostics to help distinguish a failed external writ
 Read-only inventory state refreshes are also logged to `logs/inventory.log`. If all 24 slots read as `255` / `Nothing`, the trainer treats inventory as not initialized rather than as an error. Unsafe Apply/Clear remain disabled unless **Enable unsafe raw inventory writes** is checked and the advanced **Allow editing uninitialized inventory** override is enabled.
 
 After inventory ownership changes are applied for any future mapped flags, TPHD may not refresh an already-open in-game inventory menu immediately. Close and reopen the in-game inventory menu to see newly granted items.
+
+Inventory remains read-only in normal mode even when the Inventory state says **Ready**. That is expected: **Ready** means the visible slot bytes can be read, not that authoritative ownership flags have been mapped.
+
+## Collectibles
+
+The Collectibles tab currently supports stable edits only:
+
+- **Poe Souls**: editable CT-backed byte at `_playerbase+0x2C8`, clamped to `0-60`, verified after write, refreshed after apply, and logged to `logs/collectibles.log`.
+- **Golden Bugs**: read-only research display. The trainer shows the raw CT-derived bitfield at `_playerbase+0x2A1` and a detected count, but does not offer Set All, Clear, or individual bug editing yet.
+- **Health summary**: current health quarters and maximum health quarters are shown for reference. Health editing remains in the General tab.
+
+Golden Bugs are not editable because individual bug bits and completion behavior still need to be mapped and verified.
 
 ## Equipment Editor
 
@@ -138,7 +170,9 @@ After granting ownership, equip the item through Twilight Princess HD's own equi
 
 Ownership changes are logged to `logs/equipment.log`, along with current equipped values during refresh and after ownership applies. If the equipment screen is already open when ownership changes are applied, TPHD may not immediately refresh its displayed equipment. Close and reopen the in-game equipment screen to see newly granted equipment. This is expected game behavior, not a trainer bug.
 
-Early-game uninitialized equipment structures may still require the **Allow editing uninitialized equipment** override for diagnostics. Test equipment ownership changes on copied saves or save states first.
+Early-game Ordon Village intro saves may not honor ownership edits even if a byte write appears to succeed. The trainer disables equipment Apply by default when ownership edits are **Likely No** and shows: **This save appears to be before TPHD begins honoring ownership edits. Progress past the Ordon Village intro arc and rescan.** Forest Temple and later saves are known to honor equipment ownership edits.
+
+If you know the save is past the intro but the heuristic is too conservative, check **I am past the Ordon Village intro arc**. For diagnostics on copied saves, **Allow ownership edits before intro completion** bypasses that guard. Early-game uninitialized equipment structures may still require the separate **Allow editing uninitialized equipment** override. Test equipment ownership changes on copied saves or save states first.
 
 ## Attach / Rescan Performance
 
@@ -195,7 +229,7 @@ The app does not parse or execute Cheat Engine scripts at runtime. The relevant 
 - `TphdCemuTrainer/Memory/ProcessMemory.cs`: process attach plus `ReadProcessMemory` / `WriteProcessMemory` wrappers
 - `TphdCemuTrainer/Memory/AobScanner.cs`: external AOB scanner with wildcard-byte support, region filtering, cache validation, and scan diagnostics
 - `TphdCemuTrainer/Memory/BigEndianMemory.cs`: big-endian read/write helpers
-- `TphdCemuTrainer/Memory/ProgressionStateService.cs`: inventory/equipment initialization detection and raw diagnostic reads
+- `TphdCemuTrainer/Memory/ProgressionStateService.cs`: inventory/equipment initialization detection, ownership-edit acceptance heuristic, and raw diagnostic reads
 - `TphdCemuTrainer/Memory/InventoryMemoryService.cs`: CT-backed inventory slot reads, unsafe raw research writes, and mapped inventory ownership flag reads/writes
 - `TphdCemuTrainer/Memory/EquipmentMemoryService.cs`: CT-backed equipment byte and ownership flag reads/writes
 - `TphdCemuTrainer/Cheats/CheatCatalog.cs`: CT-derived cheat and capacity definitions
@@ -204,6 +238,7 @@ The app does not parse or execute Cheat Engine scripts at runtime. The relevant 
 - `TphdCemuTrainer/Cheats/InventoryFixedSlotDefinition.cs`: known fixed/game-managed inventory slot metadata
 - `TphdCemuTrainer/Cheats/EquipmentDefinitions.cs`: TPHD 2.2.CT equipment dropdown and flag definitions
 - `TphdCemuTrainer/Cheats/FutureFeatureCatalog.cs`: reserved trainer/save-editor feature groups
+- `TphdCemuTrainer/Research/`: named memory snapshots plus JSON/CSV comparison and ownership discovery exports
 - `TphdCemuTrainer/ViewModels/`: UI-facing value and capacity models
 - `TphdCemuTrainer/MainWindow.xaml`: tabbed WPF trainer UI
 
@@ -216,6 +251,8 @@ The app does not parse or execute Cheat Engine scripts at runtime. The relevant 
 - Inventory ownership editing uses detected/desired/apply where real flags are mapped. Current listed inventory items remain read-only because their ownership flags are not identified yet.
 - Unsafe raw inventory writes may be reverted by game-managed visible slots.
 - Equipment editing grants ownership flags only. Current equipped armor, sword, and shield are game-managed and read-only in the trainer.
+- Early Ordon intro saves may accept byte writes in memory while TPHD ignores ownership edits. Progress past the intro arc and rescan, or use the manual overrides only for diagnostics on copied saves.
+- Golden Bugs are read-only/research-only until individual bug bits and completion behavior are mapped.
 - Values are simple external memory edits. They do not patch game logic.
 - If Cemu runs as administrator, the trainer may also need to run as administrator.
 
@@ -252,6 +289,10 @@ The checked CT source does not currently identify ownership/progression bits for
 **Inventory or Equipment says Not Initialized**
 
 This is not a story lock. TPHD has not created or stabilized that memory structure yet. Progress until Link obtains a real inventory item or equipment, then click **Attach / Rescan**. Advanced overrides exist for diagnostics, but they are off by default.
+
+**Ownership Edits says Likely No**
+
+The save appears to be before TPHD begins honoring ownership edits, usually during the Ordon Village intro arc. Progress farther, ideally past the intro arc, then click **Attach / Rescan**. If you are already past that point, check **I am past the Ordon Village intro arc**. Use **Allow ownership edits before intro completion** only for diagnostics on copied saves or save states.
 
 **Newly granted equipment is not visible in the in-game equipment screen**
 

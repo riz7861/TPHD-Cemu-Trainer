@@ -15,7 +15,7 @@ public sealed record InventoryOwnershipDefinition(
 
     public string FlagLocation => FlagOffset.HasValue && FlagBit.HasValue
         ? $"0x{FlagOffset.Value:X} bit {FlagBit.Value}"
-        : "Ownership flag unknown";
+        : "Ownership/progression flag not mapped yet";
 
-    public string EditStatus => CanWrite ? "Writable" : "Not implemented";
+    public string EditStatus => CanWrite ? "Writable" : "Detection only";
 }

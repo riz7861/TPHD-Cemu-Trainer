@@ -74,6 +74,43 @@
             </Grid>
         </DataTemplate>
 
+        <DataTemplate x:Key="PoeSoulsValueTemplate">
+            <Grid Margin="0,4" ToolTip="{Binding Source}">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" MinWidth="135" />
+                    <ColumnDefinition Width="76" />
+                    <ColumnDefinition Width="88" />
+                    <ColumnDefinition Width="50" />
+                    <ColumnDefinition Width="50" />
+                    <ColumnDefinition Width="90" />
+                </Grid.ColumnDefinitions>
+
+                <TextBlock Text="{Binding Name}"
+                           VerticalAlignment="Center"
+                           Margin="0,0,8,0" />
+                <TextBox Grid.Column="1"
+                         Text="{Binding CurrentValue, Mode=OneWay}"
+                         IsReadOnly="True"
+                         Background="#F7F7F7" />
+                <TextBox Grid.Column="2"
+                         Text="{Binding TargetValue, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                         Margin="6,0,0,0" />
+                <Button Grid.Column="3"
+                        Content="Set"
+                        Tag="{Binding}"
+                        Click="SetPoeSouls_Click" />
+                <Button Grid.Column="4"
+                        Content="Max"
+                        Tag="{Binding}"
+                        Click="MaxPoeSouls_Click" />
+                <TextBlock Grid.Column="5"
+                           Text="0-60"
+                           Foreground="#555"
+                           VerticalAlignment="Center"
+                           Margin="8,0,0,0" />
+            </Grid>
+        </DataTemplate>
+
         <DataTemplate x:Key="ReadOnlyRawValueTemplate">
             <Grid Margin="0,3" ToolTip="{Binding Source}">
                 <Grid.ColumnDefinitions>
@@ -469,6 +506,42 @@
                 </Grid>
             </Border>
         </DataTemplate>
+
+        <DataTemplate x:Key="OwnershipDiscoveryRowTemplate">
+            <Border BorderBrush="#D8D8D8"
+                    BorderThickness="0,0,0,1"
+                    Padding="0,4">
+                <Border.Style>
+                    <Style TargetType="Border">
+                        <Setter Property="Background" Value="Transparent" />
+                        <Style.Triggers>
+                            <DataTrigger Binding="{Binding IsChanged}" Value="True">
+                                <Setter Property="Background" Value="#FFF3C4" />
+                            </DataTrigger>
+                            <DataTrigger Binding="{Binding IsStrongCandidate}" Value="True">
+                                <Setter Property="Background" Value="#DFF4E7" />
+                            </DataTrigger>
+                        </Style.Triggers>
+                    </Style>
+                </Border.Style>
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="74" />
+                        <ColumnDefinition Width="92" />
+                        <ColumnDefinition Width="92" />
+                        <ColumnDefinition Width="70" />
+                        <ColumnDefinition Width="52" />
+                        <ColumnDefinition Width="*" MinWidth="260" />
+                    </Grid.ColumnDefinitions>
+                    <TextBlock Text="{Binding Offset}" FontFamily="Consolas" VerticalAlignment="Center" />
+                    <TextBlock Grid.Column="1" Text="{Binding BeforeByte}" FontFamily="Consolas" VerticalAlignment="Center" />
+                    <TextBlock Grid.Column="2" Text="{Binding AfterByte}" FontFamily="Consolas" VerticalAlignment="Center" />
+                    <TextBlock Grid.Column="3" Text="{Binding IsChanged}" FontWeight="SemiBold" VerticalAlignment="Center" />
+                    <TextBlock Grid.Column="4" Text="{Binding Score}" FontWeight="SemiBold" VerticalAlignment="Center" />
+                    <TextBlock Grid.Column="5" Text="{Binding PotentialMeaning}" TextTrimming="CharacterEllipsis" VerticalAlignment="Center" />
+                </Grid>
+            </Border>
+        </DataTemplate>
     </Window.Resources>
 
     <Grid Margin="10">
@@ -528,6 +601,11 @@
                         <TextBlock Text="Equipment:" Foreground="#555" Margin="0,0,4,0" />
                         <TextBlock x:Name="EquipmentStateText"
                                    Text="-"
+                                   FontWeight="SemiBold"
+                                   Margin="0,0,14,0" />
+                        <TextBlock Text="Ownership Edits:" Foreground="#555" Margin="0,0,4,0" />
+                        <TextBlock x:Name="OwnershipEditsStateText"
+                                   Text="Unknown"
                                    FontWeight="SemiBold" />
                     </StackPanel>
                 </StackPanel>
@@ -602,7 +680,7 @@
                         <GroupBox Header="Collectibles Summary">
                             <StackPanel>
                                 <ContentControl Content="{Binding PoeSouls}"
-                                                ContentTemplate="{StaticResource EditableValueTemplate}" />
+                                                ContentTemplate="{StaticResource PoeSoulsValueTemplate}" />
                                 <Grid Margin="0,4">
                                     <Grid.ColumnDefinitions>
                                         <ColumnDefinition Width="180" />
@@ -646,7 +724,7 @@
                                 <TextBlock TextWrapping="Wrap"
                                            Foreground="#7A4A00"
                                            Margin="0,0,0,8"
-                                           Text="Inventory ownership uses the same detected/desired/apply model as Equipment where CT/source flags are known. Unknown items remain detection-only and read-only." />
+                                           Text="Inventory ownership/progression flags have not been mapped yet. Known items are detected from visible inventory data and remain read-only until real flags are identified." />
 
                                 <Border BorderBrush="#D9A23A"
                                         BorderThickness="1"
@@ -656,7 +734,7 @@
                                     <TextBlock TextWrapping="Wrap"
                                                Foreground="#6F4700"
                                                FontWeight="SemiBold"
-                                               Text="Ownership flag unknown. Raw inventory slots are game-managed and may revert. The trainer will not fake ownership by writing raw inventory slots." />
+                                               Text="Detected from visible inventory. Ownership/progression flag not mapped yet. Raw inventory slots are game-managed and may revert. The trainer will not fake ownership by writing raw inventory slots." />
                                 </Border>
 
                                 <Border BorderBrush="#D9A23A"
@@ -668,6 +746,19 @@
                                                Foreground="#6F4700"
                                                FontWeight="SemiBold"
                                                Text="Inventory ownership changes may not appear if the in-game inventory menu is already open. Close and reopen the inventory menu after applying changes." />
+                                </Border>
+
+                                <Border x:Name="InventoryOwnershipAcceptanceWarningText"
+                                        Visibility="Collapsed"
+                                        BorderBrush="#D9A23A"
+                                        BorderThickness="1"
+                                        Background="#FFF8E6"
+                                        Padding="8"
+                                        Margin="0,0,0,8">
+                                    <TextBlock TextWrapping="Wrap"
+                                               Foreground="#6F4700"
+                                               FontWeight="SemiBold"
+                                               Text="This save appears to be before TPHD begins honoring ownership edits. Progress past the Ordon Village intro arc and rescan." />
                                 </Border>
 
                                 <Border x:Name="InventoryInitializationWarningText"
@@ -686,7 +777,8 @@
                                 <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
                                     <Button Content="Refresh Inventory"
                                             Click="RefreshInventoryButton_Click" />
-                                    <Button Content="Apply Inventory Ownership Changes"
+                                    <Button x:Name="ApplyInventoryOwnershipButton"
+                                            Content="Apply Inventory Ownership Changes"
                                             Click="ApplyInventoryOwnership_Click"
                                             Margin="12,0,0,0" />
                                     <TextBlock Text="Visible inventory slots are game-managed and read-only."
@@ -694,6 +786,19 @@
                                                Margin="12,0,0,0"
                                                Foreground="#555" />
                                 </StackPanel>
+
+                                <WrapPanel Margin="0,0,0,8">
+                                    <CheckBox Content="I am past the Ordon Village intro arc"
+                                              IsChecked="{Binding UserConfirmedPastIntroArc, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                              ToolTip="Uses a manual override for the ownership-edit acceptance heuristic."
+                                              VerticalAlignment="Center"
+                                              Margin="0,0,18,6" />
+                                    <CheckBox Content="Allow ownership edits before intro completion"
+                                              IsChecked="{Binding AllowOwnershipEditsBeforeIntroCompletion, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                              ToolTip="Bypasses the conservative early-save guard for mapped ownership flags."
+                                              VerticalAlignment="Center"
+                                              Margin="0,0,18,6" />
+                                </WrapPanel>
 
                                 <Grid Margin="0,0,0,4">
                                     <Grid.ColumnDefinitions>
@@ -835,6 +940,19 @@
                                                Text="Changes may not appear immediately if the equipment screen is currently open. Close the in-game equipment menu and reopen it to refresh the displayed equipment." />
                                 </Border>
 
+                                <Border x:Name="EquipmentOwnershipAcceptanceWarningText"
+                                        Visibility="Collapsed"
+                                        BorderBrush="#D9A23A"
+                                        BorderThickness="1"
+                                        Background="#FFF8E6"
+                                        Padding="8"
+                                        Margin="0,0,0,8">
+                                    <TextBlock TextWrapping="Wrap"
+                                               Foreground="#6F4700"
+                                               FontWeight="SemiBold"
+                                               Text="This save appears to be before TPHD begins honoring ownership edits. Progress past the Ordon Village intro arc and rescan." />
+                                </Border>
+
                                 <Border x:Name="EquipmentInitializationWarningText"
                                         Visibility="Collapsed"
                                         BorderBrush="#D9A23A"
@@ -856,7 +974,8 @@
                                               ToolTip="Allows ownership flag writes while the CT equipment bytes appear uninitialized."
                                               VerticalAlignment="Center"
                                               Margin="12,0,0,0" />
-                                    <Button Content="Apply Ownership Changes"
+                                    <Button x:Name="ApplyEquipmentOwnershipButton"
+                                            Content="Apply Ownership Changes"
                                             Click="ApplyEquipmentOwnership_Click"
                                             Margin="12,0,0,0" />
                                     <TextBlock Text="Equipment should be equipped through the in-game menu after ownership is granted."
@@ -864,6 +983,19 @@
                                                Margin="12,0,0,0"
                                                Foreground="#555" />
                                 </StackPanel>
+
+                                <WrapPanel Margin="0,0,0,8">
+                                    <CheckBox Content="I am past the Ordon Village intro arc"
+                                              IsChecked="{Binding UserConfirmedPastIntroArc, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                              ToolTip="Uses a manual override for the ownership-edit acceptance heuristic."
+                                              VerticalAlignment="Center"
+                                              Margin="0,0,18,6" />
+                                    <CheckBox Content="Allow ownership edits before intro completion"
+                                              IsChecked="{Binding AllowOwnershipEditsBeforeIntroCompletion, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                              ToolTip="Bypasses the conservative early-save guard for ownership flag writes."
+                                              VerticalAlignment="Center"
+                                              Margin="0,0,18,6" />
+                                </WrapPanel>
                             </StackPanel>
                         </GroupBox>
 
@@ -981,11 +1113,23 @@
                 <ScrollViewer VerticalScrollBarVisibility="Auto">
                     <UniformGrid Columns="2" Margin="6">
                         <GroupBox Header="Poe Souls">
-                            <ContentControl Content="{Binding PoeSouls}"
-                                            ContentTemplate="{StaticResource EditableValueTemplate}" />
+                            <StackPanel>
+                                <TextBlock TextWrapping="Wrap"
+                                           Foreground="#555"
+                                           Margin="0,0,0,8"
+                                           Text="CT-backed editable byte at _playerbase+0x2C8. Values are clamped to 0-60 and verified after writing." />
+                                <ContentControl Content="{Binding PoeSouls}"
+                                                ContentTemplate="{StaticResource PoeSoulsValueTemplate}" />
+                            </StackPanel>
                         </GroupBox>
                         <GroupBox Header="Golden Bugs">
                             <StackPanel>
+                                <TextBlock Text="Research Only - Not editable yet"
+                                           FontWeight="SemiBold"
+                                           Foreground="#7A4A00"
+                                           Margin="0,0,0,8" />
+                                <ContentControl Content="{Binding GoldenBugsFlags}"
+                                                ContentTemplate="{StaticResource ReadOnlyRawValueTemplate}" />
                                 <Grid Margin="0,4">
                                     <Grid.ColumnDefinitions>
                                         <ColumnDefinition Width="180" />
@@ -999,19 +1143,60 @@
                                 </Grid>
                                 <TextBlock TextWrapping="Wrap"
                                            Foreground="#555"
-                                           Text="Individual bug tracking is reserved for a future save-editor pass." />
+                                           Text="Golden Bugs are shown as a CT-derived raw bitfield and detected count only. Editing is reserved until individual bug bits are mapped and verified." />
                             </StackPanel>
                         </GroupBox>
-                        <GroupBox Header="Heart Pieces">
-                            <TextBox Text="{Binding ElementName=TotalHeartPiecesText, Path=Text, Mode=OneWay}"
-                                     IsReadOnly="True"
-                                     Background="#F7F7F7" />
-                        </GroupBox>
-                        <GroupBox Header="Heart Containers">
-                            <TextBox x:Name="CollectiblesHeartContainersText"
-                                     Text="Not read"
-                                     IsReadOnly="True"
-                                     Background="#F7F7F7" />
+                        <GroupBox Header="Health Summary">
+                            <StackPanel>
+                                <Grid Margin="0,4">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="180" />
+                                        <ColumnDefinition Width="140" />
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Text="Current health quarters" VerticalAlignment="Center" />
+                                    <TextBox Grid.Column="1"
+                                             Text="{Binding CurrentHealth.CurrentValue, Mode=OneWay}"
+                                             IsReadOnly="True"
+                                             Background="#F7F7F7" />
+                                </Grid>
+                                <Grid Margin="0,4">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="180" />
+                                        <ColumnDefinition Width="140" />
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Text="Maximum health quarters" VerticalAlignment="Center" />
+                                    <TextBox Grid.Column="1"
+                                             Text="{Binding MaximumHealth.CurrentValue, Mode=OneWay}"
+                                             IsReadOnly="True"
+                                             Background="#F7F7F7" />
+                                </Grid>
+                                <Grid Margin="0,4">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="180" />
+                                        <ColumnDefinition Width="140" />
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Text="Heart containers" VerticalAlignment="Center" />
+                                    <TextBox Grid.Column="1"
+                                             x:Name="CollectiblesHeartContainersText"
+                                             Text="Not read"
+                                             IsReadOnly="True"
+                                             Background="#F7F7F7" />
+                                </Grid>
+                                <Grid Margin="0,4">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="180" />
+                                        <ColumnDefinition Width="140" />
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Text="Heart pieces" VerticalAlignment="Center" />
+                                    <TextBox Grid.Column="1"
+                                             Text="{Binding ElementName=TotalHeartPiecesText, Path=Text, Mode=OneWay}"
+                                             IsReadOnly="True"
+                                             Background="#F7F7F7" />
+                                </Grid>
+                                <TextBlock TextWrapping="Wrap"
+                                           Foreground="#555"
+                                           Text="Health editing remains in General. This section only summarizes CT-backed health values for collectible research." />
+                            </StackPanel>
                         </GroupBox>
                     </UniformGrid>
                 </ScrollViewer>
@@ -1112,6 +1297,10 @@
                                         <RowDefinition Height="Auto" />
                                         <RowDefinition Height="Auto" />
                                         <RowDefinition Height="Auto" />
+                                        <RowDefinition Height="Auto" />
+                                        <RowDefinition Height="Auto" />
+                                        <RowDefinition Height="Auto" />
+                                        <RowDefinition Height="Auto" />
                                     </Grid.RowDefinitions>
 
                                     <TextBlock Text="Player base" VerticalAlignment="Center" Margin="0,0,8,5" />
@@ -1123,8 +1312,45 @@
                                              Background="#F7F7F7"
                                              Margin="0,0,0,5" />
 
-                                    <TextBlock Grid.Row="1" Text="Inventory" VerticalAlignment="Center" Margin="0,0,8,5" />
+                                    <TextBlock Grid.Row="1" Text="Player Data" VerticalAlignment="Center" Margin="0,0,8,5" />
                                     <TextBox Grid.Row="1"
+                                             Grid.Column="1"
+                                             x:Name="ProgressionPlayerDataText"
+                                             Text="-"
+                                             IsReadOnly="True"
+                                             Background="#F7F7F7"
+                                             Margin="0,0,0,5" />
+
+                                    <TextBlock Grid.Row="2" Text="Memory Initialized" VerticalAlignment="Center" Margin="0,0,8,5" />
+                                    <TextBox Grid.Row="2"
+                                             Grid.Column="1"
+                                             x:Name="ProgressionMemoryInitializedText"
+                                             Text="-"
+                                             IsReadOnly="True"
+                                             Background="#F7F7F7"
+                                             Margin="0,0,0,5" />
+
+                                    <TextBlock Grid.Row="3" Text="Ownership Edits Accepted" VerticalAlignment="Center" Margin="0,0,8,5" />
+                                    <TextBox Grid.Row="3"
+                                             Grid.Column="1"
+                                             x:Name="ProgressionOwnershipAcceptanceText"
+                                             Text="Unknown"
+                                             IsReadOnly="True"
+                                             Background="#F7F7F7"
+                                             Margin="0,0,0,5" />
+
+                                    <TextBlock Grid.Row="4" Text="Detection Reason" VerticalAlignment="Center" Margin="0,0,8,5" />
+                                    <TextBox Grid.Row="4"
+                                             Grid.Column="1"
+                                             x:Name="ProgressionOwnershipReasonText"
+                                             Text="Player data is not available."
+                                             IsReadOnly="True"
+                                             TextWrapping="Wrap"
+                                             Background="#F7F7F7"
+                                             Margin="0,0,0,5" />
+
+                                    <TextBlock Grid.Row="5" Text="Inventory" VerticalAlignment="Center" Margin="0,0,8,5" />
+                                    <TextBox Grid.Row="5"
                                              Grid.Column="1"
                                              x:Name="ProgressionInventoryInitializedText"
                                              Text="-"
@@ -1132,8 +1358,8 @@
                                              Background="#F7F7F7"
                                              Margin="0,0,0,5" />
 
-                                    <TextBlock Grid.Row="2" Text="Equipment" VerticalAlignment="Center" Margin="0,0,8,5" />
-                                    <TextBox Grid.Row="2"
+                                    <TextBlock Grid.Row="6" Text="Equipment" VerticalAlignment="Center" Margin="0,0,8,5" />
+                                    <TextBox Grid.Row="6"
                                              Grid.Column="1"
                                              x:Name="ProgressionEquipmentInitializedText"
                                              Text="-"
@@ -1141,8 +1367,8 @@
                                              Background="#F7F7F7"
                                              Margin="0,0,0,5" />
 
-                                    <TextBlock Grid.Row="3" Text="Inventory raw bytes" VerticalAlignment="Center" Margin="0,0,8,5" />
-                                    <TextBox Grid.Row="3"
+                                    <TextBlock Grid.Row="7" Text="Inventory raw bytes" VerticalAlignment="Center" Margin="0,0,8,5" />
+                                    <TextBox Grid.Row="7"
                                              Grid.Column="1"
                                              x:Name="ProgressionInventoryRawBytesText"
                                              Text="Not read"
@@ -1152,8 +1378,8 @@
                                              Background="#F7F7F7"
                                              Margin="0,0,0,5" />
 
-                                    <TextBlock Grid.Row="4" Text="Ownership bytes" VerticalAlignment="Center" Margin="0,0,8,5" />
-                                    <TextBox Grid.Row="4"
+                                    <TextBlock Grid.Row="8" Text="Ownership bytes" VerticalAlignment="Center" Margin="0,0,8,5" />
+                                    <TextBox Grid.Row="8"
                                              Grid.Column="1"
                                              x:Name="ProgressionEquipmentOwnershipBytesText"
                                              Text="Not read"
@@ -1162,8 +1388,8 @@
                                              Background="#F7F7F7"
                                              Margin="0,0,0,5" />
 
-                                    <TextBlock Grid.Row="5" Text="Equipped bytes" VerticalAlignment="Center" Margin="0,0,8,5" />
-                                    <TextBox Grid.Row="5"
+                                    <TextBlock Grid.Row="9" Text="Equipped bytes" VerticalAlignment="Center" Margin="0,0,8,5" />
+                                    <TextBox Grid.Row="9"
                                              Grid.Column="1"
                                              x:Name="ProgressionEquipmentEquippedBytesText"
                                              Text="Not read"
@@ -1172,8 +1398,8 @@
                                              Background="#F7F7F7"
                                              Margin="0,0,0,5" />
 
-                                    <TextBlock Grid.Row="6" Text="Current status" VerticalAlignment="Center" Margin="0,0,8,0" />
-                                    <TextBox Grid.Row="6"
+                                    <TextBlock Grid.Row="10" Text="Current status" VerticalAlignment="Center" Margin="0,0,8,0" />
+                                    <TextBox Grid.Row="10"
                                              Grid.Column="1"
                                              x:Name="ProgressionStatusMessageText"
                                              Text="Not attached"
@@ -1384,6 +1610,143 @@
                                               Background="#F7F7F7">
                                     <ItemsControl ItemsSource="{Binding ResearchRangeRows}"
                                                   ItemTemplate="{StaticResource ResearchRangeRowTemplate}" />
+                                </ScrollViewer>
+                            </StackPanel>
+                        </GroupBox>
+
+                        <GroupBox Header="Ownership Discovery Mode">
+                            <StackPanel>
+                                <TextBlock TextWrapping="Wrap"
+                                           Foreground="#555"
+                                           Margin="0,0,0,8"
+                                           Text="Read-only workflow for comparing temple/progression saves. Capture Save A before an item, capture Save B after obtaining or reloading it, then compare candidate ownership bytes without manually searching offsets." />
+
+                                <TextBlock TextWrapping="Wrap"
+                                           Foreground="#7A4A00"
+                                           Margin="0,0,0,8"
+                                           Text="Captured ranges: Inventory Slots 0x258/0x18, Equipment Ownership 0x28D/0x08, Candidate Ownership Region 0x240/0xA0, Collectibles 0x2A1/0x30." />
+
+                                <Grid Margin="0,0,0,8">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="78" />
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="Auto" />
+                                        <RowDefinition Height="Auto" />
+                                    </Grid.RowDefinitions>
+
+                                    <TextBlock Text="Save A" VerticalAlignment="Center" Margin="0,0,6,5" />
+                                    <TextBox Grid.Column="1"
+                                             x:Name="OwnershipDiscoverySnapshotANameText"
+                                             Text="Before item"
+                                             Margin="0,0,8,5" />
+                                    <Button Grid.Column="2"
+                                            Content="Capture Save A"
+                                            Click="OwnershipDiscoveryCaptureA_Click"
+                                            Margin="0,0,0,5" />
+
+                                    <TextBlock Grid.Row="1" Text="Save B" VerticalAlignment="Center" Margin="0,0,6,0" />
+                                    <TextBox Grid.Row="1"
+                                             Grid.Column="1"
+                                             x:Name="OwnershipDiscoverySnapshotBNameText"
+                                             Text="After item / reloaded"
+                                             Margin="0,0,8,0" />
+                                    <Button Grid.Row="1"
+                                            Grid.Column="2"
+                                            Content="Capture Save B"
+                                            Click="OwnershipDiscoveryCaptureB_Click" />
+                                </Grid>
+
+                                <Grid Margin="0,0,0,8">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="86" />
+                                        <ColumnDefinition Width="*" />
+                                    </Grid.ColumnDefinitions>
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="Auto" />
+                                        <RowDefinition Height="Auto" />
+                                    </Grid.RowDefinitions>
+                                    <TextBlock Text="Snapshot A" VerticalAlignment="Center" Margin="0,0,6,5" />
+                                    <TextBox Grid.Column="1"
+                                             x:Name="OwnershipDiscoverySnapshotAText"
+                                             Text="-"
+                                             IsReadOnly="True"
+                                             Background="#F7F7F7"
+                                             Margin="0,0,0,5" />
+                                    <TextBlock Grid.Row="1" Text="Snapshot B" VerticalAlignment="Center" Margin="0,0,6,0" />
+                                    <TextBox Grid.Row="1"
+                                             Grid.Column="1"
+                                             x:Name="OwnershipDiscoverySnapshotBText"
+                                             Text="-"
+                                             IsReadOnly="True"
+                                             Background="#F7F7F7" />
+                                </Grid>
+
+                                <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
+                                    <CheckBox x:Name="OwnershipDiscoveryPersistedAfterReloadCheckBox"
+                                              Content="Save B was captured after reload / persisted"
+                                              IsChecked="True"
+                                              ToolTip="Adds scoring weight for bytes that changed in a reloaded/persistent Save B."
+                                              VerticalAlignment="Center"
+                                              Margin="0,0,12,0" />
+                                    <Button Content="Compare A/B"
+                                            Click="OwnershipDiscoveryCompare_Click" />
+                                    <Button Content="Export Report"
+                                            Click="OwnershipDiscoveryExport_Click" />
+                                </StackPanel>
+
+                                <TextBox x:Name="OwnershipDiscoveryStatusText"
+                                         Text="Capture Save A and Save B"
+                                         IsReadOnly="True"
+                                         TextWrapping="Wrap"
+                                         Background="#F7F7F7"
+                                         Margin="0,0,0,8" />
+
+                                <Grid Margin="0,0,0,4">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="74" />
+                                        <ColumnDefinition Width="92" />
+                                        <ColumnDefinition Width="92" />
+                                        <ColumnDefinition Width="70" />
+                                        <ColumnDefinition Width="52" />
+                                        <ColumnDefinition Width="*" MinWidth="260" />
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Text="Offset" FontWeight="SemiBold" />
+                                    <TextBlock Grid.Column="1" Text="Before" FontWeight="SemiBold" />
+                                    <TextBlock Grid.Column="2" Text="After" FontWeight="SemiBold" />
+                                    <TextBlock Grid.Column="3" Text="Changed" FontWeight="SemiBold" />
+                                    <TextBlock Grid.Column="4" Text="Score" FontWeight="SemiBold" />
+                                    <TextBlock Grid.Column="5" Text="Potential Meaning" FontWeight="SemiBold" />
+                                </Grid>
+
+                                <ScrollViewer Height="230"
+                                              VerticalScrollBarVisibility="Auto"
+                                              HorizontalScrollBarVisibility="Auto"
+                                              Background="#F7F7F7"
+                                              Margin="0,0,0,8">
+                                    <ItemsControl ItemsSource="{Binding OwnershipDiscoveryRows}"
+                                                  ItemTemplate="{StaticResource OwnershipDiscoveryRowTemplate}" />
+                                </ScrollViewer>
+
+                                <TextBlock Text="Ownership Diff Report"
+                                           FontWeight="SemiBold"
+                                           Margin="0,0,0,4" />
+                                <ScrollViewer Height="110"
+                                              VerticalScrollBarVisibility="Auto"
+                                              Background="#F7F7F7">
+                                    <ItemsControl ItemsSource="{Binding OwnershipDiscoveryReportLines}">
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate>
+                                                <TextBlock Text="{Binding}"
+                                                           TextWrapping="Wrap"
+                                                           FontFamily="Consolas"
+                                                           FontSize="11"
+                                                           Margin="0,0,0,4" />
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
                                 </ScrollViewer>
                             </StackPanel>
                         </GroupBox>
@@ -1615,6 +1978,30 @@
                                               HorizontalScrollBarVisibility="Auto"
                                               Background="#F7F7F7">
                                     <ItemsControl ItemsSource="{Binding InventoryOwnershipDiagnostics}">
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate>
+                                                <TextBlock Text="{Binding}"
+                                                           FontFamily="Consolas"
+                                                           FontSize="11"
+                                                           TextWrapping="NoWrap"
+                                                           Margin="0,0,0,4" />
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+                                </ScrollViewer>
+                            </StackPanel>
+                        </GroupBox>
+
+                        <GroupBox Header="Collectibles Diagnostics">
+                            <StackPanel>
+                                <TextBlock Text="Also written to logs/collectibles.log"
+                                           Foreground="#555"
+                                           Margin="0,0,0,6" />
+                                <ScrollViewer Height="190"
+                                              VerticalScrollBarVisibility="Auto"
+                                              HorizontalScrollBarVisibility="Auto"
+                                              Background="#F7F7F7">
+                                    <ItemsControl ItemsSource="{Binding CollectiblesDiagnostics}">
                                         <ItemsControl.ItemTemplate>
                                             <DataTemplate>
                                                 <TextBlock Text="{Binding}"

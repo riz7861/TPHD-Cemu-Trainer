@@ -46,17 +46,26 @@ public static class ProgressionStateService
             return false;
         }
 
+        var inventoryInitialized = IsInventoryInitialized(inventoryRawBytes);
+        var equipmentInitialized = IsEquipmentInitialized(
+            armorOwnershipByte,
+            equipmentOwnershipByte,
+            masterSwordInfusedByte,
+            equippedArmor,
+            equippedSword,
+            equippedShield);
+        var ownershipAcceptance = EvaluateOwnershipEditAcceptance(
+            HasPlayerData: true,
+            inventoryInitialized,
+            equipmentInitialized);
+
         state = new ProgressionState(
             playerBaseAddress,
             HasPlayerData: true,
-            InventoryInitialized: IsInventoryInitialized(inventoryRawBytes),
-            EquipmentInitialized: IsEquipmentInitialized(
-                armorOwnershipByte,
-                equipmentOwnershipByte,
-                masterSwordInfusedByte,
-                equippedArmor,
-                equippedSword,
-                equippedShield),
+            InventoryInitialized: inventoryInitialized,
+            EquipmentInitialized: equipmentInitialized,
+            GameAcceptsOwnershipEdits: ownershipAcceptance.Acceptance,
+            OwnershipEditDetectionReason: ownershipAcceptance.Reason,
             InventoryRawBytes: inventoryRawBytes,
             ArmorOwnershipByte: armorOwnershipByte,
             EquipmentOwnershipByte: equipmentOwnershipByte,
@@ -75,6 +84,8 @@ public static class ProgressionStateService
             HasPlayerData: false,
             InventoryInitialized: false,
             EquipmentInitialized: false,
+            GameAcceptsOwnershipEdits: OwnershipEditAcceptance.Unknown,
+            OwnershipEditDetectionReason: "Player data is not available.",
             InventoryRawBytes: [],
             ArmorOwnershipByte: 0,
             EquipmentOwnershipByte: 0,
@@ -108,6 +119,28 @@ public static class ProgressionStateService
             equippedShield == EquippedShieldNone;
 
         return !(allOwnershipFlagsFalse && allEquippedDefaults);
+    }
+
+    public static (OwnershipEditAcceptance Acceptance, string Reason) EvaluateOwnershipEditAcceptance(
+        bool HasPlayerData,
+        bool inventoryInitialized,
+        bool equipmentInitialized)
+    {
+        if (!HasPlayerData)
+        {
+            return (OwnershipEditAcceptance.Unknown, "Player data is not available.");
+        }
+
+        if (inventoryInitialized && equipmentInitialized)
+        {
+            return (
+                OwnershipEditAcceptance.LikelyYes,
+                "Heuristic: inventory and equipment memory are initialized, which is consistent with a save past the Ordon Village intro arc.");
+        }
+
+        return (
+            OwnershipEditAcceptance.LikelyNo,
+            "Heuristic: player data is present, but inventory and equipment memory are not both initialized. Early Ordon intro saves may accept writes in memory while TPHD ignores ownership edits.");
     }
 
     private static bool TryReadByte(

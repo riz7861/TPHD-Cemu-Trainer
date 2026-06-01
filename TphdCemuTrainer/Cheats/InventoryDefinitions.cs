@@ -107,67 +107,67 @@ public static class InventoryDefinitions
             "fishing-rod",
             "Fishing Rod",
             [74, 91, 92, 93, 94, 95],
-            "Visible CT slot 21 / _playerbase+0x26C reflects fishing rod state, but direct writes revert. Real ownership/progression flag not identified yet."),
+            "Detected from visible inventory. Ownership/progression flag not mapped yet. Visible CT slot 21 / _playerbase+0x26C reflects fishing rod state, but direct writes revert."),
         CreateUnknownOwnership(
             "slingshot",
             "Slingshot",
             [75],
-            "Detected from raw CT item ID 75 when present. Ownership/progression flag not identified yet."),
+            "Detected from visible inventory. Ownership/progression flag not mapped yet. Raw CT item ID 75 indicates Slingshot when present."),
         CreateUnknownOwnership(
             "lantern",
             "Lantern",
             [72, 248],
-            "Detected from raw CT lantern item IDs when present. Ownership/progression flag not identified yet."),
+            "Detected from visible inventory. Ownership/progression flag not mapped yet. Raw CT lantern item IDs indicate Lantern when present."),
         CreateUnknownOwnership(
             "heros-bow",
             "Hero's Bow",
             [67, 89, 90],
-            "Detected from raw CT bow item IDs when present. Ownership/progression flag not identified yet."),
+            "Detected from visible inventory. Ownership/progression flag not mapped yet. Raw CT bow item IDs indicate Hero's Bow when present."),
         CreateUnknownOwnership(
             "gale-boomerang",
             "Gale Boomerang",
             [64],
-            "Detected from raw CT item ID 64 when present. Ownership/progression flag not identified yet."),
+            "Detected from visible inventory. Ownership/progression flag not mapped yet. Raw CT item ID 64 indicates Gale Boomerang when present."),
         CreateUnknownOwnership(
             "clawshot",
             "Clawshot",
             [68],
-            "Detected from raw CT item ID 68 when present. Ownership/progression flag not identified yet."),
+            "Detected from visible inventory. Ownership/progression flag not mapped yet. Raw CT item ID 68 indicates Clawshot when present."),
         CreateUnknownOwnership(
             "double-clawshots",
             "Double Clawshots",
             [71],
-            "Detected from raw CT item ID 71 when present. Ownership/progression flag not identified yet."),
+            "Detected from visible inventory. Ownership/progression flag not mapped yet. Raw CT item ID 71 indicates Double Clawshots when present."),
         CreateUnknownOwnership(
             "spinner",
             "Spinner",
             [65],
-            "Detected from raw CT item ID 65 when present. Ownership/progression flag not identified yet."),
+            "Detected from visible inventory. Ownership/progression flag not mapped yet. Raw CT item ID 65 indicates Spinner when present."),
         CreateUnknownOwnership(
             "dominion-rod",
             "Dominion Rod",
             [70, 76],
-            "Detected from raw CT dominion rod item IDs when present. Ownership/progression flag not identified yet."),
+            "Detected from visible inventory. Ownership/progression flag not mapped yet. Raw CT dominion rod item IDs indicate Dominion Rod when present."),
         CreateUnknownOwnership(
             "ball-and-chain",
             "Ball and Chain",
             [66],
-            "Detected from raw CT item ID 66 when present. Ownership/progression flag not identified yet."),
+            "Detected from visible inventory. Ownership/progression flag not mapped yet. Raw CT item ID 66 indicates Ball and Chain when present."),
         CreateUnknownOwnership(
             "hawkeye",
             "Hawkeye",
             [62, 90],
-            "Detected from raw CT hawkeye-related item IDs when present. Ownership/progression flag not identified yet."),
+            "Detected from visible inventory. Ownership/progression flag not mapped yet. Hawkeye-related CT item IDs indicate Hawkeye when present."),
         CreateUnknownOwnership(
             "horse-call",
             "Horse Call",
             [132],
-            "Detected from raw CT item ID 132 when present. Ownership/progression flag not identified yet."),
+            "Detected from visible inventory. Ownership/progression flag not mapped yet. Raw CT item ID 132 indicates Horse Call when present."),
         CreateUnknownOwnership(
             "bottles",
             "Bottles",
             [96, 97, 98, 99, 100, 101, 102, 103, 106, 107, 108, 115, 116, 118, 119, 120, 121, 122, 123, 124, 125, 126, 127, 158, 159],
-            "Detected from raw CT bottle-content item IDs when present. Bottle ownership/progression flags are not identified yet.")
+            "Detected from visible inventory. Ownership/progression flag not mapped yet. Bottle content item IDs indicate bottles when present.")
     ];
 
     public static string GetItemName(byte itemId)
@@ -243,7 +243,7 @@ public static class InventoryDefinitions
             detectedItemIds,
             null,
             null,
-            "Ownership/progression flag not present in the checked CT source. Visible slots are detection-only.",
+            "Ownership/progression flag not mapped in the checked CT source. Visible slots are detection-only.",
             notes);
     }
 }

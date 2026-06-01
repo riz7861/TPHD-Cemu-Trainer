@@ -31,6 +31,8 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     private bool _allowEditingUninitializedInventory;
     private bool _allowUnsafeRawInventoryWrites;
     private bool _allowEditingUninitializedEquipment;
+    private bool _userConfirmedPastIntroArc;
+    private bool _allowOwnershipEditsBeforeIntroCompletion;
     private bool _hasPlayerData;
     private bool _inventoryInitialized;
     private bool _equipmentInitialized;
@@ -41,8 +43,19 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     private string _researchRangeSnapshotLabel = string.Empty;
     private ResearchSnapshotViewModel? _snapshotA;
     private ResearchSnapshotViewModel? _snapshotB;
+    private ResearchSnapshotDocument? _ownershipDiscoverySnapshotA;
+    private ResearchSnapshotDocument? _ownershipDiscoverySnapshotB;
+    private OwnershipDiscoveryExport? _lastOwnershipDiscoveryExport;
     private AobScanCache? _scanCache;
     private ProgressionState _progressionState = ProgressionStateService.CreateUnavailable();
+
+    private static readonly IReadOnlyList<OwnershipDiscoveryRangePreset> OwnershipDiscoveryRanges =
+    [
+        new("Inventory Slots", 0x258, 0x18),
+        new("Equipment Ownership", 0x28D, 0x08),
+        new("Candidate Ownership Region", 0x240, 0xA0),
+        new("Collectibles", 0x2A1, 0x30)
+    ];
 
     public MainWindow()
     {
@@ -68,6 +81,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             InventoryDefinitions.FixedSlots.Select(slot => new InventoryFixedSlotViewModel(slot)));
         InventoryDiagnostics = [];
         InventoryOwnershipDiagnostics = [];
+        CollectiblesDiagnostics = [];
 
         EquipmentSlots = new ObservableCollection<EquipmentSlotViewModel>(
             EquipmentDefinitions.Slots.Select(slot => new EquipmentSlotViewModel(slot)));
@@ -78,6 +92,8 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         ResearchSnapshots = [];
         ResearchSnapshotCompareRows = [];
         ResearchDiscoveryReportLines = [];
+        OwnershipDiscoveryRows = [];
+        OwnershipDiscoveryReportLines = [];
 
         Weapons = CreateFutureFeatures(FutureFeatureCatalog.Weapons);
         Shields = CreateFutureFeatures(FutureFeatureCatalog.Shields);
@@ -113,6 +129,9 @@ public partial class MainWindow : Window, INotifyPropertyChanged
 
     private static string EquipmentLogPath =>
         Path.Combine(AppContext.BaseDirectory, "logs", "equipment.log");
+
+    private static string CollectiblesLogPath =>
+        Path.Combine(AppContext.BaseDirectory, "logs", "collectibles.log");
 
     private static string ProgressionLogPath =>
         Path.Combine(AppContext.BaseDirectory, "logs", "progression.log");
@@ -165,6 +184,8 @@ public partial class MainWindow : Window, INotifyPropertyChanged
 
     public ObservableCollection<string> InventoryOwnershipDiagnostics { get; }
 
+    public ObservableCollection<string> CollectiblesDiagnostics { get; }
+
     public ObservableCollection<EquipmentSlotViewModel> EquipmentSlots { get; }
 
     public ObservableCollection<EquipmentFlagViewModel> EquipmentFlags { get; }
@@ -187,6 +208,10 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     public ObservableCollection<ResearchSnapshotCompareRowViewModel> ResearchSnapshotCompareRows { get; }
 
     public ObservableCollection<string> ResearchDiscoveryReportLines { get; }
+
+    public ObservableCollection<OwnershipDiscoveryRowViewModel> OwnershipDiscoveryRows { get; }
+
+    public ObservableCollection<string> OwnershipDiscoveryReportLines { get; }
 
     public bool HoldInventoryValueAfterApply
     {
@@ -256,6 +281,38 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             {
                 _allowEditingUninitializedEquipment = value;
                 OnPropertyChanged();
+                UpdateEquipmentEditGuard();
+            }
+        }
+    }
+
+    public bool UserConfirmedPastIntroArc
+    {
+        get => _userConfirmedPastIntroArc;
+        set
+        {
+            if (_userConfirmedPastIntroArc != value)
+            {
+                _userConfirmedPastIntroArc = value;
+                OnPropertyChanged();
+                UpdateProgressionStateDisplays();
+                UpdateInventoryEditGuard();
+                UpdateEquipmentEditGuard();
+            }
+        }
+    }
+
+    public bool AllowOwnershipEditsBeforeIntroCompletion
+    {
+        get => _allowOwnershipEditsBeforeIntroCompletion;
+        set
+        {
+            if (_allowOwnershipEditsBeforeIntroCompletion != value)
+            {
+                _allowOwnershipEditsBeforeIntroCompletion = value;
+                OnPropertyChanged();
+                UpdateProgressionStateDisplays();
+                UpdateInventoryEditGuard();
                 UpdateEquipmentEditGuard();
             }
         }
@@ -384,6 +441,10 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             {
                 SetStatus("Player data found, but initialization state could not be read. Load into gameplay and rescan.", StatusKind.Warning);
             }
+            else if (!OwnershipEditsLikelyAccepted)
+            {
+                SetStatus("Player data found. This save appears to be before TPHD begins honoring ownership edits.", StatusKind.Warning);
+            }
             else if (!InventoryInitialized || !EquipmentInitialized)
             {
                 SetStatus("Player data found. Inventory or equipment is not initialized yet.", StatusKind.Warning);
@@ -430,6 +491,21 @@ public partial class MainWindow : Window, INotifyPropertyChanged
 
         value.SetTargetValue(value.EffectiveMaximum);
         WriteRequestedValue(value);
+    }
+
+    private void SetPoeSouls_Click(object sender, RoutedEventArgs e)
+    {
+        if ((sender as FrameworkElement)?.Tag is TrainerValueViewModel value &&
+            value.Definition.Id == CheatId.PoeSouls)
+        {
+            WritePoeSoulsRequestedValue();
+        }
+    }
+
+    private void MaxPoeSouls_Click(object sender, RoutedEventArgs e)
+    {
+        PoeSouls.SetTargetValue(PoeSouls.EffectiveMaximum);
+        WritePoeSoulsRequestedValue();
     }
 
     private void CapacityCombo_SelectionChanged(object sender, SelectionChangedEventArgs e)
@@ -803,6 +879,73 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         CompareSavedSnapshots(_snapshotA, _snapshotB);
     }
 
+    private void OwnershipDiscoveryCaptureA_Click(object sender, RoutedEventArgs e)
+    {
+        if (!TryCaptureOwnershipDiscoverySnapshot(OwnershipDiscoverySnapshotANameText.Text, out var snapshot))
+        {
+            return;
+        }
+
+        _ownershipDiscoverySnapshotA = snapshot;
+        _lastOwnershipDiscoveryExport = null;
+        OwnershipDiscoverySnapshotAText.Text = FormatOwnershipDiscoverySnapshotLabel(snapshot);
+        OwnershipDiscoveryStatusText.Text = $"Captured Save A: {snapshot.Name}.";
+        OwnershipDiscoveryRows.Clear();
+        OwnershipDiscoveryReportLines.Clear();
+        SetStatus("Ownership Discovery Save A captured.", StatusKind.Connected);
+    }
+
+    private void OwnershipDiscoveryCaptureB_Click(object sender, RoutedEventArgs e)
+    {
+        if (!TryCaptureOwnershipDiscoverySnapshot(OwnershipDiscoverySnapshotBNameText.Text, out var snapshot))
+        {
+            return;
+        }
+
+        _ownershipDiscoverySnapshotB = snapshot;
+        _lastOwnershipDiscoveryExport = null;
+        OwnershipDiscoverySnapshotBText.Text = FormatOwnershipDiscoverySnapshotLabel(snapshot);
+        OwnershipDiscoveryStatusText.Text = $"Captured Save B: {snapshot.Name}.";
+        OwnershipDiscoveryRows.Clear();
+        OwnershipDiscoveryReportLines.Clear();
+        SetStatus("Ownership Discovery Save B captured.", StatusKind.Connected);
+    }
+
+    private void OwnershipDiscoveryCompare_Click(object sender, RoutedEventArgs e)
+    {
+        if (_ownershipDiscoverySnapshotA is null || _ownershipDiscoverySnapshotB is null)
+        {
+            OwnershipDiscoveryStatusText.Text = "Capture Save A and Save B before comparing.";
+            SetStatus("Capture both Ownership Discovery snapshots before comparing.", StatusKind.Neutral);
+            return;
+        }
+
+        CompareOwnershipDiscoverySnapshots(_ownershipDiscoverySnapshotA, _ownershipDiscoverySnapshotB);
+    }
+
+    private void OwnershipDiscoveryExport_Click(object sender, RoutedEventArgs e)
+    {
+        if (_lastOwnershipDiscoveryExport is null)
+        {
+            OwnershipDiscoveryStatusText.Text = "Compare Save A and Save B before exporting.";
+            SetStatus("Compare Ownership Discovery snapshots before exporting.", StatusKind.Neutral);
+            return;
+        }
+
+        try
+        {
+            var exported = ResearchSnapshotStore.ExportOwnershipDiscovery(_lastOwnershipDiscoveryExport);
+            OwnershipDiscoveryStatusText.Text =
+                $"Exported {Path.GetFileName(exported.JsonPath)} and {Path.GetFileName(exported.CsvPath)}.";
+            SetStatus("Ownership Discovery report exported.", StatusKind.Connected);
+        }
+        catch (Exception ex)
+        {
+            OwnershipDiscoveryStatusText.Text = $"Export failed: {ex.Message}";
+            SetStatus("Ownership Discovery export failed.", StatusKind.Warning);
+        }
+    }
+
     private void RefreshTimer_Tick(object? sender, EventArgs e)
     {
         RefreshTrainer(applyLocks: true);
@@ -958,13 +1101,59 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         UpdateEquipmentEditGuard();
     }
 
+    private OwnershipEditAcceptance EffectiveOwnershipEditAcceptance
+    {
+        get
+        {
+            if (!HasPlayerData)
+            {
+                return OwnershipEditAcceptance.Unknown;
+            }
+
+            return UserConfirmedPastIntroArc
+                ? OwnershipEditAcceptance.LikelyYes
+                : _progressionState.GameAcceptsOwnershipEdits;
+        }
+    }
+
+    private string EffectiveOwnershipEditAcceptanceText => EffectiveOwnershipEditAcceptance switch
+    {
+        OwnershipEditAcceptance.LikelyYes => "Likely Yes",
+        OwnershipEditAcceptance.LikelyNo => "Likely No",
+        _ => "Unknown"
+    };
+
+    private bool OwnershipEditsLikelyAccepted => EffectiveOwnershipEditAcceptance == OwnershipEditAcceptance.LikelyYes;
+
+    private string EffectiveOwnershipEditDetectionReason
+    {
+        get
+        {
+            if (!HasPlayerData)
+            {
+                return "Player data is not available.";
+            }
+
+            return UserConfirmedPastIntroArc
+                ? "User override: marked as past the Ordon Village intro arc."
+                : _progressionState.OwnershipEditDetectionReason;
+        }
+    }
+
     private void UpdateProgressionStateDisplays()
     {
         PlayerDataStateText.Text = _progressionState.PlayerDataStatus;
         InventoryStateText.Text = HasPlayerData ? _progressionState.InventoryStatus : "-";
         EquipmentStateText.Text = HasPlayerData ? _progressionState.EquipmentStatus : "-";
+        OwnershipEditsStateText.Text = EffectiveOwnershipEditAcceptanceText;
 
         ProgressionPlayerBaseText.Text = _progressionState.PlayerBaseText;
+        ProgressionPlayerDataText.Text = _progressionState.PlayerDataStatus;
+        ProgressionMemoryInitializedText.Text = HasPlayerData
+            ? _progressionState.MemoryInitializedStatus
+            : "-";
+        ProgressionOwnershipAcceptanceText.Text = EffectiveOwnershipEditAcceptanceText;
+        ProgressionOwnershipReasonText.Text = EffectiveOwnershipEditDetectionReason;
         ProgressionInventoryInitializedText.Text = HasPlayerData
             ? _progressionState.InventoryStatus
             : "-";
@@ -1128,6 +1317,12 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             return false;
         }
 
+        if (!OwnershipEditsLikelyAccepted && !AllowOwnershipEditsBeforeIntroCompletion)
+        {
+            SetStatus("This save appears to be before TPHD begins honoring ownership edits. Progress past the Ordon Village intro arc and rescan.", StatusKind.Warning);
+            return false;
+        }
+
         return true;
     }
 
@@ -1142,6 +1337,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
                 InventoryInitialized = initialized,
                 InventoryRawBytes = rawBytes
             };
+            _progressionState = RefreshOwnershipEditAcceptance(_progressionState);
         }
 
         UpdateProgressionStateDisplays();
@@ -1154,6 +1350,12 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             AllowUnsafeRawInventoryWrites &&
             HasPlayerData &&
             (InventoryInitialized || AllowEditingUninitializedInventory);
+        var ownershipAcceptanceAllowsEditing =
+            OwnershipEditsLikelyAccepted || AllowOwnershipEditsBeforeIntroCompletion;
+        var canOwnershipEdit =
+            HasPlayerData &&
+            (InventoryInitialized || AllowEditingUninitializedInventory) &&
+            ownershipAcceptanceAllowsEditing;
         foreach (var slot in InventorySlots)
         {
             slot.CanEdit = canRawEdit;
@@ -1168,13 +1370,21 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         {
             item.CanEdit =
                 item.Definition.CanWrite &&
-                HasPlayerData &&
-                (InventoryInitialized || AllowEditingUninitializedInventory);
+                canOwnershipEdit;
         }
+
+        ApplyInventoryOwnershipButton.IsEnabled =
+            canOwnershipEdit && InventoryOwnershipItems.Any(item => item.Definition.CanWrite);
 
         InventoryInitializationWarningText.Visibility = HasPlayerData && !InventoryInitialized
             ? Visibility.Visible
             : Visibility.Collapsed;
+        InventoryOwnershipAcceptanceWarningText.Visibility =
+            HasPlayerData &&
+            EffectiveOwnershipEditAcceptance == OwnershipEditAcceptance.LikelyNo &&
+            !AllowOwnershipEditsBeforeIntroCompletion
+                ? Visibility.Visible
+                : Visibility.Collapsed;
     }
 
     private bool RefreshEquipment(bool showStatus)
@@ -1289,6 +1499,12 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             return false;
         }
 
+        if (!OwnershipEditsLikelyAccepted && !AllowOwnershipEditsBeforeIntroCompletion)
+        {
+            SetStatus("This save appears to be before TPHD begins honoring ownership edits. Progress past the Ordon Village intro arc and rescan.", StatusKind.Warning);
+            return false;
+        }
+
         return true;
     }
 
@@ -1313,16 +1529,34 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             EquippedSword = equippedSword,
             EquippedShield = equippedShield
         };
+        _progressionState = RefreshOwnershipEditAcceptance(_progressionState);
 
         UpdateProgressionStateDisplays();
         UpdateEquipmentEditGuard();
     }
 
+    private static ProgressionState RefreshOwnershipEditAcceptance(ProgressionState state)
+    {
+        var ownershipAcceptance = ProgressionStateService.EvaluateOwnershipEditAcceptance(
+            state.HasPlayerData,
+            state.InventoryInitialized,
+            state.EquipmentInitialized);
+
+        return state with
+        {
+            GameAcceptsOwnershipEdits = ownershipAcceptance.Acceptance,
+            OwnershipEditDetectionReason = ownershipAcceptance.Reason
+        };
+    }
+
     private void UpdateEquipmentEditGuard()
     {
+        var ownershipAcceptanceAllowsEditing =
+            OwnershipEditsLikelyAccepted || AllowOwnershipEditsBeforeIntroCompletion;
         var canEdit =
             HasPlayerData &&
-            (EquipmentInitialized || AllowEditingUninitializedEquipment);
+            (EquipmentInitialized || AllowEditingUninitializedEquipment) &&
+            ownershipAcceptanceAllowsEditing;
         foreach (var slot in EquipmentSlots)
         {
             slot.CanEdit = false;
@@ -1336,6 +1570,13 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         EquipmentInitializationWarningText.Visibility = HasPlayerData && !EquipmentInitialized
             ? Visibility.Visible
             : Visibility.Collapsed;
+        EquipmentOwnershipAcceptanceWarningText.Visibility =
+            HasPlayerData &&
+            EffectiveOwnershipEditAcceptance == OwnershipEditAcceptance.LikelyNo &&
+            !AllowOwnershipEditsBeforeIntroCompletion
+                ? Visibility.Visible
+                : Visibility.Collapsed;
+        ApplyEquipmentOwnershipButton.IsEnabled = canEdit;
     }
 
     private async Task<bool> WriteInventorySlotWithDiagnosticsAsync(
@@ -1958,12 +2199,58 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         }
     }
 
+    private void AppendCollectiblesDiagnostic(
+        string name,
+        int? previousValue,
+        int desiredValue,
+        int? readbackValue,
+        string diagnosticStatus)
+    {
+        var addressText = _playerBaseAddress.HasValue
+            ? $"0x{_playerBaseAddress.Value + PoeSouls.Definition.Offset:X}"
+            : "n/a";
+        var entry =
+            $"{DateTimeOffset.Now:O} kind=collectible name=\"{name}\" offset=0x{PoeSouls.Definition.Offset:X} " +
+            $"address={addressText} previous={FormatNullableInt(previousValue)} desired={desiredValue} " +
+            $"readback={FormatNullableInt(readbackValue)} status={diagnosticStatus}";
+
+        AppendCollectiblesLogEntry(entry);
+    }
+
+    private void AppendCollectiblesLogEntry(string entry)
+    {
+        CollectiblesDiagnostics.Insert(0, entry);
+        while (CollectiblesDiagnostics.Count > 100)
+        {
+            CollectiblesDiagnostics.RemoveAt(CollectiblesDiagnostics.Count - 1);
+        }
+
+        try
+        {
+            var logDirectory = Path.GetDirectoryName(CollectiblesLogPath);
+            if (!string.IsNullOrWhiteSpace(logDirectory))
+            {
+                Directory.CreateDirectory(logDirectory);
+            }
+
+            File.AppendAllText(CollectiblesLogPath, entry + Environment.NewLine);
+        }
+        catch (Exception ex)
+        {
+            CollectiblesDiagnostics.Insert(0, $"{DateTimeOffset.Now:O} collectibles-log-write-failed: {ex.Message}");
+        }
+    }
+
     private void AppendProgressionDiagnostic()
     {
         var entry =
             $"{DateTimeOffset.Now:O} player-base={_progressionState.PlayerBaseText} " +
             $"has-player-data={HasPlayerData} inventory-initialized={InventoryInitialized} " +
-            $"equipment-initialized={EquipmentInitialized} inventory-bytes=\"{_progressionState.InventoryRawBytesText}\" " +
+            $"equipment-initialized={EquipmentInitialized} memory-initialized={_progressionState.MemoryInitialized} " +
+            $"ownership-edits={EffectiveOwnershipEditAcceptanceText} " +
+            $"ownership-detection-reason=\"{EffectiveOwnershipEditDetectionReason}\" " +
+            $"user-past-intro-override={UserConfirmedPastIntroArc} intro-write-override={AllowOwnershipEditsBeforeIntroCompletion} " +
+            $"inventory-bytes=\"{_progressionState.InventoryRawBytesText}\" " +
             $"equipment-ownership-bytes=\"{_progressionState.EquipmentOwnershipBytesText}\" " +
             $"equipment-equipped-bytes=\"{_progressionState.EquipmentEquippedBytesText}\" " +
             $"status=\"{StatusText.Text}\"";
@@ -2257,6 +2544,71 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         return true;
     }
 
+    private bool TryCaptureOwnershipDiscoverySnapshot(string requestedName, out ResearchSnapshotDocument snapshot)
+    {
+        snapshot = new ResearchSnapshotDocument();
+
+        if (_memory is null || !_playerBaseAddress.HasValue)
+        {
+            OwnershipDiscoveryStatusText.Text = "Attach to Cemu and load player data before capturing Ownership Discovery snapshots.";
+            SetStatus("Attach before capturing Ownership Discovery snapshots.", StatusKind.Neutral);
+            return false;
+        }
+
+        var ranges = new List<ResearchSnapshotRange>();
+        foreach (var range in OwnershipDiscoveryRanges)
+        {
+            if (!TryReadOwnershipDiscoveryRange(range, ranges))
+            {
+                return false;
+            }
+        }
+
+        var name = string.IsNullOrWhiteSpace(requestedName)
+            ? $"Ownership Discovery {DateTimeOffset.Now:yyyy-MM-dd HH:mm:ss}"
+            : requestedName.Trim();
+
+        snapshot = new ResearchSnapshotDocument
+        {
+            Name = name,
+            Timestamp = DateTimeOffset.Now,
+            Notes = "Ownership Discovery Mode capture",
+            GameStateDescription = "Inventory slots, equipment ownership, candidate ownership region, and collectibles",
+            Ranges = ranges
+        };
+
+        return true;
+    }
+
+    private bool TryReadOwnershipDiscoveryRange(
+        OwnershipDiscoveryRangePreset range,
+        ICollection<ResearchSnapshotRange> ranges)
+    {
+        if (_memory is null || !_playerBaseAddress.HasValue)
+        {
+            return false;
+        }
+
+        var absoluteAddress = _playerBaseAddress.Value + range.StartOffset;
+        if (!_memory.TryReadBytes(absoluteAddress, range.Length, out var bytes, out var bytesRead) ||
+            bytesRead != range.Length)
+        {
+            OwnershipDiscoveryStatusText.Text =
+                $"Could not read {range.Label} at _playerbase+0x{range.StartOffset:X}, length 0x{range.Length:X}.";
+            SetStatus("Could not read Ownership Discovery range.", StatusKind.Warning);
+            return false;
+        }
+
+        ranges.Add(new ResearchSnapshotRange
+        {
+            Label = range.Label,
+            StartOffset = range.StartOffset,
+            Bytes = bytes
+        });
+
+        return true;
+    }
+
     private void RefreshSnapshotBrowser()
     {
         ResearchSnapshots.Clear();
@@ -2307,6 +2659,47 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         SetStatus($"Compared saved snapshots. Changed bytes: {changedRows.Count}.", StatusKind.Connected);
     }
 
+    private void CompareOwnershipDiscoverySnapshots(
+        ResearchSnapshotDocument snapshotA,
+        ResearchSnapshotDocument snapshotB)
+    {
+        var valuesA = FlattenSnapshot(snapshotA);
+        var valuesB = FlattenSnapshot(snapshotB);
+        var offsets = valuesA.Keys
+            .Union(valuesB.Keys)
+            .OrderBy(offset => offset)
+            .ToList();
+        var treatAfterAsPersisted = OwnershipDiscoveryPersistedAfterReloadCheckBox.IsChecked == true;
+        var itemContext = InferOwnershipDiscoveryItemContext(valuesA, valuesB);
+
+        OwnershipDiscoveryRows.Clear();
+        foreach (var offset in offsets)
+        {
+            valuesA.TryGetValue(offset, out var valueA);
+            valuesB.TryGetValue(offset, out var valueB);
+            OwnershipDiscoveryRows.Add(new OwnershipDiscoveryRowViewModel(
+                offset,
+                valuesA.ContainsKey(offset) ? valueA : null,
+                valuesB.ContainsKey(offset) ? valueB : null,
+                treatAfterAsPersisted,
+                itemContext));
+        }
+
+        BuildOwnershipDiscoveryReport(OwnershipDiscoveryRows);
+        _lastOwnershipDiscoveryExport = CreateOwnershipDiscoveryExport(
+            snapshotA,
+            snapshotB,
+            OwnershipDiscoveryRows,
+            OwnershipDiscoveryReportLines,
+            treatAfterAsPersisted);
+
+        var changedCount = OwnershipDiscoveryRows.Count(row => row.IsChanged);
+        var strongCandidates = OwnershipDiscoveryRows.Count(row => row.IsStrongCandidate);
+        OwnershipDiscoveryStatusText.Text =
+            $"Compared {snapshotA.Name} vs {snapshotB.Name}. Changed bytes: {changedCount}. Strong candidates: {strongCandidates}. Click Export Report to write JSON/CSV.";
+        SetStatus($"Ownership Discovery compared. Strong candidates: {strongCandidates}.", StatusKind.Connected);
+    }
+
     private static Dictionary<uint, byte> FlattenSnapshot(ResearchSnapshotDocument snapshot)
     {
         var values = new Dictionary<uint, byte>();
@@ -2319,6 +2712,36 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         }
 
         return values;
+    }
+
+    private static string InferOwnershipDiscoveryItemContext(
+        IReadOnlyDictionary<uint, byte> valuesA,
+        IReadOnlyDictionary<uint, byte> valuesB)
+    {
+        var detectedItems = new List<string>();
+        for (var slotIndex = 0; slotIndex < InventoryDefinitions.SlotCount; slotIndex++)
+        {
+            var offset = InventoryDefinitions.FirstSlotOffset + (uint)slotIndex;
+            if (!valuesA.TryGetValue(offset, out var beforeValue) ||
+                !valuesB.TryGetValue(offset, out var afterValue) ||
+                beforeValue == afterValue ||
+                afterValue == InventoryDefinitions.EmptyItemId)
+            {
+                continue;
+            }
+
+            var itemName = InventoryDefinitions.GetKnownItemName(afterValue);
+            if (itemName != "-" && itemName != "Nothing")
+            {
+                detectedItems.Add(itemName);
+            }
+        }
+
+        return detectedItems
+            .Distinct(StringComparer.Ordinal)
+            .Take(3)
+            .Aggregate(string.Empty, (current, item) =>
+                string.IsNullOrWhiteSpace(current) ? item : $"{current} / {item}");
     }
 
     private void BuildDiscoveryReport(IEnumerable<ResearchSnapshotCompareRowViewModel> changedRows)
@@ -2345,6 +2768,36 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         }
     }
 
+    private void BuildOwnershipDiscoveryReport(IEnumerable<OwnershipDiscoveryRowViewModel> rows)
+    {
+        OwnershipDiscoveryReportLines.Clear();
+
+        var changedRows = rows
+            .Where(row => row.IsChanged)
+            .OrderByDescending(row => row.Score)
+            .ThenBy(row => row.OffsetValue)
+            .ToList();
+
+        foreach (var row in changedRows.Take(80))
+        {
+            var prefix = row.IsStrongCandidate ? "Strong candidate" : "Changed";
+            OwnershipDiscoveryReportLines.Add(
+                $"{prefix}: {row.Offset} {row.BeforeByte} -> {row.AfterByte}; score={row.Score}; {row.PotentialMeaning}");
+        }
+
+        if (changedRows.Count == 0)
+        {
+            OwnershipDiscoveryReportLines.Add("No changed bytes found.");
+            return;
+        }
+
+        var visibleChanges = changedRows.Count(row => !row.IsOutsideVisibleInventorySlots);
+        var strongCandidates = changedRows.Count(row => row.IsStrongCandidate);
+        OwnershipDiscoveryReportLines.Insert(
+            0,
+            $"Summary: changed={changedRows.Count}; visible-inventory-changes={visibleChanges}; strong-candidates={strongCandidates}.");
+    }
+
     private static ResearchComparisonExport CreateComparisonExport(
         ResearchSnapshotViewModel snapshotA,
         ResearchSnapshotViewModel snapshotB,
@@ -2367,6 +2820,35 @@ public partial class MainWindow : Window, INotifyPropertyChanged
                 Changed = row.IsChanged
             }).ToList(),
             DiscoveryReport = discoveryReport.ToList()
+        };
+    }
+
+    private static OwnershipDiscoveryExport CreateOwnershipDiscoveryExport(
+        ResearchSnapshotDocument snapshotA,
+        ResearchSnapshotDocument snapshotB,
+        IEnumerable<OwnershipDiscoveryRowViewModel> rows,
+        IEnumerable<string> report,
+        bool treatSnapshotBAsPersistedAfterReload)
+    {
+        return new OwnershipDiscoveryExport
+        {
+            Timestamp = DateTimeOffset.Now,
+            SnapshotAName = snapshotA.Name,
+            SnapshotBName = snapshotB.Name,
+            TreatSnapshotBAsPersistedAfterReload = treatSnapshotBAsPersistedAfterReload,
+            Rows = rows.Select(row => new OwnershipDiscoveryExportRow
+            {
+                Offset = row.Offset,
+                BeforeValue = row.BeforeValue,
+                AfterValue = row.AfterValue,
+                Changed = row.IsChanged,
+                PersistedAfterReload = row.PersistedAfterReload,
+                OutsideVisibleInventorySlots = row.IsOutsideVisibleInventorySlots,
+                Score = row.Score,
+                StrongCandidate = row.IsStrongCandidate,
+                PotentialMeaning = row.PotentialMeaning
+            }).ToList(),
+            Report = report.ToList()
         };
     }
 
@@ -2415,6 +2897,11 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         ResearchRangeLengthText.Text = length;
         ResearchRangeLabelText.Text = label;
         ResearchRangeStatusText.Text = $"Loaded preset: {label}.";
+    }
+
+    private static string FormatOwnershipDiscoverySnapshotLabel(ResearchSnapshotDocument snapshot)
+    {
+        return $"{snapshot.Name} ({snapshot.Timestamp.ToLocalTime():g}, {snapshot.Ranges.Count} ranges)";
     }
 
     private static bool TryParseResearchOffset(string text, out uint offset, out string error)
@@ -2487,6 +2974,11 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         return value.HasValue ? value.Value.ToString(CultureInfo.InvariantCulture) : "n/a";
     }
 
+    private static string FormatNullableInt(int? value)
+    {
+        return value.HasValue ? value.Value.ToString(CultureInfo.InvariantCulture) : "n/a";
+    }
+
     private static string FormatEquipmentByte(byte? value)
     {
         return value.HasValue ? $"{value.Value} (0x{value.Value:X2})" : "n/a";
@@ -2540,6 +3032,76 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         }
 
         WriteValue(value, target, quiet: false);
+    }
+
+    private void WritePoeSoulsRequestedValue()
+    {
+        if (!PoeSouls.TryGetClampedTarget(out var target, out var wasClamped, out var validationError))
+        {
+            SetStatus(validationError, StatusKind.Warning);
+            return;
+        }
+
+        if (wasClamped)
+        {
+            PoeSouls.SetTargetValue(target);
+        }
+
+        if (_memory is null || !_playerBaseAddress.HasValue)
+        {
+            SetStatus("Not attached. Attach to Cemu and rescan before editing Poe Souls.", StatusKind.Neutral);
+            AppendCollectiblesDiagnostic(
+                PoeSouls.Name,
+                previousValue: null,
+                desiredValue: target,
+                readbackValue: null,
+                "not-attached");
+            return;
+        }
+
+        int? previousValue = null;
+        if (PoeSouls.CurrentNumericValue.HasValue)
+        {
+            previousValue = PoeSouls.CurrentNumericValue.Value;
+        }
+        else if (TryReadIntValue(PoeSouls.Definition, out var readPreviousValue, out _))
+        {
+            previousValue = readPreviousValue;
+        }
+
+        var writeSucceeded = WriteValue(PoeSouls, target, quiet: true);
+        int? readbackValue = null;
+        var diagnosticStatus = "write-failed";
+
+        if (writeSucceeded && TryReadIntValue(PoeSouls.Definition, out var readValue, out var readError))
+        {
+            readbackValue = readValue;
+            PoeSouls.SetCurrentValue(readValue, initializeTarget: false);
+            if (readValue == target)
+            {
+                diagnosticStatus = "verified";
+                SetStatus($"Poe Souls set to {target}.", StatusKind.Connected);
+            }
+            else
+            {
+                diagnosticStatus = "readback-mismatch";
+                SetStatus($"Poe Souls write failed: expected {target} but read {readValue}.", StatusKind.Warning);
+            }
+        }
+        else if (writeSucceeded)
+        {
+            diagnosticStatus = "readback-failed";
+            SetStatus("Poe Souls was written, but readback verification failed.", StatusKind.Warning);
+        }
+
+        AppendCollectiblesDiagnostic(
+            PoeSouls.Name,
+            previousValue,
+            target,
+            readbackValue,
+            diagnosticStatus);
+
+        RefreshValue(PoeSouls);
     }
 
     private bool WriteValue(TrainerValueViewModel value, int requestedValue, bool quiet)
@@ -2922,6 +3484,8 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         field = value;
         OnPropertyChanged(propertyName);
     }
+
+    private readonly record struct OwnershipDiscoveryRangePreset(string Label, uint StartOffset, int Length);
 
     private enum StatusKind
     {
