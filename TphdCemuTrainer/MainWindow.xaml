@@ -223,6 +223,7 @@
                               ItemsSource="{Binding AllowedItems}"
                               DisplayMemberPath="DisplayName"
                               SelectedItem="{Binding SelectedItem, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                              IsEnabled="{Binding CanEdit}"
                               Margin="6,0" />
                     <Button Grid.Column="6"
                             Content="Apply"
@@ -492,6 +493,17 @@
                                            Margin="0,0,0,8"
                                            Text="Use item-specific editors when available. The raw 24 inventory bytes appear to be fixed/game-managed slots, not arbitrary bag slots." />
 
+                                <Border BorderBrush="#D9A23A"
+                                        BorderThickness="1"
+                                        Background="#FFF8E6"
+                                        Padding="8"
+                                        Margin="0,0,0,8">
+                                    <TextBlock TextWrapping="Wrap"
+                                               Foreground="#6F4700"
+                                               FontWeight="SemiBold"
+                                               Text="This field appears game-managed. Real ownership/progression flags are not identified yet." />
+                                </Border>
+
                                 <Border x:Name="InventoryInitializationWarningText"
                                         Visibility="Collapsed"
                                         BorderBrush="#D9A23A"
@@ -555,7 +567,12 @@
                                         <TextBlock TextWrapping="Wrap"
                                                    Foreground="#7A4A00"
                                                    Margin="0,0,0,8"
-                                                   Text="Raw mode exposes all CT item IDs for diagnostics. These are not arbitrary free inventory slots; game-managed slots may revert and should use a specific item editor when one exists." />
+                                                   Text="Raw mode exposes all CT item IDs for diagnostics. These are not arbitrary free inventory slots; game-managed slots may revert because the real ownership/progression flags are elsewhere." />
+
+                                        <CheckBox Content="Enable unsafe raw inventory writes"
+                                                  IsChecked="{Binding AllowUnsafeRawInventoryWrites, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                                  ToolTip="Required before Apply/Clear buttons in raw inventory mode can write bytes."
+                                                  Margin="0,0,0,8" />
 
                                         <Grid Margin="0,0,0,4">
                                             <Grid.ColumnDefinitions>
@@ -924,6 +941,112 @@
                                              Grid.Column="1"
                                              x:Name="ProgressionStatusMessageText"
                                              Text="Not attached"
+                                             IsReadOnly="True"
+                                             TextWrapping="Wrap"
+                                             Background="#F7F7F7" />
+                                </Grid>
+                            </StackPanel>
+                        </GroupBox>
+
+                        <GroupBox Header="Research">
+                            <StackPanel>
+                                <TextBlock TextWrapping="Wrap"
+                                           Foreground="#555"
+                                           Margin="0,0,0,8"
+                                           Text="Watch one playerbase-relative byte while playing to help identify real ownership or progression flags." />
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="150" />
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="Auto" />
+                                        <RowDefinition Height="Auto" />
+                                        <RowDefinition Height="Auto" />
+                                        <RowDefinition Height="Auto" />
+                                        <RowDefinition Height="Auto" />
+                                        <RowDefinition Height="Auto" />
+                                    </Grid.RowDefinitions>
+
+                                    <TextBlock Text="Relative offset"
+                                               VerticalAlignment="Center"
+                                               Margin="0,0,8,5" />
+                                    <TextBox Grid.Column="1"
+                                             x:Name="ResearchOffsetText"
+                                             Text="0x26C"
+                                             FontFamily="Consolas"
+                                             Margin="0,0,6,5" />
+                                    <Button Grid.Column="2"
+                                            Content="Read Byte"
+                                            Click="ResearchReadByte_Click"
+                                            Margin="0,0,0,5" />
+
+                                    <TextBlock Grid.Row="1"
+                                               Text="Absolute address"
+                                               VerticalAlignment="Center"
+                                               Margin="0,0,8,5" />
+                                    <TextBox Grid.Row="1"
+                                             Grid.Column="1"
+                                             Grid.ColumnSpan="2"
+                                             x:Name="ResearchAbsoluteAddressText"
+                                             Text="-"
+                                             IsReadOnly="True"
+                                             FontFamily="Consolas"
+                                             Background="#F7F7F7"
+                                             Margin="0,0,0,5" />
+
+                                    <TextBlock Grid.Row="2"
+                                               Text="Current byte"
+                                               VerticalAlignment="Center"
+                                               Margin="0,0,8,5" />
+                                    <TextBox Grid.Row="2"
+                                             Grid.Column="1"
+                                             Grid.ColumnSpan="2"
+                                             x:Name="ResearchCurrentByteText"
+                                             Text="Not read"
+                                             IsReadOnly="True"
+                                             FontFamily="Consolas"
+                                             Background="#F7F7F7"
+                                             Margin="0,0,0,5" />
+
+                                    <CheckBox Grid.Row="3"
+                                              Grid.Column="1"
+                                              Grid.ColumnSpan="2"
+                                              x:Name="ResearchAutoRefreshCheckBox"
+                                              Content="Auto refresh while attached"
+                                              Margin="0,0,0,5" />
+
+                                    <TextBlock Grid.Row="4"
+                                               Text="Snapshot"
+                                               VerticalAlignment="Center"
+                                               Margin="0,0,8,5" />
+                                    <StackPanel Grid.Row="4"
+                                                Grid.Column="1"
+                                                Grid.ColumnSpan="2"
+                                                Orientation="Horizontal"
+                                                Margin="0,0,0,5">
+                                        <TextBox x:Name="ResearchSnapshotByteText"
+                                                 Text="Not captured"
+                                                 IsReadOnly="True"
+                                                 FontFamily="Consolas"
+                                                 Background="#F7F7F7"
+                                                 Width="150" />
+                                        <Button Content="Capture"
+                                                Click="ResearchCaptureSnapshot_Click" />
+                                        <Button Content="Compare"
+                                                Click="ResearchCompareSnapshot_Click" />
+                                    </StackPanel>
+
+                                    <TextBlock Grid.Row="5"
+                                               Text="Compare"
+                                               VerticalAlignment="Center"
+                                               Margin="0,0,8,0" />
+                                    <TextBox Grid.Row="5"
+                                             Grid.Column="1"
+                                             Grid.ColumnSpan="2"
+                                             x:Name="ResearchCompareText"
+                                             Text="No snapshot"
                                              IsReadOnly="True"
                                              TextWrapping="Wrap"
                                              Background="#F7F7F7" />

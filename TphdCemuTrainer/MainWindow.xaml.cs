@@ -26,11 +26,14 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     private bool _equipmentDiagnosticInProgress;
     private bool _holdInventoryValueAfterApply;
     private bool _allowEditingUninitializedInventory;
+    private bool _allowUnsafeRawInventoryWrites;
     private bool _allowEditingUninitializedEquipment;
     private bool _advancedEquipmentEditing;
     private bool _hasPlayerData;
     private bool _inventoryInitialized;
     private bool _equipmentInitialized;
+    private byte? _researchSnapshotValue;
+    private uint? _researchSnapshotOffset;
     private ProgressionState _progressionState = ProgressionStateService.CreateUnavailable();
 
     public MainWindow()
@@ -178,6 +181,20 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             if (_allowEditingUninitializedInventory != value)
             {
                 _allowEditingUninitializedInventory = value;
+                OnPropertyChanged();
+                UpdateInventoryEditGuard();
+            }
+        }
+    }
+
+    public bool AllowUnsafeRawInventoryWrites
+    {
+        get => _allowUnsafeRawInventoryWrites;
+        set
+        {
+            if (_allowUnsafeRawInventoryWrites != value)
+            {
+                _allowUnsafeRawInventoryWrites = value;
                 OnPropertyChanged();
                 UpdateInventoryEditGuard();
             }
@@ -379,23 +396,11 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         RefreshInventorySlots(showStatus: true);
     }
 
-    private async void ApplyFixedInventoryItem_Click(object sender, RoutedEventArgs e)
+    private void ApplyFixedInventoryItem_Click(object sender, RoutedEventArgs e)
     {
         if ((sender as FrameworkElement)?.Tag is InventoryFixedSlotViewModel item)
         {
-            if (!CanWriteInventorySlot())
-            {
-                return;
-            }
-
-            await WriteInventorySlotWithDiagnosticsAsync(
-                item.SlotIndex,
-                item.SlotNumber,
-                item.OffsetValue,
-                item.Offset,
-                item.SelectedItem.ItemId,
-                holdAfterWrite: HoldInventoryValueAfterApply,
-                successMessage: $"{item.Name} set to {item.SelectedItem.Name}.");
+            SetStatus("This field appears game-managed. Real ownership/progression flags are not identified yet.", StatusKind.Warning);
         }
     }
 
@@ -403,7 +408,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     {
         if ((sender as FrameworkElement)?.Tag is InventorySlotViewModel slot)
         {
-            if (!CanWriteInventorySlot())
+            if (!CanWriteRawInventorySlot())
             {
                 return;
             }
@@ -423,7 +428,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     {
         if ((sender as FrameworkElement)?.Tag is InventorySlotViewModel slot)
         {
-            if (!CanWriteInventorySlot())
+            if (!CanWriteRawInventorySlot())
             {
                 return;
             }
@@ -478,6 +483,49 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         }
     }
 
+    private void ResearchReadByte_Click(object sender, RoutedEventArgs e)
+    {
+        RefreshResearchByte(showStatus: true);
+    }
+
+    private void ResearchCaptureSnapshot_Click(object sender, RoutedEventArgs e)
+    {
+        if (TryReadResearchByte(out var offset, out var value, out _))
+        {
+            _researchSnapshotOffset = offset;
+            _researchSnapshotValue = value;
+            ResearchSnapshotByteText.Text = FormatResearchByte(value);
+            ResearchCompareText.Text = "Snapshot captured.";
+            SetStatus($"Research snapshot captured at _playerbase+0x{offset:X}.", StatusKind.Connected);
+        }
+    }
+
+    private void ResearchCompareSnapshot_Click(object sender, RoutedEventArgs e)
+    {
+        if (!_researchSnapshotValue.HasValue || !_researchSnapshotOffset.HasValue)
+        {
+            ResearchCompareText.Text = "Capture a snapshot first.";
+            SetStatus("Capture a research snapshot before comparing.", StatusKind.Neutral);
+            return;
+        }
+
+        if (!TryReadResearchByte(out var offset, out var currentValue, out _))
+        {
+            return;
+        }
+
+        var snapshotValue = _researchSnapshotValue.Value;
+        var offsetNote = offset == _researchSnapshotOffset.Value
+            ? $"_playerbase+0x{offset:X}"
+            : $"current _playerbase+0x{offset:X}; snapshot _playerbase+0x{_researchSnapshotOffset.Value:X}";
+
+        ResearchCompareText.Text = currentValue == snapshotValue
+            ? $"Unchanged at {offsetNote}: {FormatResearchByte(currentValue)}"
+            : $"Changed at {offsetNote}: {FormatResearchByte(snapshotValue)} -> {FormatResearchByte(currentValue)}";
+
+        SetStatus("Research byte compared.", StatusKind.Connected);
+    }
+
     private void RefreshTimer_Tick(object? sender, EventArgs e)
     {
         RefreshTrainer(applyLocks: true);
@@ -529,6 +577,11 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             }
 
             UpdateDerivedDisplays();
+
+            if (ResearchAutoRefreshCheckBox.IsChecked == true)
+            {
+                RefreshResearchByte(showStatus: false);
+            }
 
             if (applyLocks)
             {
@@ -717,6 +770,17 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         return true;
     }
 
+    private bool CanWriteRawInventorySlot()
+    {
+        if (!AllowUnsafeRawInventoryWrites)
+        {
+            SetStatus("Enable unsafe raw inventory writes before writing raw inventory bytes.", StatusKind.Warning);
+            return false;
+        }
+
+        return CanWriteInventorySlot();
+    }
+
     private void SetInventoryInitialized(bool initialized, byte[]? rawBytes)
     {
         InventoryInitialized = initialized;
@@ -736,15 +800,18 @@ public partial class MainWindow : Window, INotifyPropertyChanged
 
     private void UpdateInventoryEditGuard()
     {
-        var canEdit = HasPlayerData && (InventoryInitialized || AllowEditingUninitializedInventory);
+        var canRawEdit =
+            AllowUnsafeRawInventoryWrites &&
+            HasPlayerData &&
+            (InventoryInitialized || AllowEditingUninitializedInventory);
         foreach (var slot in InventorySlots)
         {
-            slot.CanEdit = canEdit;
+            slot.CanEdit = canRawEdit;
         }
 
         foreach (var item in FixedInventoryItems)
         {
-            item.CanEdit = canEdit;
+            item.CanEdit = false;
         }
 
         InventoryInitializationWarningText.Visibility = HasPlayerData && !InventoryInitialized
@@ -1040,7 +1107,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
                 diagnosticStatus = isGameManagedSlot ? "later-reverted-game-managed" : "later-reverted";
                 SetStatus(
                     isGameManagedSlot
-                        ? "This slot appears game-managed. Use the specific item editor instead."
+                        ? "This field appears game-managed. Real ownership/progression flags are not identified yet."
                         : "Write succeeded, but value later reverted",
                     StatusKind.Warning);
             }
@@ -1493,6 +1560,98 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         {
             EquipmentDiagnostics.Insert(0, $"{DateTimeOffset.Now:O} progression-log-write-failed: {ex.Message}");
         }
+    }
+
+    private bool RefreshResearchByte(bool showStatus)
+    {
+        if (!TryReadResearchByte(out var offset, out var value, out _))
+        {
+            return false;
+        }
+
+        if (showStatus)
+        {
+            SetStatus($"Read research byte at _playerbase+0x{offset:X}: {FormatResearchByte(value)}.", StatusKind.Connected);
+        }
+
+        return true;
+    }
+
+    private bool TryReadResearchByte(out uint offset, out byte value, out ulong absoluteAddress)
+    {
+        offset = 0;
+        value = 0;
+        absoluteAddress = 0;
+
+        if (_memory is null || !_playerBaseAddress.HasValue)
+        {
+            ResearchCurrentByteText.Text = "Not attached";
+            ResearchAbsoluteAddressText.Text = "-";
+            SetStatus("Not attached. Attach to Cemu and rescan before using research tools.", StatusKind.Neutral);
+            return false;
+        }
+
+        if (!TryParseResearchOffset(ResearchOffsetText.Text, out offset, out var parseError))
+        {
+            ResearchCurrentByteText.Text = parseError;
+            ResearchAbsoluteAddressText.Text = "-";
+            return false;
+        }
+
+        absoluteAddress = _playerBaseAddress.Value + offset;
+        if (!_memory.TryReadBytes(absoluteAddress, 1, out var bytes, out var bytesRead) || bytesRead != 1)
+        {
+            ResearchCurrentByteText.Text = "Read failed";
+            ResearchAbsoluteAddressText.Text = $"0x{absoluteAddress:X}";
+            SetStatus($"Could not read research byte at _playerbase+0x{offset:X}.", StatusKind.Warning);
+            return false;
+        }
+
+        value = bytes[0];
+        ResearchCurrentByteText.Text = FormatResearchByte(value);
+        ResearchAbsoluteAddressText.Text = $"0x{absoluteAddress:X}";
+        return true;
+    }
+
+    private static bool TryParseResearchOffset(string text, out uint offset, out string error)
+    {
+        offset = 0;
+        error = string.Empty;
+
+        var value = text.Trim();
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            error = "Enter offset";
+            return false;
+        }
+
+        value = value
+            .Replace("_playerbase", string.Empty, StringComparison.OrdinalIgnoreCase)
+            .Replace("+", string.Empty, StringComparison.Ordinal)
+            .Trim();
+
+        var isHex =
+            value.StartsWith("0x", StringComparison.OrdinalIgnoreCase) ||
+            value.Any(character => character is >= 'A' and <= 'F' or >= 'a' and <= 'f');
+
+        if (value.StartsWith("0x", StringComparison.OrdinalIgnoreCase))
+        {
+            value = value[2..];
+        }
+
+        var style = isHex ? NumberStyles.HexNumber : NumberStyles.Integer;
+        if (!uint.TryParse(value, style, CultureInfo.InvariantCulture, out offset))
+        {
+            error = "Invalid offset";
+            return false;
+        }
+
+        return true;
+    }
+
+    private static string FormatResearchByte(byte value)
+    {
+        return $"{value} / 0x{value:X2}";
     }
 
     private static string FormatByte(byte? value)

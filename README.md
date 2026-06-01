@@ -73,22 +73,24 @@ Equipment is considered initialized once the CT-backed ownership bytes or equipp
 - Master Sword Infused bit: `_playerbase+0x292` bit 1
 - Equipped armor/sword/shield: `_playerbase+0x1D1`, `_playerbase+0x1D2`, `_playerbase+0x1D3`
 
-Once a structure is initialized, the trainer removes the initialization restriction. Users may edit supported late-game inventory and equipment values regardless of story progress. The top bar shows **Player Data**, **Inventory**, and **Equipment** readiness after **Attach / Rescan**.
+Once a structure is initialized, the trainer removes the initialization restriction. Users may edit supported equipment values regardless of story progress. Some inventory display/fixed slots remain read-only until the real ownership or progression flags are identified. The top bar shows **Player Data**, **Inventory**, and **Equipment** readiness after **Attach / Rescan**.
 
 Progression diagnostics are shown on the Debug tab and written to `logs/progression.log` after each **Attach / Rescan**.
+
+The Debug tab also includes a **Research** panel for finding real item ownership/progression flags. Enter a `_playerbase`-relative offset, read the current byte, optionally auto-refresh while playing, capture a before snapshot, and compare after an in-game event or upgrade.
 
 ## Inventory Editor
 
 The Inventory tab reads the 24 CT-backed inventory bytes from `_playerbase+0x258` through `_playerbase+0x26F`. These bytes are not treated as arbitrary free bag slots. Observed behavior shows at least some of them are fixed item/UI slots that TPHD manages directly and may restore after writes.
 
-The normal **Inventory Items** view exposes safer item-specific editors only where a known fixed slot has been observed or is backed by CT-specific item values. For now, the first editor is:
+The normal **Inventory Items** view now treats known fixed slots as read-only detected state. For now, the first detected field is:
 
 - **Fishing Rod**: slot 21, `_playerbase+0x26C`
-- Allowed variants: Fishing Rod (Lure), Fishing Rod (Bobber), Fishing Rod + Earring, Fishing Rod With Worm, Fishing Rod (Bobber) + Earring, Fishing Rod (Lure) + Worm + Earring
+- Known same-family values: Fishing Rod (Lure), Fishing Rod (Bobber), Fishing Rod + Earring, Fishing Rod With Worm, Fishing Rod (Bobber) + Earring, Fishing Rod (Lure) + Worm + Earring
 
-The Fishing Rod editor intentionally does not offer unrelated items such as bottles, bombs, or quest items. If a game-managed slot reverts after a write, the trainer reports: **This slot appears game-managed. Use the specific item editor instead.**
+Observed Fishing Rod writes revert even when using same-family values, so the normal editor disables writes and shows: **This field appears game-managed. Real ownership/progression flags are not identified yet.**
 
-The original 24-byte view is still available under **Advanced / Raw Inventory (Unsafe)**. Raw mode shows every slot number, CT offset, current item ID, current item name, management status, and the broad CT dropdown. **Clear** writes `255` (`Nothing`). **Apply** writes only the selected item ID. Raw mode is for diagnostics and should not be used as the primary way to replace fixed/game-managed slots.
+The original 24-byte view is still available under **Advanced / Raw Inventory (Unsafe)**. Raw mode shows every slot number, CT offset, current item ID, current item name, management status, and the broad CT dropdown. **Clear** writes `255` (`Nothing`). **Apply** writes only the selected item ID. Raw writes are disabled until **Enable unsafe raw inventory writes** is checked. Raw mode is for diagnostics and should not be used as the primary way to replace fixed/game-managed slots.
 
 Only a conservative set of CT dropdown items is exposed in raw mode by default: Nothing, usable items, bottle contents, and quest-related items listed in the CT table. Dangerous or unusable item IDs are intentionally omitted until they can be put behind a separate advanced/unsafe workflow.
 
