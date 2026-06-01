@@ -25,6 +25,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     private bool _isAttaching;
     private bool _isRefreshing;
     private bool _inventoryDiagnosticInProgress;
+    private bool _inventoryOwnershipDiagnosticInProgress;
     private bool _equipmentDiagnosticInProgress;
     private bool _holdInventoryValueAfterApply;
     private bool _allowEditingUninitializedInventory;
@@ -66,6 +67,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         FixedInventoryItems = new ObservableCollection<InventoryFixedSlotViewModel>(
             InventoryDefinitions.FixedSlots.Select(slot => new InventoryFixedSlotViewModel(slot)));
         InventoryDiagnostics = [];
+        InventoryOwnershipDiagnostics = [];
 
         EquipmentSlots = new ObservableCollection<EquipmentSlotViewModel>(
             EquipmentDefinitions.Slots.Select(slot => new EquipmentSlotViewModel(slot)));
@@ -105,6 +107,9 @@ public partial class MainWindow : Window, INotifyPropertyChanged
 
     private static string InventoryLogPath =>
         Path.Combine(AppContext.BaseDirectory, "logs", "inventory.log");
+
+    private static string InventoryOwnershipLogPath =>
+        Path.Combine(AppContext.BaseDirectory, "logs", "inventory-ownership.log");
 
     private static string EquipmentLogPath =>
         Path.Combine(AppContext.BaseDirectory, "logs", "equipment.log");
@@ -157,6 +162,8 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     public ObservableCollection<InventoryFixedSlotViewModel> FixedInventoryItems { get; }
 
     public ObservableCollection<string> InventoryDiagnostics { get; }
+
+    public ObservableCollection<string> InventoryOwnershipDiagnostics { get; }
 
     public ObservableCollection<EquipmentSlotViewModel> EquipmentSlots { get; }
 
@@ -455,6 +462,43 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     private void RefreshInventoryButton_Click(object sender, RoutedEventArgs e)
     {
         RefreshInventorySlots(showStatus: true);
+    }
+
+    private async void ApplyInventoryOwnership_Click(object sender, RoutedEventArgs e)
+    {
+        if (!CanWriteInventoryOwnership())
+        {
+            return;
+        }
+
+        var ownershipChanges = InventoryOwnershipItems
+            .Where(item => item.Definition.CanWrite)
+            .Select(item => new { Item = item, DesiredValue = item.IsOwnedDesired })
+            .ToList();
+
+        if (!ownershipChanges.Any(change => change.Item.IsDirty))
+        {
+            SetStatus("No inventory ownership changes to apply.", StatusKind.Neutral);
+            return;
+        }
+
+        var successfulWrites = 0;
+        foreach (var change in ownershipChanges)
+        {
+            if (await WriteInventoryOwnershipWithDiagnosticsAsync(
+                    change.Item,
+                    change.DesiredValue,
+                    $"{change.Item.Name} ownership set to {(change.DesiredValue ? "Yes" : "No")}."))
+            {
+                successfulWrites++;
+            }
+        }
+
+        RefreshInventorySlots(showStatus: false);
+        AppendInventoryOwnershipStateDiagnostic("ownership-apply-refresh");
+        SetStatus(
+            $"Applied {successfulWrites} inventory ownership change(s). Close and reopen the in-game inventory menu if needed.",
+            successfulWrites == ownershipChanges.Count ? StatusKind.Connected : StatusKind.Warning);
     }
 
     private async void ApplyInventorySlot_Click(object sender, RoutedEventArgs e)
@@ -799,7 +843,9 @@ public partial class MainWindow : Window, INotifyPropertyChanged
                 }
             }
 
-            if (!_inventoryDiagnosticInProgress && !RefreshInventorySlots(showStatus: false))
+            if (!_inventoryDiagnosticInProgress &&
+                !_inventoryOwnershipDiagnosticInProgress &&
+                !RefreshInventorySlots(showStatus: false))
             {
                 return;
             }
@@ -972,7 +1018,11 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             item.SetCurrentItem(rawBytes[item.SlotIndex]);
         }
 
-        UpdateInventoryOwnershipDetections(rawBytes);
+        if (!RefreshInventoryOwnership(rawBytes, preserveDirty: true))
+        {
+            return false;
+        }
+
         SetInventoryInitialized(!allSlotsEmpty, rawBytes);
 
         if (showStatus)
@@ -980,6 +1030,9 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             AppendInventoryStateDiagnostic(allSlotsEmpty
                 ? "manual-refresh-empty-or-uninitialized"
                 : "manual-refresh-read-only-slots");
+            AppendInventoryOwnershipStateDiagnostic(allSlotsEmpty
+                ? "manual-refresh-empty-or-uninitialized"
+                : "manual-refresh");
         }
 
         if (allSlotsEmpty && showStatus)
@@ -999,12 +1052,38 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         return true;
     }
 
-    private void UpdateInventoryOwnershipDetections(IReadOnlyList<byte> rawBytes)
+    private bool RefreshInventoryOwnership(IReadOnlyList<byte> rawBytes, bool preserveDirty)
     {
         foreach (var item in InventoryOwnershipItems)
         {
-            item.SetDetectedState(rawBytes);
+            if (!item.Definition.CanWrite)
+            {
+                item.SetDetectedFromVisibleSlots(rawBytes, preserveDirty);
+                continue;
+            }
+
+            if (_memory is null || !_playerBaseAddress.HasValue)
+            {
+                item.MarkNotRead();
+                continue;
+            }
+
+            if (!InventoryMemoryService.TryReadOwnershipFlag(
+                    _memory,
+                    _playerBaseAddress.Value,
+                    item.Definition,
+                    out var isOwned,
+                    out var backingValue,
+                    out _))
+            {
+                MarkMemoryUnavailable();
+                return false;
+            }
+
+            item.SetDetectedFlag(isOwned, backingValue, preserveDirty);
         }
+
+        return true;
     }
 
     private bool CanWriteInventorySlot()
@@ -1027,6 +1106,29 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         }
 
         return CanWriteInventorySlot();
+    }
+
+    private bool CanWriteInventoryOwnership()
+    {
+        if (_memory is null || !_playerBaseAddress.HasValue)
+        {
+            SetStatus("Not attached. Attach to Cemu and rescan before editing inventory ownership.", StatusKind.Neutral);
+            return false;
+        }
+
+        if (!InventoryOwnershipItems.Any(item => item.Definition.CanWrite))
+        {
+            SetStatus("No mapped inventory ownership flags are available yet. Use Research tools to identify flags.", StatusKind.Neutral);
+            return false;
+        }
+
+        if (!InventoryInitialized && !AllowEditingUninitializedInventory)
+        {
+            SetStatus("Inventory has not been initialized by the game yet. Enable the advanced override to edit mapped ownership flags.", StatusKind.Warning);
+            return false;
+        }
+
+        return true;
     }
 
     private void SetInventoryInitialized(bool initialized, byte[]? rawBytes)
@@ -1064,7 +1166,10 @@ public partial class MainWindow : Window, INotifyPropertyChanged
 
         foreach (var item in InventoryOwnershipItems)
         {
-            item.CanEdit = item.Definition.CanWrite && HasPlayerData;
+            item.CanEdit =
+                item.Definition.CanWrite &&
+                HasPlayerData &&
+                (InventoryInitialized || AllowEditingUninitializedInventory);
         }
 
         InventoryInitializationWarningText.Visibility = HasPlayerData && !InventoryInitialized
@@ -1385,6 +1490,136 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         }
     }
 
+    private async Task<bool> WriteInventoryOwnershipWithDiagnosticsAsync(
+        InventoryOwnershipItemViewModel item,
+        bool desiredValue,
+        string successMessage)
+    {
+        var memory = _memory;
+        if (memory is null || !_playerBaseAddress.HasValue)
+        {
+            SetStatus("Not attached. Attach to Cemu and rescan before editing inventory ownership.", StatusKind.Neutral);
+            return false;
+        }
+
+        if (!item.Definition.FlagOffset.HasValue)
+        {
+            SetStatus($"{item.Name} ownership flag is unknown.", StatusKind.Warning);
+            return false;
+        }
+
+        _inventoryOwnershipDiagnosticInProgress = true;
+
+        byte? oldValue = null;
+        byte? writtenValue = null;
+        byte? immediateReadback = null;
+        byte? delayed250Readback = null;
+        byte? delayed1000Readback = null;
+        var playerBaseAddress = _playerBaseAddress.Value;
+        var offsetValue = item.Definition.FlagOffset.Value;
+        var absoluteAddress = playerBaseAddress + offsetValue;
+        var diagnosticStatus = "started";
+
+        try
+        {
+            if (!InventoryMemoryService.TryWriteOwnershipFlag(
+                    memory,
+                    playerBaseAddress,
+                    item.Definition,
+                    desiredValue,
+                    out var oldBackingValue,
+                    out var writtenBackingValue,
+                    out var writeError))
+            {
+                diagnosticStatus = $"write-call-failed: {writeError}";
+                SetStatus("Inventory ownership write failed or wrong address.", StatusKind.Warning);
+                return false;
+            }
+
+            oldValue = oldBackingValue;
+            writtenValue = writtenBackingValue;
+
+            if (!InventoryMemoryService.TryReadByte(
+                    memory,
+                    playerBaseAddress,
+                    offsetValue,
+                    item.Name,
+                    out var immediateValue,
+                    out var immediateReadError))
+            {
+                diagnosticStatus = $"immediate-read-failed: {immediateReadError}";
+                SetStatus("Inventory ownership write failed or wrong address.", StatusKind.Warning);
+                return false;
+            }
+
+            immediateReadback = immediateValue;
+
+            if (!DoesFlagMatch(immediateValue, item.Definition.Mask, desiredValue))
+            {
+                diagnosticStatus = "immediate-mismatch";
+                SetStatus("Inventory ownership write failed or wrong address.", StatusKind.Warning);
+                return false;
+            }
+
+            await Task.Delay(250);
+            if (InventoryMemoryService.TryReadByte(
+                    memory,
+                    playerBaseAddress,
+                    offsetValue,
+                    item.Name,
+                    out var delayed250Value,
+                    out _))
+            {
+                delayed250Readback = delayed250Value;
+            }
+
+            await Task.Delay(750);
+            if (InventoryMemoryService.TryReadByte(
+                    memory,
+                    playerBaseAddress,
+                    offsetValue,
+                    item.Name,
+                    out var delayed1000Value,
+                    out _))
+            {
+                delayed1000Readback = delayed1000Value;
+            }
+
+            var laterReverted =
+                delayed250Readback.HasValue && !DoesFlagMatch(delayed250Readback.Value, item.Definition.Mask, desiredValue) ||
+                delayed1000Readback.HasValue && !DoesFlagMatch(delayed1000Readback.Value, item.Definition.Mask, desiredValue);
+
+            if (laterReverted)
+            {
+                diagnosticStatus = "later-reverted";
+                SetStatus("Inventory ownership write succeeded, but game reverted it.", StatusKind.Warning);
+            }
+            else
+            {
+                diagnosticStatus = "verified";
+                SetStatus(successMessage, StatusKind.Connected);
+            }
+
+            return !laterReverted;
+        }
+        finally
+        {
+            AppendInventoryOwnershipDiagnostic(
+                item,
+                absoluteAddress,
+                oldValue,
+                writtenValue,
+                immediateReadback,
+                delayed250Readback,
+                delayed1000Readback,
+                desiredValue,
+                diagnosticStatus);
+
+            _inventoryOwnershipDiagnosticInProgress = false;
+            UpdateInventoryEditGuard();
+        }
+    }
+
     private async Task<bool> WriteEquipmentFlagWithDiagnosticsAsync(
         EquipmentFlagViewModel flag,
         bool desiredValue,
@@ -1578,6 +1813,42 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             $"ownership-detections=\"{ownershipDetections}\"");
     }
 
+    private void AppendInventoryOwnershipDiagnostic(
+        InventoryOwnershipItemViewModel item,
+        ulong absoluteAddress,
+        byte? oldValue,
+        byte? writtenValue,
+        byte? immediateReadback,
+        byte? delayed250Readback,
+        byte? delayed1000Readback,
+        bool desiredValue,
+        string diagnosticStatus)
+    {
+        var finalDetectedState = delayed1000Readback.HasValue
+            ? DoesFlagMatch(delayed1000Readback.Value, item.Definition.Mask, desiredValue).ToString(CultureInfo.InvariantCulture)
+            : "n/a";
+        var entry =
+            $"{DateTimeOffset.Now:O} kind=inventory-ownership name=\"{item.Name}\" flag={item.FlagLocation} " +
+            $"address=0x{absoluteAddress:X} old={FormatEquipmentByte(oldValue)} desired-bit={desiredValue} " +
+            $"desired-byte={FormatEquipmentByte(writtenValue)} immediate={FormatEquipmentByte(immediateReadback)} " +
+            $"read250ms={FormatEquipmentByte(delayed250Readback)} read1000ms={FormatEquipmentByte(delayed1000Readback)} " +
+            $"final-detected-matches={finalDetectedState} status={diagnosticStatus}";
+
+        AppendInventoryOwnershipLogEntry(entry);
+    }
+
+    private void AppendInventoryOwnershipStateDiagnostic(string reason)
+    {
+        var ownershipValues = string.Join(
+            ",",
+            InventoryOwnershipItems.Select(item =>
+                $"{item.Name}:detected={item.IsOwnedDetected} desired={item.IsOwnedDesired} dirty={item.IsDirty} flag={item.FlagLocation} byte={item.BackingValue} writable={item.Definition.CanWrite} state=\"{item.CurrentDetectedState}\""));
+
+        AppendInventoryOwnershipLogEntry(
+            $"{DateTimeOffset.Now:O} kind=inventory-ownership-state reason={reason} " +
+            $"inventory-initialized={InventoryInitialized} ownership=\"{ownershipValues}\"");
+    }
+
     private void AppendInventoryLogEntry(string entry)
     {
         InventoryDiagnostics.Insert(0, entry);
@@ -1599,6 +1870,30 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         catch (Exception ex)
         {
             InventoryDiagnostics.Insert(0, $"{DateTimeOffset.Now:O} inventory-log-write-failed: {ex.Message}");
+        }
+    }
+
+    private void AppendInventoryOwnershipLogEntry(string entry)
+    {
+        InventoryOwnershipDiagnostics.Insert(0, entry);
+        while (InventoryOwnershipDiagnostics.Count > 100)
+        {
+            InventoryOwnershipDiagnostics.RemoveAt(InventoryOwnershipDiagnostics.Count - 1);
+        }
+
+        try
+        {
+            var logDirectory = Path.GetDirectoryName(InventoryOwnershipLogPath);
+            if (!string.IsNullOrWhiteSpace(logDirectory))
+            {
+                Directory.CreateDirectory(logDirectory);
+            }
+
+            File.AppendAllText(InventoryOwnershipLogPath, entry + Environment.NewLine);
+        }
+        catch (Exception ex)
+        {
+            InventoryOwnershipDiagnostics.Insert(0, $"{DateTimeOffset.Now:O} inventory-ownership-log-write-failed: {ex.Message}");
         }
     }
 

@@ -141,10 +141,12 @@
                 <Grid>
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="140" />
-                        <ColumnDefinition Width="230" />
+                        <ColumnDefinition Width="210" />
+                        <ColumnDefinition Width="70" />
+                        <ColumnDefinition Width="74" />
+                        <ColumnDefinition Width="54" />
                         <ColumnDefinition Width="150" />
-                        <ColumnDefinition Width="82" />
-                        <ColumnDefinition Width="105" />
+                        <ColumnDefinition Width="96" />
                         <ColumnDefinition Width="*" MinWidth="220" />
                     </Grid.ColumnDefinitions>
 
@@ -156,21 +158,28 @@
                                VerticalAlignment="Center"
                                Margin="6,0" />
                     <TextBlock Grid.Column="2"
-                               Text="{Binding FlagLocation}"
-                               Foreground="#7A4A00"
+                               Text="{Binding IsOwnedDetected, Mode=OneWay}"
                                VerticalAlignment="Center"
                                Margin="6,0" />
                     <CheckBox Grid.Column="3"
-                              IsChecked="{Binding TargetOwned, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                              IsChecked="{Binding IsOwnedDesired, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                               IsEnabled="{Binding CanEdit}"
                               HorizontalAlignment="Center"
                               VerticalAlignment="Center" />
                     <TextBlock Grid.Column="4"
+                               Text="{Binding IsDirty, Mode=OneWay}"
+                               VerticalAlignment="Center" />
+                    <TextBlock Grid.Column="5"
+                               Text="{Binding FlagLocation}"
+                               Foreground="#7A4A00"
+                               VerticalAlignment="Center"
+                               Margin="6,0" />
+                    <TextBlock Grid.Column="6"
                                Text="{Binding EditStatus}"
                                Foreground="#555"
                                VerticalAlignment="Center"
                                Margin="6,0" />
-                    <TextBlock Grid.Column="5"
+                    <TextBlock Grid.Column="7"
                                Text="{Binding Notes}"
                                TextTrimming="CharacterEllipsis"
                                VerticalAlignment="Center"
@@ -637,7 +646,7 @@
                                 <TextBlock TextWrapping="Wrap"
                                            Foreground="#7A4A00"
                                            Margin="0,0,0,8"
-                                           Text="Inventory ownership/progression flags have not been mapped yet. Visible inventory slots appear to be rebuilt from authoritative flags, so these items are detection-only for now." />
+                                           Text="Inventory ownership uses the same detected/desired/apply model as Equipment where CT/source flags are known. Unknown items remain detection-only and read-only." />
 
                                 <Border BorderBrush="#D9A23A"
                                         BorderThickness="1"
@@ -658,7 +667,7 @@
                                     <TextBlock TextWrapping="Wrap"
                                                Foreground="#6F4700"
                                                FontWeight="SemiBold"
-                                               Text="If the in-game inventory menu is already open, close and reopen it after applying future ownership changes to refresh displayed items." />
+                                               Text="Inventory ownership changes may not appear if the in-game inventory menu is already open. Close and reopen the inventory menu after applying changes." />
                                 </Border>
 
                                 <Border x:Name="InventoryInitializationWarningText"
@@ -677,27 +686,34 @@
                                 <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
                                     <Button Content="Refresh Inventory"
                                             Click="RefreshInventoryButton_Click" />
-                                    <TextBlock Text="Current detected state is read from CT-derived visible slots and is not proof of an authoritative ownership flag."
+                                    <Button Content="Apply Inventory Ownership Changes"
+                                            Click="ApplyInventoryOwnership_Click"
+                                            Margin="12,0,0,0" />
+                                    <TextBlock Text="Visible inventory slots are game-managed and read-only."
                                                VerticalAlignment="Center"
-                                               Margin="10,0,0,0"
+                                               Margin="12,0,0,0"
                                                Foreground="#555" />
                                 </StackPanel>
 
                                 <Grid Margin="0,0,0,4">
                                     <Grid.ColumnDefinitions>
                                         <ColumnDefinition Width="140" />
-                                        <ColumnDefinition Width="230" />
+                                        <ColumnDefinition Width="210" />
+                                        <ColumnDefinition Width="70" />
+                                        <ColumnDefinition Width="74" />
+                                        <ColumnDefinition Width="54" />
                                         <ColumnDefinition Width="150" />
-                                        <ColumnDefinition Width="82" />
-                                        <ColumnDefinition Width="105" />
+                                        <ColumnDefinition Width="96" />
                                         <ColumnDefinition Width="*" MinWidth="220" />
                                     </Grid.ColumnDefinitions>
                                     <TextBlock Text="Item" FontWeight="SemiBold" />
                                     <TextBlock Grid.Column="1" Text="Current detected state" FontWeight="SemiBold" Margin="6,0" />
-                                    <TextBlock Grid.Column="2" Text="Ownership flag" FontWeight="SemiBold" Margin="6,0" />
-                                    <TextBlock Grid.Column="3" Text="Owned" FontWeight="SemiBold" HorizontalAlignment="Center" />
-                                    <TextBlock Grid.Column="4" Text="Edit status" FontWeight="SemiBold" Margin="6,0" />
-                                    <TextBlock Grid.Column="5" Text="Notes" FontWeight="SemiBold" Margin="6,0" />
+                                    <TextBlock Grid.Column="2" Text="Detected" FontWeight="SemiBold" Margin="6,0" />
+                                    <TextBlock Grid.Column="3" Text="Desired" FontWeight="SemiBold" HorizontalAlignment="Center" />
+                                    <TextBlock Grid.Column="4" Text="Dirty" FontWeight="SemiBold" />
+                                    <TextBlock Grid.Column="5" Text="Ownership flag" FontWeight="SemiBold" Margin="6,0" />
+                                    <TextBlock Grid.Column="6" Text="Edit status" FontWeight="SemiBold" Margin="6,0" />
+                                    <TextBlock Grid.Column="7" Text="Notes" FontWeight="SemiBold" Margin="6,0" />
                                 </Grid>
 
                                 <ItemsControl ItemsSource="{Binding InventoryOwnershipItems}"
@@ -1575,6 +1591,30 @@
                                               HorizontalScrollBarVisibility="Auto"
                                               Background="#F7F7F7">
                                     <ItemsControl ItemsSource="{Binding InventoryDiagnostics}">
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate>
+                                                <TextBlock Text="{Binding}"
+                                                           FontFamily="Consolas"
+                                                           FontSize="11"
+                                                           TextWrapping="NoWrap"
+                                                           Margin="0,0,0,4" />
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+                                </ScrollViewer>
+                            </StackPanel>
+                        </GroupBox>
+
+                        <GroupBox Header="Inventory Ownership Diagnostics">
+                            <StackPanel>
+                                <TextBlock Text="Also written to logs/inventory-ownership.log"
+                                           Foreground="#555"
+                                           Margin="0,0,0,6" />
+                                <ScrollViewer Height="190"
+                                              VerticalScrollBarVisibility="Auto"
+                                              HorizontalScrollBarVisibility="Auto"
+                                              Background="#F7F7F7">
+                                    <ItemsControl ItemsSource="{Binding InventoryOwnershipDiagnostics}">
                                         <ItemsControl.ItemTemplate>
                                             <DataTemplate>
                                                 <TextBlock Text="{Binding}"

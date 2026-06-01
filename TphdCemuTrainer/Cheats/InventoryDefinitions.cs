@@ -243,7 +243,7 @@ public static class InventoryDefinitions
             detectedItemIds,
             null,
             null,
-            false,
+            "Ownership/progression flag not present in the checked CT source. Visible slots are detection-only.",
             notes);
     }
 }

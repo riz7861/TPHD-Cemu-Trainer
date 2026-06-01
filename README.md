@@ -96,7 +96,15 @@ Snapshot-to-snapshot comparisons display offset, Snapshot A value, Snapshot B va
 
 The Inventory tab reads the 24 CT-backed visible inventory bytes from `_playerbase+0x258` through `_playerbase+0x26F`. Research indicates these bytes are game-managed display/current-state fields, not arbitrary bag slots. TPHD may rebuild them from authoritative ownership or progression flags and may immediately revert direct writes.
 
-The normal **Owned / Unlocked Inventory Items** section is ownership-first. It lists important items such as Fishing Rod, Slingshot, Lantern, Hero's Bow, Gale Boomerang, Clawshot, Double Clawshots, Spinner, Dominion Rod, Ball and Chain, Hawkeye, Horse Call, and Bottles. Until a real ownership flag offset/bit is identified, each item is marked **Not implemented**, editing is disabled, and the UI shows **Ownership flag unknown**. The detected state is read from visible CT slots only.
+The normal **Owned / Unlocked Inventory Items** section now uses the same detected/desired/apply model as Equipment where authoritative flags are known:
+
+- **Detected**: current ownership flag state, or visible-slot detection for unknown rows.
+- **Desired**: editable checkbox target when a real ownership flag is mapped.
+- **Dirty**: desired value differs from detected value.
+
+Click **Apply Inventory Ownership Changes** to write desired ownership flags in bulk. The trainer writes ownership/progression flags only; it does not fake ownership by writing raw visible inventory slots. Writes are verified with immediate and delayed readback, then logged to `logs/inventory-ownership.log`.
+
+The checked CT source currently does not expose real ownership flag offsets/bits for Fishing Rod, Slingshot, Lantern, Hero's Bow, Gale Boomerang, Clawshot, Double Clawshots, Spinner, Dominion Rod, Ball and Chain, Hawkeye, Horse Call, or Bottles. Those rows remain **Not implemented**, editing stays disabled, and the UI shows **Ownership flag unknown** until the flags are mapped.
 
 The **Current Inventory Slots (Read Only)** section shows all 24 CT-derived bytes: slot, offset, raw item ID, decoded item name, and notes. Slot 21 / `_playerbase+0x26C` is labeled as the Fishing Rod field with the note: **Game-managed. Direct writes revert. Real ownership/progression flag not identified yet.**
 
@@ -110,7 +118,7 @@ Unsafe raw writes include diagnostics to help distinguish a failed external writ
 
 Read-only inventory state refreshes are also logged to `logs/inventory.log`. If all 24 slots read as `255` / `Nothing`, the trainer treats inventory as not initialized rather than as an error. Unsafe Apply/Clear remain disabled unless **Enable unsafe raw inventory writes** is checked and the advanced **Allow editing uninitialized inventory** override is enabled.
 
-After future ownership changes are implemented, TPHD may not refresh an already-open in-game inventory menu immediately. Close and reopen the in-game inventory menu to see newly granted items.
+After inventory ownership changes are applied for any future mapped flags, TPHD may not refresh an already-open in-game inventory menu immediately. Close and reopen the in-game inventory menu to see newly granted items.
 
 ## Equipment Editor
 
@@ -188,7 +196,7 @@ The app does not parse or execute Cheat Engine scripts at runtime. The relevant 
 - `TphdCemuTrainer/Memory/AobScanner.cs`: external AOB scanner with wildcard-byte support, region filtering, cache validation, and scan diagnostics
 - `TphdCemuTrainer/Memory/BigEndianMemory.cs`: big-endian read/write helpers
 - `TphdCemuTrainer/Memory/ProgressionStateService.cs`: inventory/equipment initialization detection and raw diagnostic reads
-- `TphdCemuTrainer/Memory/InventoryMemoryService.cs`: CT-backed inventory slot reads plus unsafe raw research writes
+- `TphdCemuTrainer/Memory/InventoryMemoryService.cs`: CT-backed inventory slot reads, unsafe raw research writes, and mapped inventory ownership flag reads/writes
 - `TphdCemuTrainer/Memory/EquipmentMemoryService.cs`: CT-backed equipment byte and ownership flag reads/writes
 - `TphdCemuTrainer/Cheats/CheatCatalog.cs`: CT-derived cheat and capacity definitions
 - `TphdCemuTrainer/Cheats/InventoryDefinitions.cs`: safe CT inventory item dropdowns, ownership candidates, and managed slot metadata
@@ -205,7 +213,8 @@ The app does not parse or execute Cheat Engine scripts at runtime. The relevant 
 - The first scan can still be slower than later rescans because no cache has been validated yet.
 - Missing player data is handled as a rescan state, not an application failure.
 - Story flags, hidden skills, and quest items are laid out for future expansion but not yet written.
-- Normal inventory editing is read-only until real ownership/progression flags are identified. Unsafe raw inventory writes may be reverted by game-managed slots.
+- Inventory ownership editing uses detected/desired/apply where real flags are mapped. Current listed inventory items remain read-only because their ownership flags are not identified yet.
+- Unsafe raw inventory writes may be reverted by game-managed visible slots.
 - Equipment editing grants ownership flags only. Current equipped armor, sword, and shield are game-managed and read-only in the trainer.
 - Values are simple external memory edits. They do not patch game logic.
 - If Cemu runs as administrator, the trainer may also need to run as administrator.
@@ -235,6 +244,10 @@ Confirm the trainer is connected and showing a player base address. Some values 
 **Unsafe inventory writes revert**
 
 This is expected for game-managed visible inventory slots. Raw inventory writes are for research on copied saves; normal inventory ownership writes are disabled until the real ownership/progression flags are identified.
+
+**Apply Inventory Ownership Changes says no mapped flags are available**
+
+The checked CT source does not currently identify ownership/progression bits for the listed inventory items. Use the Debug research and snapshot tools to map real flags before enabling writes for those rows.
 
 **Inventory or Equipment says Not Initialized**
 
