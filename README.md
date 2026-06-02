@@ -19,7 +19,7 @@ The UI is organized as a tabbed trainer/save-editor hybrid so new systems can be
 - **Inventory**: ownership-first item detection, fixed-slot experimental grant/remove for mapped visible slots, Bottle Editor v1, read-only current slot view, mapping research, unsafe removal testing, and unsafe raw CT writes for research
 - **Equipment**: ownership flag editor with read-only current equipped armor/sword/shield diagnostics
 - **Ammo & Upgrades**: wallet, quiver, bomb bag, and seed capacity-aware edits
-- **Collectibles**: verified Poe Souls editing, Golden Bugs research-only bitfield display, and health/heart summaries
+- **Collectibles**: verified Poe Souls editing, full Golden Bugs ownership editor, Golden Bugs research tools, and health/heart summaries
 - **Story Flags**: reserved progression flags
 - **Hidden Skills**: reserved hidden-skill tracking
 - **Quest Items**: reserved quest item/progression tracking
@@ -40,7 +40,7 @@ The top bar includes a **Dark Mode** toggle. The app defaults to Light mode and 
 - Wallet capacity
 - Quiver capacity
 - Bomb bag capacity
-- Golden Bugs raw CT bitfield and detected count display
+- Golden Bugs ownership editor for all 24 bugs at `_playerbase+0x2A1` through `_playerbase+0x2A3`
 - Read-only inventory slot detection at `_playerbase+0x258` through `_playerbase+0x26F`
 - Experimental bottle slot editing at `_playerbase+0x263` through `_playerbase+0x266`
 - Unsafe inventory removal testing at `_playerbase+0x258` through `_playerbase+0x26F`
@@ -216,10 +216,45 @@ Inventory remains read-only in normal mode even when the Inventory state says **
 The Collectibles tab currently supports stable edits only:
 
 - **Poe Souls**: editable CT-backed byte at `_playerbase+0x2C8`, clamped to `0-60`, verified after write, refreshed after apply, and logged to `logs/collectibles.log`.
-- **Golden Bugs**: read-only research display. The trainer shows the raw CT-derived bitfield at `_playerbase+0x2A1` and a detected count, but does not offer Set All, Clear, or individual bug editing yet.
+- **Golden Bugs**: editable ownership bits for all 24 bugs at `_playerbase+0x2A1` through `_playerbase+0x2A3`, with detected/desired state, Apply, Add All, Clear All, Restore Previous, readback verification, and logging to `logs/golden-bugs-editor.log`.
 - **Health summary**: current health quarters and maximum health quarters are shown for reference. Health editing remains in the General tab.
 
-Golden Bugs are not editable because individual bug bits and completion behavior still need to be mapped and verified.
+TPHD has 24 Golden Bugs: 12 species with male and female variants. Live memory testing confirms that visible Golden Bug ownership uses the 24 bits across `_playerbase+0x2A1`, `_playerbase+0x2A2`, and `_playerbase+0x2A3`. The normal Golden Bugs editor does not write `_playerbase+0x2A4`.
+
+The editor shows the current owned count out of 24, raw bytes `0x2A1-0x2A3`, and one row per bug with offset, bit, current state, desired checkbox, and dirty indicator. Refresh updates detected state and preserves unsaved desired edits. The trainer never writes Golden Bugs on attach, rescan, or refresh.
+
+**Apply Golden Bug Changes** writes only changed desired bits and preserves the rest of each byte. **Add All Golden Bugs** sets all 24 confirmed ownership bits. **Clear All Golden Bugs** clears all 24 confirmed ownership bits. **Restore Previous Bug State** restores the previous 3-byte state captured before the last editor write in the current trainer session. All editor writes verify immediate, 250ms, and 1000ms readbacks.
+
+Confirmed Golden Bugs mapping:
+
+- `0x2A1` bit `0`: Male Snail
+- `0x2A1` bit `1`: Female Snail
+- `0x2A1` bit `2`: Male Dragonfly
+- `0x2A1` bit `3`: Female Dragonfly
+- `0x2A1` bit `4`: Male Ant
+- `0x2A1` bit `5`: Female Ant
+- `0x2A1` bit `6`: Male Dayfly
+- `0x2A1` bit `7`: Female Dayfly
+- `0x2A2` bit `0`: Male Phasmid
+- `0x2A2` bit `1`: Female Phasmid
+- `0x2A2` bit `2`: Male Pill Bug
+- `0x2A2` bit `3`: Female Pill Bug
+- `0x2A2` bit `4`: Male Mantis
+- `0x2A2` bit `5`: Female Mantis
+- `0x2A2` bit `6`: Male Ladybug
+- `0x2A2` bit `7`: Female Ladybug
+- `0x2A3` bit `0`: Male Beetle
+- `0x2A3` bit `1`: Female Beetle
+- `0x2A3` bit `2`: Male Butterfly
+- `0x2A3` bit `3`: Female Butterfly
+- `0x2A3` bit `4`: Male Stag Beetle
+- `0x2A3` bit `5`: Female Stag Beetle
+- `0x2A3` bit `6`: Male Grasshopper
+- `0x2A3` bit `7`: Female Grasshopper
+
+Golden Bugs editing controls collection-screen ownership only. It does not edit Agitha reward or turn-in flags, which may be separate game state. Use copied saves or save states.
+
+The **Advanced / Golden Bugs Research** section keeps the raw research tools. The before/after compare defaults to `_playerbase+0x2A1` length `0x04` and logs to `logs/golden-bugs-research.log`. The **Golden Bugs Bitfield Tester / Experimental** still displays all 32 bits across `0x2A1-0x2A4` for controlled research, logs to `logs/golden-bugs-bitfield-testing.log`, and exports reports to `logs/research/`. Use that advanced area for `0x2A4` investigation and reward/turn-in research, not normal ownership editing. Details are tracked in `docs/research/GoldenBugsResearch.md`.
 
 ## Equipment Editor
 
@@ -303,6 +338,7 @@ The app does not parse or execute Cheat Engine scripts at runtime. The relevant 
 - `TphdCemuTrainer/Memory/EquipmentMemoryService.cs`: CT-backed equipment byte and ownership flag reads/writes
 - `TphdCemuTrainer/Cheats/CheatCatalog.cs`: CT-derived cheat and capacity definitions
 - `TphdCemuTrainer/Cheats/BottleDefinitions.cs`: experimental bottle slot and confirmed bottle content definitions
+- `TphdCemuTrainer/Cheats/GoldenBugsDefinitions.cs`: confirmed Golden Bugs bit mappings and reference bug names
 - `TphdCemuTrainer/Cheats/InventoryDefinitions.cs`: safe CT inventory item dropdowns, ownership candidates, and managed slot metadata
 - `TphdCemuTrainer/Cheats/InventoryOwnershipDefinition.cs`: inventory ownership/progression candidate metadata
 - `TphdCemuTrainer/Cheats/InventoryFixedSlotDefinition.cs`: known fixed/game-managed inventory slot metadata
@@ -330,7 +366,7 @@ The app does not parse or execute Cheat Engine scripts at runtime. The relevant 
 - Unsafe raw inventory writes may be reverted by game-managed visible slots.
 - Equipment editing grants ownership flags only. Current equipped armor, sword, and shield are game-managed and read-only in the trainer.
 - Early Ordon intro saves may accept byte writes in memory while TPHD ignores ownership edits. Progress past the intro arc and rescan, or use the manual overrides only for diagnostics on copied saves.
-- Golden Bugs are read-only/research-only until individual bug bits and completion behavior are mapped.
+- Golden Bugs ownership editing is mapped for the visible collection-screen bugs, but Agitha reward and turn-in flags are not edited.
 - Values are simple external memory edits. They do not patch game logic.
 - If Cemu runs as administrator, the trainer may also need to run as administrator.
 

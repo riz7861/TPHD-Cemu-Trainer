@@ -47,6 +47,17 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     private byte[]? _researchRangeSnapshotBytes;
     private uint _researchRangeSnapshotStart;
     private string _researchRangeSnapshotLabel = string.Empty;
+    private byte[]? _goldenBugsBeforeSnapshotBytes;
+    private byte[]? _goldenBugsAfterSnapshotBytes;
+    private uint _goldenBugsBeforeSnapshotStart;
+    private uint _goldenBugsAfterSnapshotStart;
+    private DateTimeOffset? _goldenBugsBeforeCapturedAt;
+    private DateTimeOffset? _goldenBugsAfterCapturedAt;
+    private GoldenBugsResearchExport? _lastGoldenBugsResearchExport;
+    private byte[]? _goldenBugsBitfieldRestoreSnapshotBytes;
+    private DateTimeOffset? _goldenBugsBitfieldRestoreSnapshotCapturedAt;
+    private byte[]? _goldenBugsEditorRestoreSnapshotBytes;
+    private DateTimeOffset? _goldenBugsEditorRestoreSnapshotCapturedAt;
     private byte? _candidatePreviousValue;
     private uint? _candidatePreviousOffset;
     private ResearchSnapshotViewModel? _snapshotA;
@@ -68,6 +79,8 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         new("Candidate Ownership Region", 0x240, 0xA0),
         new("Collectibles", 0x2A1, 0x30)
     ];
+
+    private static readonly IReadOnlyList<string> GoldenBugCandidateNames = GoldenBugsDefinitions.BugNames;
 
     private static readonly JsonSerializerOptions ExportJsonOptions = new()
     {
@@ -113,6 +126,17 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         InventoryCheckboxTestingDiagnostics = [];
         BottleEditorDiagnostics = [];
         CollectiblesDiagnostics = [];
+        GoldenBugsResearchRows = [];
+        GoldenBugsCandidateList = new ObservableCollection<string>(
+            GoldenBugCandidateNames.Select((name, index) => $"{index + 1}. {name}"));
+        GoldenBugsBitRows = new ObservableCollection<GoldenBugBitViewModel>(
+            GoldenBugsDefinitions.Bits.Select(bit => new GoldenBugBitViewModel(bit)));
+        GoldenBugsEditorRows = new ObservableCollection<GoldenBugBitViewModel>(
+            GoldenBugsDefinitions.OwnershipBits
+                .Select(definition => GoldenBugsBitRows.First(bit =>
+                    bit.OffsetValue == definition.Offset && bit.Bit == definition.Bit)));
+        GoldenBugsBitfieldDiagnostics = [];
+        GoldenBugsEditorDiagnostics = [];
 
         EquipmentSlots = new ObservableCollection<EquipmentSlotViewModel>(
             EquipmentDefinitions.Slots.Select(slot => new EquipmentSlotViewModel(slot)));
@@ -191,6 +215,15 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     private static string CollectiblesLogPath =>
         Path.Combine(AppContext.BaseDirectory, "logs", "collectibles.log");
 
+    private static string GoldenBugsResearchLogPath =>
+        Path.Combine(AppContext.BaseDirectory, "logs", "golden-bugs-research.log");
+
+    private static string GoldenBugsBitfieldTestingLogPath =>
+        Path.Combine(AppContext.BaseDirectory, "logs", "golden-bugs-bitfield-testing.log");
+
+    private static string GoldenBugsEditorLogPath =>
+        Path.Combine(AppContext.BaseDirectory, "logs", "golden-bugs-editor.log");
+
     private static string ProgressionLogPath =>
         Path.Combine(AppContext.BaseDirectory, "logs", "progression.log");
 
@@ -266,6 +299,18 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     public ObservableCollection<string> BottleEditorDiagnostics { get; }
 
     public ObservableCollection<string> CollectiblesDiagnostics { get; }
+
+    public ObservableCollection<GoldenBugResearchRowViewModel> GoldenBugsResearchRows { get; }
+
+    public ObservableCollection<string> GoldenBugsCandidateList { get; }
+
+    public ObservableCollection<GoldenBugBitViewModel> GoldenBugsBitRows { get; }
+
+    public ObservableCollection<GoldenBugBitViewModel> GoldenBugsEditorRows { get; }
+
+    public ObservableCollection<string> GoldenBugsBitfieldDiagnostics { get; }
+
+    public ObservableCollection<string> GoldenBugsEditorDiagnostics { get; }
 
     public ObservableCollection<EquipmentSlotViewModel> EquipmentSlots { get; }
 
@@ -618,6 +663,344 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     {
         PoeSouls.SetTargetValue(PoeSouls.EffectiveMaximum);
         WritePoeSoulsRequestedValue();
+    }
+
+    private void GoldenBugsCaptureBefore_Click(object sender, RoutedEventArgs e)
+    {
+        if (!TryReadGoldenBugsResearchRange(out var startOffset, out var bytes, out _))
+        {
+            return;
+        }
+
+        _goldenBugsBeforeSnapshotStart = startOffset;
+        _goldenBugsBeforeSnapshotBytes = bytes;
+        _goldenBugsBeforeCapturedAt = DateTimeOffset.Now;
+        GoldenBugsResearchRows.Clear();
+        _lastGoldenBugsResearchExport = null;
+        GoldenBugsResearchStatusText.Text =
+            $"Captured Before at _playerbase+0x{startOffset:X}, length 0x{bytes.Length:X}.";
+        AppendGoldenBugsResearchLog(
+            $"action=capture-before start=0x{startOffset:X} length=0x{bytes.Length:X} bytes=\"{FormatByteArray(bytes)}\"");
+        SetStatus("Golden Bugs Before snapshot captured.", StatusKind.Connected);
+    }
+
+    private void GoldenBugsCaptureAfter_Click(object sender, RoutedEventArgs e)
+    {
+        if (!TryReadGoldenBugsResearchRange(out var startOffset, out var bytes, out _))
+        {
+            return;
+        }
+
+        _goldenBugsAfterSnapshotStart = startOffset;
+        _goldenBugsAfterSnapshotBytes = bytes;
+        _goldenBugsAfterCapturedAt = DateTimeOffset.Now;
+        _lastGoldenBugsResearchExport = null;
+        GoldenBugsResearchStatusText.Text =
+            $"Captured After at _playerbase+0x{startOffset:X}, length 0x{bytes.Length:X}.";
+        AppendGoldenBugsResearchLog(
+            $"action=capture-after start=0x{startOffset:X} length=0x{bytes.Length:X} bytes=\"{FormatByteArray(bytes)}\"");
+        SetStatus("Golden Bugs After snapshot captured.", StatusKind.Connected);
+    }
+
+    private void GoldenBugsCompare_Click(object sender, RoutedEventArgs e)
+    {
+        if (_goldenBugsBeforeSnapshotBytes is null || _goldenBugsAfterSnapshotBytes is null)
+        {
+            GoldenBugsResearchStatusText.Text = "Capture Before and After snapshots before comparing.";
+            SetStatus("Capture Golden Bugs Before and After snapshots first.", StatusKind.Neutral);
+            return;
+        }
+
+        if (_goldenBugsBeforeSnapshotStart != _goldenBugsAfterSnapshotStart ||
+            _goldenBugsBeforeSnapshotBytes.Length != _goldenBugsAfterSnapshotBytes.Length)
+        {
+            GoldenBugsResearchStatusText.Text = "Before and After ranges must use the same start and length.";
+            SetStatus("Golden Bugs research ranges do not match.", StatusKind.Warning);
+            return;
+        }
+
+        GoldenBugsResearchRows.Clear();
+        var changedByteCount = 0;
+        var changedBitCount = 0;
+        for (var byteIndex = 0; byteIndex < _goldenBugsBeforeSnapshotBytes.Length; byteIndex++)
+        {
+            var beforeValue = _goldenBugsBeforeSnapshotBytes[byteIndex];
+            var afterValue = _goldenBugsAfterSnapshotBytes[byteIndex];
+            if (beforeValue == afterValue)
+            {
+                continue;
+            }
+
+            changedByteCount++;
+            var changedMask = beforeValue ^ afterValue;
+            for (var bitIndex = 0; bitIndex < 8; bitIndex++)
+            {
+                if ((changedMask & (1 << bitIndex)) == 0)
+                {
+                    continue;
+                }
+
+                changedBitCount++;
+                var offset = _goldenBugsBeforeSnapshotStart + (uint)byteIndex;
+                var mapping = GoldenBugsDefinitions.Bits.FirstOrDefault(bit =>
+                    bit.Offset == offset && bit.Bit == bitIndex);
+                var candidateIndex = mapping?.ConfirmedBugName is null
+                    ? 0
+                    : GetGoldenBugReferenceIndex(mapping.ConfirmedBugName);
+                var candidateName = mapping?.ConfirmedBugName ?? "Unmapped research bit";
+                GoldenBugsResearchRows.Add(new GoldenBugResearchRowViewModel(
+                    offset,
+                    beforeValue,
+                    afterValue,
+                    byteIndex,
+                    bitIndex,
+                    candidateIndex,
+                    candidateName));
+            }
+        }
+
+        _lastGoldenBugsResearchExport = CreateGoldenBugsResearchExport(changedByteCount, changedBitCount);
+        GoldenBugsResearchStatusText.Text =
+            $"Compared Golden Bugs snapshots. Changed bytes: {changedByteCount}. Changed bits: {changedBitCount}. Confirmed ownership names are shown when mapped.";
+        var changes = string.Join(
+            "; ",
+            GoldenBugsResearchRows.Select(row =>
+                $"{row.Offset}:{row.BeforeValue}(0x{row.BeforeValue:X2})->{row.AfterValue}(0x{row.AfterValue:X2}) {row.ChangedBits} candidate={row.CandidateBugIndex} {row.CandidateBugName}"));
+        AppendGoldenBugsResearchLog(
+            $"action=compare start=0x{_goldenBugsBeforeSnapshotStart:X} length=0x{_goldenBugsBeforeSnapshotBytes.Length:X} changed-bytes={changedByteCount} changed-bits={changedBitCount} changes=\"{changes}\"");
+        SetStatus("Golden Bugs research snapshots compared.", StatusKind.Connected);
+    }
+
+    private void GoldenBugsExportReport_Click(object sender, RoutedEventArgs e)
+    {
+        if (_lastGoldenBugsResearchExport is null)
+        {
+            GoldenBugsResearchStatusText.Text = "Compare snapshots before exporting a Golden Bugs report.";
+            SetStatus("Compare Golden Bugs snapshots before exporting.", StatusKind.Neutral);
+            return;
+        }
+
+        try
+        {
+            Directory.CreateDirectory(ResearchSnapshotStore.ExportDirectory);
+            var baseName = $"{_lastGoldenBugsResearchExport.Timestamp:yyyyMMdd_HHmmss}_golden-bugs-research";
+            var jsonPath = Path.Combine(ResearchSnapshotStore.ExportDirectory, baseName + ".json");
+            var csvPath = Path.Combine(ResearchSnapshotStore.ExportDirectory, baseName + ".csv");
+            File.WriteAllText(jsonPath, JsonSerializer.Serialize(_lastGoldenBugsResearchExport, ExportJsonOptions));
+            File.WriteAllLines(csvPath, CreateGoldenBugsResearchCsvLines(_lastGoldenBugsResearchExport.Rows));
+
+            GoldenBugsResearchStatusText.Text =
+                $"Exported {Path.GetFileName(jsonPath)} and {Path.GetFileName(csvPath)}.";
+            AppendGoldenBugsResearchLog(
+                $"action=export json=\"{jsonPath}\" csv=\"{csvPath}\" rows={_lastGoldenBugsResearchExport.Rows.Count}");
+            SetStatus("Golden Bugs research report exported to logs/research.", StatusKind.Connected);
+        }
+        catch (Exception ex)
+        {
+            GoldenBugsResearchStatusText.Text = $"Export failed: {ex.Message}";
+            SetStatus("Golden Bugs research export failed.", StatusKind.Warning);
+        }
+    }
+
+    private async void ApplyGoldenBugChanges_Click(object sender, RoutedEventArgs e)
+    {
+        var dirtyBits = GoldenBugsEditorRows
+            .Where(bit => bit.IsDirty && bit.CanEdit)
+            .ToList();
+        if (dirtyBits.Count == 0)
+        {
+            GoldenBugsEditorStatusText.Text = "No Golden Bug changes to apply.";
+            SetStatus("No Golden Bug changes to apply.", StatusKind.Neutral);
+            return;
+        }
+
+        if (!TryReadGoldenBugsEditorBytes(out var currentBytes, out _))
+        {
+            return;
+        }
+
+        var desiredBytes = currentBytes.ToArray();
+        foreach (var bit in dirtyBits)
+        {
+            SetGoldenBugBitInBytes(desiredBytes, bit, bit.IsSetDesired);
+        }
+
+        var verified = await WriteGoldenBugsEditorBytesAsync("apply", desiredBytes);
+        RefreshGoldenBugsBitfieldFromMemory(preserveDirty: !verified);
+        GoldenBugsEditorStatusText.Text = verified
+            ? $"Applied {dirtyBits.Count} Golden Bug change(s)."
+            : "Golden Bugs write did not fully verify. Check diagnostics.";
+        SetStatus(
+            GoldenBugsEditorStatusText.Text,
+            verified ? StatusKind.Connected : StatusKind.Warning);
+    }
+
+    private async void AddAllGoldenBugs_Click(object sender, RoutedEventArgs e)
+    {
+        if (!TryReadGoldenBugsEditorBytes(out var currentBytes, out _))
+        {
+            return;
+        }
+
+        foreach (var bit in GoldenBugsEditorRows)
+        {
+            bit.IsSetDesired = true;
+        }
+
+        var desiredBytes = currentBytes.ToArray();
+        foreach (var bit in GoldenBugsEditorRows)
+        {
+            SetGoldenBugBitInBytes(desiredBytes, bit, isSet: true);
+        }
+
+        var verified = await WriteGoldenBugsEditorBytesAsync("add-all", desiredBytes);
+        RefreshGoldenBugsBitfieldFromMemory(preserveDirty: !verified);
+        GoldenBugsEditorStatusText.Text = verified
+            ? "Added all Golden Bugs."
+            : "Add All did not fully verify. Check diagnostics.";
+        SetStatus(
+            GoldenBugsEditorStatusText.Text,
+            verified ? StatusKind.Connected : StatusKind.Warning);
+    }
+
+    private async void ClearAllGoldenBugs_Click(object sender, RoutedEventArgs e)
+    {
+        if (!TryReadGoldenBugsEditorBytes(out var currentBytes, out _))
+        {
+            return;
+        }
+
+        foreach (var bit in GoldenBugsEditorRows)
+        {
+            bit.IsSetDesired = false;
+        }
+
+        var desiredBytes = currentBytes.ToArray();
+        foreach (var bit in GoldenBugsEditorRows)
+        {
+            SetGoldenBugBitInBytes(desiredBytes, bit, isSet: false);
+        }
+
+        var verified = await WriteGoldenBugsEditorBytesAsync("clear-all", desiredBytes);
+        RefreshGoldenBugsBitfieldFromMemory(preserveDirty: !verified);
+        GoldenBugsEditorStatusText.Text = verified
+            ? "Cleared all Golden Bugs."
+            : "Clear All did not fully verify. Check diagnostics.";
+        SetStatus(
+            GoldenBugsEditorStatusText.Text,
+            verified ? StatusKind.Connected : StatusKind.Warning);
+    }
+
+    private async void RestoreGoldenBugState_Click(object sender, RoutedEventArgs e)
+    {
+        if (_goldenBugsEditorRestoreSnapshotBytes is null)
+        {
+            GoldenBugsEditorStatusText.Text = "No previous Golden Bug state captured this session.";
+            SetStatus("No previous Golden Bug state captured this session.", StatusKind.Neutral);
+            return;
+        }
+
+        var verified = await WriteGoldenBugsEditorBytesAsync(
+            "restore-previous",
+            _goldenBugsEditorRestoreSnapshotBytes,
+            capturePreviousState: false);
+        RefreshGoldenBugsBitfieldFromMemory(preserveDirty: !verified);
+        GoldenBugsEditorStatusText.Text = verified
+            ? $"Restored Golden Bug state captured at {_goldenBugsEditorRestoreSnapshotCapturedAt?.ToLocalTime():g}."
+            : "Restore did not fully verify. Check diagnostics.";
+        SetStatus(
+            GoldenBugsEditorStatusText.Text,
+            verified ? StatusKind.Connected : StatusKind.Warning);
+    }
+
+    private void GoldenBugsCaptureBitfield_Click(object sender, RoutedEventArgs e)
+    {
+        if (!TryReadGoldenBugsBitfieldBytes(out var bytes, out _))
+        {
+            return;
+        }
+
+        _goldenBugsBitfieldRestoreSnapshotBytes = bytes.ToArray();
+        _goldenBugsBitfieldRestoreSnapshotCapturedAt = DateTimeOffset.Now;
+        UpdateGoldenBugsBitRows(bytes, preserveDirty: false);
+        GoldenBugsBitfieldStatusText.Text =
+            $"Captured Golden Bugs bitfield snapshot: {FormatByteArray(bytes)}.";
+        AppendGoldenBugsBitfieldTestingLog(
+            $"action=capture offset=0x{GoldenBugsDefinitions.FirstOffset:X} length=0x{GoldenBugsDefinitions.ByteCount:X} bytes=\"{FormatByteArray(bytes)}\"");
+        SetStatus("Golden Bugs bitfield snapshot captured.", StatusKind.Connected);
+    }
+
+    private async void GoldenBugsApplyBitChanges_Click(object sender, RoutedEventArgs e)
+    {
+        var dirtyBits = GoldenBugsBitRows
+            .Where(bit => bit.IsDirty && bit.CanEdit)
+            .ToList();
+        if (dirtyBits.Count == 0)
+        {
+            GoldenBugsBitfieldStatusText.Text = "No Golden Bugs bit changes to apply.";
+            SetStatus("No Golden Bugs bit changes to apply.", StatusKind.Neutral);
+            return;
+        }
+
+        var successfulWrites = 0;
+        foreach (var bit in dirtyBits)
+        {
+            if (await WriteGoldenBugBitWithDiagnosticsAsync(bit))
+            {
+                successfulWrites++;
+            }
+        }
+
+        RefreshGoldenBugsBitfieldFromMemory();
+        GoldenBugsBitfieldStatusText.Text =
+            $"Applied {successfulWrites} of {dirtyBits.Count} Golden Bugs bit change(s).";
+        SetStatus(
+            $"Applied {successfulWrites} of {dirtyBits.Count} Golden Bugs bit change(s).",
+            successfulWrites == dirtyBits.Count ? StatusKind.Connected : StatusKind.Warning);
+    }
+
+    private async void GoldenBugsRestoreBitfield_Click(object sender, RoutedEventArgs e)
+    {
+        if (_goldenBugsBitfieldRestoreSnapshotBytes is null)
+        {
+            GoldenBugsBitfieldStatusText.Text = "Capture current bitfield before restoring.";
+            SetStatus("Capture a Golden Bugs bitfield snapshot before restoring.", StatusKind.Neutral);
+            return;
+        }
+
+        if (await RestoreGoldenBugsBitfieldSnapshotAsync(_goldenBugsBitfieldRestoreSnapshotBytes))
+        {
+            RefreshGoldenBugsBitfieldFromMemory();
+            GoldenBugsBitfieldStatusText.Text =
+                $"Restored Golden Bugs bitfield snapshot captured at {_goldenBugsBitfieldRestoreSnapshotCapturedAt?.ToLocalTime():g}.";
+            SetStatus("Golden Bugs bitfield snapshot restored.", StatusKind.Connected);
+        }
+    }
+
+    private void GoldenBugsExportBitfieldReport_Click(object sender, RoutedEventArgs e)
+    {
+        try
+        {
+            Directory.CreateDirectory(ResearchSnapshotStore.ExportDirectory);
+            var report = CreateGoldenBugsBitfieldReport();
+            var baseName = $"{report.Timestamp:yyyyMMdd_HHmmss}_golden-bugs-bitfield-report";
+            var jsonPath = Path.Combine(ResearchSnapshotStore.ExportDirectory, baseName + ".json");
+            var csvPath = Path.Combine(ResearchSnapshotStore.ExportDirectory, baseName + ".csv");
+
+            File.WriteAllText(jsonPath, JsonSerializer.Serialize(report, ExportJsonOptions));
+            File.WriteAllLines(csvPath, CreateGoldenBugsBitfieldReportCsvLines(report.Rows));
+
+            GoldenBugsBitfieldStatusText.Text =
+                $"Exported {Path.GetFileName(jsonPath)} and {Path.GetFileName(csvPath)}.";
+            AppendGoldenBugsBitfieldTestingLog(
+                $"action=export json=\"{jsonPath}\" csv=\"{csvPath}\" rows={report.Rows.Count}");
+            SetStatus("Golden Bugs bitfield report exported to logs/research.", StatusKind.Connected);
+        }
+        catch (Exception ex)
+        {
+            GoldenBugsBitfieldStatusText.Text = $"Export failed: {ex.Message}";
+            SetStatus("Golden Bugs bitfield report export failed.", StatusKind.Warning);
+        }
     }
 
     private void CapacityCombo_SelectionChanged(object sender, SelectionChangedEventArgs e)
@@ -1591,6 +1974,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             if (value.Definition.Id == CheatId.GoldenBugsFlags)
             {
                 GoldenBugsCountText.Text = $"{CountGoldenBugs(rawValue)} / 24";
+                UpdateGoldenBugsResearchCurrentDisplay(rawValue);
             }
 
             return true;
@@ -3697,6 +4081,430 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         return true;
     }
 
+    private bool TryReadGoldenBugsResearchRange(out uint startOffset, out byte[] bytes, out ulong absoluteAddress)
+    {
+        startOffset = 0;
+        bytes = [];
+        absoluteAddress = 0;
+
+        if (_memory is null || !_playerBaseAddress.HasValue)
+        {
+            GoldenBugsResearchStatusText.Text = "Not attached. Attach to Cemu and rescan before using Golden Bugs research.";
+            SetStatus("Not attached. Attach to Cemu and rescan before using Golden Bugs research.", StatusKind.Neutral);
+            return false;
+        }
+
+        if (!TryParseResearchOffset(GoldenBugsResearchStartOffsetText.Text, out startOffset, out var offsetError))
+        {
+            GoldenBugsResearchStatusText.Text = offsetError;
+            return false;
+        }
+
+        if (!TryParseResearchLength(GoldenBugsResearchLengthText.Text, out var length, out var lengthError))
+        {
+            GoldenBugsResearchStatusText.Text = lengthError;
+            return false;
+        }
+
+        absoluteAddress = _playerBaseAddress.Value + startOffset;
+        if (!_memory.TryReadBytes(absoluteAddress, length, out bytes, out var bytesRead) || bytesRead != length)
+        {
+            GoldenBugsResearchStatusText.Text = $"Could not read 0x{length:X} byte(s) at _playerbase+0x{startOffset:X}.";
+            SetStatus("Could not read Golden Bugs research range.", StatusKind.Warning);
+            return false;
+        }
+
+        return true;
+    }
+
+    private bool TryReadGoldenBugsBitfieldBytes(out byte[] bytes, out ulong absoluteAddress)
+    {
+        bytes = [];
+        absoluteAddress = 0;
+
+        if (_memory is null || !_playerBaseAddress.HasValue)
+        {
+            GoldenBugsBitfieldStatusText.Text = "Not attached. Attach to Cemu and rescan before using the Golden Bugs bitfield tester.";
+            SetStatus("Not attached. Attach to Cemu and rescan before using Golden Bugs bitfield tester.", StatusKind.Neutral);
+            return false;
+        }
+
+        absoluteAddress = _playerBaseAddress.Value + GoldenBugsDefinitions.FirstOffset;
+        if (!_memory.TryReadBytes(absoluteAddress, GoldenBugsDefinitions.ByteCount, out bytes, out var bytesRead) ||
+            bytesRead != GoldenBugsDefinitions.ByteCount)
+        {
+            GoldenBugsBitfieldStatusText.Text = "Could not read Golden Bugs bitfield bytes.";
+            SetStatus("Could not read Golden Bugs bitfield bytes.", StatusKind.Warning);
+            return false;
+        }
+
+        return true;
+    }
+
+    private bool TryReadGoldenBugsEditorBytes(out byte[] bytes, out ulong absoluteAddress)
+    {
+        bytes = [];
+        absoluteAddress = 0;
+
+        if (_memory is null || !_playerBaseAddress.HasValue)
+        {
+            GoldenBugsEditorStatusText.Text = "Not attached. Attach to Cemu and rescan before editing Golden Bugs.";
+            SetStatus("Not attached. Attach to Cemu and rescan before editing Golden Bugs.", StatusKind.Neutral);
+            return false;
+        }
+
+        absoluteAddress = _playerBaseAddress.Value + GoldenBugsDefinitions.FirstOffset;
+        if (!_memory.TryReadBytes(absoluteAddress, GoldenBugsDefinitions.OwnershipByteCount, out bytes, out var bytesRead) ||
+            bytesRead != GoldenBugsDefinitions.OwnershipByteCount)
+        {
+            GoldenBugsEditorStatusText.Text = "Could not read Golden Bugs ownership bytes.";
+            SetStatus("Could not read Golden Bugs ownership bytes.", StatusKind.Warning);
+            return false;
+        }
+
+        return true;
+    }
+
+    private void RefreshGoldenBugsBitfieldFromMemory(bool preserveDirty = true)
+    {
+        if (!TryReadGoldenBugsBitfieldBytes(out var bytes, out _))
+        {
+            return;
+        }
+
+        UpdateGoldenBugsBitRows(bytes, preserveDirty);
+        var rawValue =
+            (uint)bytes[0] << 24 |
+            (uint)bytes[1] << 16 |
+            (uint)bytes[2] << 8 |
+            bytes[3];
+        GoldenBugsFlags.SetCurrentDisplay($"0x{rawValue:X8}");
+        UpdateGoldenBugsResearchCurrentDisplay(rawValue, preserveDirty);
+    }
+
+    private async Task<bool> WriteGoldenBugsEditorBytesAsync(
+        string operation,
+        byte[] desiredBytes,
+        bool capturePreviousState = true)
+    {
+        var memory = _memory;
+        if (memory is null || !_playerBaseAddress.HasValue)
+        {
+            GoldenBugsEditorStatusText.Text = "Not attached.";
+            SetStatus("Not attached. Attach to Cemu and rescan before editing Golden Bugs.", StatusKind.Neutral);
+            return false;
+        }
+
+        if (desiredBytes.Length != GoldenBugsDefinitions.OwnershipByteCount)
+        {
+            GoldenBugsEditorStatusText.Text = "Golden Bugs desired state has an invalid length.";
+            SetStatus("Golden Bugs desired state has an invalid length.", StatusKind.Warning);
+            return false;
+        }
+
+        var absoluteAddress = _playerBaseAddress.Value + GoldenBugsDefinitions.FirstOffset;
+        byte[]? beforeBytes = null;
+        byte[]? immediateBytes = null;
+        byte[]? delayed250Bytes = null;
+        byte[]? delayed1000Bytes = null;
+        var status = "started";
+
+        try
+        {
+            if (!memory.TryReadBytes(absoluteAddress, GoldenBugsDefinitions.OwnershipByteCount, out var currentBytes, out var currentBytesRead) ||
+                currentBytesRead != GoldenBugsDefinitions.OwnershipByteCount)
+            {
+                status = "before-read-failed";
+                GoldenBugsEditorStatusText.Text = "Could not read Golden Bugs before writing.";
+                SetStatus("Could not read Golden Bugs before writing.", StatusKind.Warning);
+                return false;
+            }
+
+            beforeBytes = currentBytes;
+            if (capturePreviousState && !beforeBytes.SequenceEqual(desiredBytes))
+            {
+                _goldenBugsEditorRestoreSnapshotBytes = beforeBytes.ToArray();
+                _goldenBugsEditorRestoreSnapshotCapturedAt = DateTimeOffset.Now;
+            }
+
+            if (beforeBytes.SequenceEqual(desiredBytes))
+            {
+                immediateBytes = beforeBytes.ToArray();
+                delayed250Bytes = beforeBytes.ToArray();
+                delayed1000Bytes = beforeBytes.ToArray();
+                status = "no-change";
+                return true;
+            }
+
+            for (var index = 0; index < desiredBytes.Length; index++)
+            {
+                if (beforeBytes[index] == desiredBytes[index])
+                {
+                    continue;
+                }
+
+                if (!memory.TryWriteBytes(absoluteAddress + (uint)index, [desiredBytes[index]], out var writeError))
+                {
+                    status = $"write-failed-index-{index}: {writeError}";
+                    GoldenBugsEditorStatusText.Text = $"Golden Bugs write failed at 0x{GoldenBugsDefinitions.FirstOffset + (uint)index:X}: {writeError}";
+                    SetStatus("Golden Bugs write failed.", StatusKind.Warning);
+                    return false;
+                }
+            }
+
+            if (!memory.TryReadBytes(absoluteAddress, GoldenBugsDefinitions.OwnershipByteCount, out immediateBytes, out var immediateRead) ||
+                immediateRead != GoldenBugsDefinitions.OwnershipByteCount)
+            {
+                status = "immediate-read-failed";
+                SetStatus("Golden Bugs immediate verification failed.", StatusKind.Warning);
+                return false;
+            }
+
+            if (!desiredBytes.SequenceEqual(immediateBytes))
+            {
+                status = "immediate-mismatch";
+                SetStatus("Golden Bugs immediate readback mismatch.", StatusKind.Warning);
+                return false;
+            }
+
+            await Task.Delay(250);
+            if (memory.TryReadBytes(absoluteAddress, GoldenBugsDefinitions.OwnershipByteCount, out var read250, out var read250Count) &&
+                read250Count == GoldenBugsDefinitions.OwnershipByteCount)
+            {
+                delayed250Bytes = read250;
+            }
+
+            await Task.Delay(750);
+            if (memory.TryReadBytes(absoluteAddress, GoldenBugsDefinitions.OwnershipByteCount, out var read1000, out var read1000Count) &&
+                read1000Count == GoldenBugsDefinitions.OwnershipByteCount)
+            {
+                delayed1000Bytes = read1000;
+            }
+
+            var delayedMismatch =
+                delayed250Bytes is not null && !desiredBytes.SequenceEqual(delayed250Bytes) ||
+                delayed1000Bytes is not null && !desiredBytes.SequenceEqual(delayed1000Bytes);
+            status = delayedMismatch ? "delayed-mismatch" : "verified";
+            if (delayedMismatch)
+            {
+                SetStatus("Golden Bugs changed after delayed verification.", StatusKind.Warning);
+            }
+
+            return !delayedMismatch;
+        }
+        finally
+        {
+            AppendGoldenBugsEditorDiagnostic(
+                operation,
+                beforeBytes,
+                desiredBytes,
+                immediateBytes,
+                delayed250Bytes,
+                delayed1000Bytes,
+                status);
+        }
+    }
+
+    private async Task<bool> WriteGoldenBugBitWithDiagnosticsAsync(GoldenBugBitViewModel bit)
+    {
+        var memory = _memory;
+        if (memory is null || !_playerBaseAddress.HasValue)
+        {
+            GoldenBugsBitfieldStatusText.Text = "Not attached.";
+            SetStatus("Not attached. Attach to Cemu and rescan before testing Golden Bugs bits.", StatusKind.Neutral);
+            return false;
+        }
+
+        var absoluteAddress = _playerBaseAddress.Value + bit.OffsetValue;
+        var mask = (byte)(1 << bit.Bit);
+        byte? beforeByte = null;
+        byte? afterByte = null;
+        byte? immediateReadback = null;
+        byte? delayed250Readback = null;
+        byte? delayed1000Readback = null;
+        var status = "started";
+
+        try
+        {
+            if (!memory.TryReadBytes(absoluteAddress, 1, out var beforeBytes, out var beforeBytesRead) ||
+                beforeBytesRead != 1)
+            {
+                status = "before-read-failed";
+                bit.LastWriteStatus = "Before read failed.";
+                GoldenBugsBitfieldStatusText.Text = $"Could not read {bit.Offset} bit {bit.Bit}.";
+                SetStatus("Could not read Golden Bugs bit before write.", StatusKind.Warning);
+                return false;
+            }
+
+            beforeByte = beforeBytes[0];
+            afterByte = bit.IsSetDesired
+                ? (byte)(beforeByte.Value | mask)
+                : (byte)(beforeByte.Value & ~mask);
+
+            if (!memory.TryWriteBytes(absoluteAddress, [afterByte.Value], out var writeError))
+            {
+                status = $"write-failed: {writeError}";
+                bit.LastWriteStatus = "Write failed.";
+                GoldenBugsBitfieldStatusText.Text = $"Golden Bugs bit write failed: {writeError}";
+                SetStatus("Golden Bugs bit write failed.", StatusKind.Warning);
+                return false;
+            }
+
+            if (!memory.TryReadBytes(absoluteAddress, 1, out var immediateBytes, out var immediateBytesRead) ||
+                immediateBytesRead != 1)
+            {
+                status = "immediate-read-failed";
+                bit.LastWriteStatus = "Immediate read failed.";
+                SetStatus("Golden Bugs bit immediate verification failed.", StatusKind.Warning);
+                return false;
+            }
+
+            immediateReadback = immediateBytes[0];
+            if (immediateReadback.Value != afterByte.Value)
+            {
+                status = "immediate-mismatch";
+                bit.LastWriteStatus = $"Immediate mismatch: expected 0x{afterByte.Value:X2}, read 0x{immediateReadback.Value:X2}.";
+                SetStatus("Golden Bugs bit immediate readback mismatch.", StatusKind.Warning);
+                return false;
+            }
+
+            await Task.Delay(250);
+            if (memory.TryReadBytes(absoluteAddress, 1, out var delayed250Bytes, out var delayed250BytesRead) &&
+                delayed250BytesRead == 1)
+            {
+                delayed250Readback = delayed250Bytes[0];
+            }
+
+            await Task.Delay(750);
+            if (memory.TryReadBytes(absoluteAddress, 1, out var delayed1000Bytes, out var delayed1000BytesRead) &&
+                delayed1000BytesRead == 1)
+            {
+                delayed1000Readback = delayed1000Bytes[0];
+            }
+
+            var reverted =
+                delayed250Readback.HasValue && delayed250Readback.Value != afterByte.Value ||
+                delayed1000Readback.HasValue && delayed1000Readback.Value != afterByte.Value;
+            if (reverted)
+            {
+                status = "reverted-or-changed";
+                bit.LastWriteStatus = "Delayed readback changed.";
+                SetStatus("Golden Bugs bit write changed after delayed verification.", StatusKind.Warning);
+            }
+            else
+            {
+                status = "verified";
+                bit.LastWriteStatus = "Verified.";
+            }
+
+            return !reverted;
+        }
+        finally
+        {
+            AppendGoldenBugsBitfieldTestingDiagnostic(
+                "write-bit",
+                bit,
+                absoluteAddress,
+                beforeByte,
+                afterByte,
+                mask,
+                immediateReadback,
+                delayed250Readback,
+                delayed1000Readback,
+                status);
+        }
+    }
+
+    private async Task<bool> RestoreGoldenBugsBitfieldSnapshotAsync(byte[] snapshot)
+    {
+        var memory = _memory;
+        if (memory is null || !_playerBaseAddress.HasValue)
+        {
+            GoldenBugsBitfieldStatusText.Text = "Not attached.";
+            SetStatus("Not attached. Attach to Cemu and rescan before restoring Golden Bugs bitfield.", StatusKind.Neutral);
+            return false;
+        }
+
+        var absoluteAddress = _playerBaseAddress.Value + GoldenBugsDefinitions.FirstOffset;
+        byte[]? beforeBytes = null;
+        byte[]? immediateBytes = null;
+        byte[]? delayed250Bytes = null;
+        byte[]? delayed1000Bytes = null;
+        var status = "started";
+
+        try
+        {
+            if (!memory.TryReadBytes(absoluteAddress, GoldenBugsDefinitions.ByteCount, out var currentBytes, out var currentBytesRead) ||
+                currentBytesRead != GoldenBugsDefinitions.ByteCount)
+            {
+                status = "before-read-failed";
+                GoldenBugsBitfieldStatusText.Text = "Could not read Golden Bugs bitfield before restore.";
+                SetStatus("Could not read Golden Bugs bitfield before restore.", StatusKind.Warning);
+                return false;
+            }
+
+            beforeBytes = currentBytes;
+            if (!memory.TryWriteBytes(absoluteAddress, snapshot, out var writeError))
+            {
+                status = $"restore-write-failed: {writeError}";
+                GoldenBugsBitfieldStatusText.Text = $"Golden Bugs bitfield restore failed: {writeError}";
+                SetStatus("Golden Bugs bitfield restore failed.", StatusKind.Warning);
+                return false;
+            }
+
+            if (!memory.TryReadBytes(absoluteAddress, GoldenBugsDefinitions.ByteCount, out immediateBytes, out var immediateRead) ||
+                immediateRead != GoldenBugsDefinitions.ByteCount)
+            {
+                status = "restore-immediate-read-failed";
+                SetStatus("Golden Bugs bitfield restore immediate verification failed.", StatusKind.Warning);
+                return false;
+            }
+
+            if (!snapshot.SequenceEqual(immediateBytes))
+            {
+                status = "restore-immediate-mismatch";
+                SetStatus("Golden Bugs bitfield restore immediate mismatch.", StatusKind.Warning);
+                return false;
+            }
+
+            await Task.Delay(250);
+            if (memory.TryReadBytes(absoluteAddress, GoldenBugsDefinitions.ByteCount, out var read250, out var read250Count) &&
+                read250Count == GoldenBugsDefinitions.ByteCount)
+            {
+                delayed250Bytes = read250;
+            }
+
+            await Task.Delay(750);
+            if (memory.TryReadBytes(absoluteAddress, GoldenBugsDefinitions.ByteCount, out var read1000, out var read1000Count) &&
+                read1000Count == GoldenBugsDefinitions.ByteCount)
+            {
+                delayed1000Bytes = read1000;
+            }
+
+            var reverted =
+                delayed250Bytes is not null && !snapshot.SequenceEqual(delayed250Bytes) ||
+                delayed1000Bytes is not null && !snapshot.SequenceEqual(delayed1000Bytes);
+            status = reverted ? "restore-delayed-mismatch" : "restore-verified";
+            if (reverted)
+            {
+                SetStatus("Golden Bugs bitfield restore changed after delayed verification.", StatusKind.Warning);
+            }
+
+            return !reverted;
+        }
+        finally
+        {
+            AppendGoldenBugsBitfieldRestoreDiagnostic(
+                absoluteAddress,
+                beforeBytes,
+                snapshot,
+                immediateBytes,
+                delayed250Bytes,
+                delayed1000Bytes,
+                status);
+        }
+    }
+
     private bool TryCreateSnapshotDocument(out ResearchSnapshotDocument snapshot)
     {
         snapshot = new ResearchSnapshotDocument();
@@ -4171,6 +4979,89 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         }
     }
 
+    private GoldenBugsResearchExport CreateGoldenBugsResearchExport(int changedByteCount, int changedBitCount)
+    {
+        return new GoldenBugsResearchExport(
+            DateTimeOffset.Now,
+            _goldenBugsBeforeSnapshotStart,
+            _goldenBugsBeforeSnapshotBytes?.Length ?? 0,
+            _goldenBugsBeforeCapturedAt,
+            _goldenBugsAfterCapturedAt,
+            changedByteCount,
+            changedBitCount,
+            GoldenBugCandidateNames.Select((name, index) => $"{index + 1}. {name}").ToList(),
+            GoldenBugsResearchRows.Select(row => new GoldenBugsResearchExportRow(
+                row.Offset,
+                row.BeforeValue,
+                row.AfterValue,
+                row.BeforeBinary,
+                row.AfterBinary,
+                row.ChangedBits,
+                row.ByteIndex,
+                row.BitIndex,
+                row.CandidateBugIndexValue,
+                row.CandidateBugName)).ToList());
+    }
+
+    private static IEnumerable<string> CreateGoldenBugsResearchCsvLines(IEnumerable<GoldenBugsResearchExportRow> rows)
+    {
+        yield return "Offset,Before Byte,After Byte,Before Binary,After Binary,Changed Bits,Byte Index,Bit Index,Candidate Bug Index,Candidate Bug Name";
+        foreach (var row in rows)
+        {
+            yield return string.Join(
+                ",",
+                Csv(row.Offset),
+                Csv(row.BeforeValue.ToString(CultureInfo.InvariantCulture)),
+                Csv(row.AfterValue.ToString(CultureInfo.InvariantCulture)),
+                Csv(row.BeforeBinary),
+                Csv(row.AfterBinary),
+                Csv(row.ChangedBits),
+                Csv(row.ByteIndex.ToString(CultureInfo.InvariantCulture)),
+                Csv(row.BitIndex.ToString(CultureInfo.InvariantCulture)),
+                Csv(row.CandidateBugIndex.ToString(CultureInfo.InvariantCulture)),
+                Csv(row.CandidateBugName));
+        }
+    }
+
+    private GoldenBugsBitfieldReport CreateGoldenBugsBitfieldReport()
+    {
+        return new GoldenBugsBitfieldReport(
+            DateTimeOffset.Now,
+            _goldenBugsBitfieldRestoreSnapshotCapturedAt,
+            _goldenBugsBitfieldRestoreSnapshotBytes is null
+                ? []
+                : _goldenBugsBitfieldRestoreSnapshotBytes.Select(value => $"0x{value:X2}").ToList(),
+            GoldenBugsBitRows.Select(bit => new GoldenBugsBitfieldReportRow(
+                bit.Offset,
+                bit.Bit,
+                bit.CurrentState,
+                bit.IsSetDesired,
+                bit.ConfirmedBugName,
+                bit.MappingStatus,
+                bit.AssignedBugName ?? string.Empty,
+                bit.Notes,
+                bit.LastWriteStatus)).ToList());
+    }
+
+    private static IEnumerable<string> CreateGoldenBugsBitfieldReportCsvLines(IEnumerable<GoldenBugsBitfieldReportRow> rows)
+    {
+        yield return "Offset,Bit,Current State,Desired,Confirmed Bug Name,Mapping Status,Assigned Bug Name,Notes,Last Write Status";
+        foreach (var row in rows)
+        {
+            yield return string.Join(
+                ",",
+                Csv(row.Offset),
+                Csv(row.Bit.ToString(CultureInfo.InvariantCulture)),
+                Csv(row.CurrentState),
+                Csv(row.Desired.ToString(CultureInfo.InvariantCulture)),
+                Csv(row.ConfirmedBugName),
+                Csv(row.MappingStatus),
+                Csv(row.AssignedBugName),
+                Csv(row.Notes),
+                Csv(row.LastWriteStatus));
+        }
+    }
+
     private static string Csv(string value)
     {
         return "\"" + value.Replace("\"", "\"\"", StringComparison.Ordinal) + "\"";
@@ -4325,6 +5216,129 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         }
     }
 
+    private void AppendGoldenBugsResearchLog(string details)
+    {
+        var entry = $"{DateTimeOffset.Now:O} {details}";
+
+        try
+        {
+            var logDirectory = Path.GetDirectoryName(GoldenBugsResearchLogPath);
+            if (!string.IsNullOrWhiteSpace(logDirectory))
+            {
+                Directory.CreateDirectory(logDirectory);
+            }
+
+            File.AppendAllText(GoldenBugsResearchLogPath, entry + Environment.NewLine);
+        }
+        catch (Exception ex)
+        {
+            GoldenBugsResearchStatusText.Text = $"Golden Bugs research log write failed: {ex.Message}";
+        }
+    }
+
+    private void AppendGoldenBugsBitfieldTestingDiagnostic(
+        string action,
+        GoldenBugBitViewModel bit,
+        ulong absoluteAddress,
+        byte? beforeByte,
+        byte? afterByte,
+        byte changedMask,
+        byte? immediateReadback,
+        byte? delayed250Readback,
+        byte? delayed1000Readback,
+        string status)
+    {
+        var entry =
+            $"{DateTimeOffset.Now:O} action={action} offset={bit.Offset} bit={bit.Bit} " +
+            $"address=0x{absoluteAddress:X} bug=\"{bit.ConfirmedBugName}\" mapping-status={bit.MappingStatus} " +
+            $"before={FormatEquipmentByte(beforeByte)} after={FormatEquipmentByte(afterByte)} " +
+            $"changed-mask={FormatEquipmentByte(changedMask)} immediate={FormatEquipmentByte(immediateReadback)} " +
+            $"read250ms={FormatEquipmentByte(delayed250Readback)} read1000ms={FormatEquipmentByte(delayed1000Readback)} " +
+            $"desired={bit.IsSetDesired} result=\"{status}\"";
+
+        AppendGoldenBugsBitfieldTestingLog(entry);
+    }
+
+    private void AppendGoldenBugsBitfieldRestoreDiagnostic(
+        ulong absoluteAddress,
+        byte[]? beforeBytes,
+        byte[] targetBytes,
+        byte[]? immediateBytes,
+        byte[]? delayed250Bytes,
+        byte[]? delayed1000Bytes,
+        string status)
+    {
+        var entry =
+            $"{DateTimeOffset.Now:O} action=restore-bitfield offset=0x{GoldenBugsDefinitions.FirstOffset:X} " +
+            $"address=0x{absoluteAddress:X} before=\"{FormatNullableByteArray(beforeBytes)}\" " +
+            $"target=\"{FormatByteArray(targetBytes)}\" immediate=\"{FormatNullableByteArray(immediateBytes)}\" " +
+            $"read250ms=\"{FormatNullableByteArray(delayed250Bytes)}\" read1000ms=\"{FormatNullableByteArray(delayed1000Bytes)}\" " +
+            $"result=\"{status}\"";
+
+        AppendGoldenBugsBitfieldTestingLog(entry);
+    }
+
+    private void AppendGoldenBugsEditorDiagnostic(
+        string operation,
+        byte[]? beforeBytes,
+        byte[] desiredBytes,
+        byte[]? immediateBytes,
+        byte[]? delayed250Bytes,
+        byte[]? delayed1000Bytes,
+        string status)
+    {
+        var entry =
+            $"{DateTimeOffset.Now:O} operation={operation} " +
+            $"before=\"{FormatNullableByteArray(beforeBytes)}\" desired=\"{FormatByteArray(desiredBytes)}\" " +
+            $"immediate=\"{FormatNullableByteArray(immediateBytes)}\" read250ms=\"{FormatNullableByteArray(delayed250Bytes)}\" " +
+            $"read1000ms=\"{FormatNullableByteArray(delayed1000Bytes)}\" status=\"{status}\"";
+
+        GoldenBugsEditorDiagnostics.Insert(0, entry);
+        while (GoldenBugsEditorDiagnostics.Count > 100)
+        {
+            GoldenBugsEditorDiagnostics.RemoveAt(GoldenBugsEditorDiagnostics.Count - 1);
+        }
+
+        try
+        {
+            var logDirectory = Path.GetDirectoryName(GoldenBugsEditorLogPath);
+            if (!string.IsNullOrWhiteSpace(logDirectory))
+            {
+                Directory.CreateDirectory(logDirectory);
+            }
+
+            File.AppendAllText(GoldenBugsEditorLogPath, entry + Environment.NewLine);
+        }
+        catch (Exception ex)
+        {
+            GoldenBugsEditorDiagnostics.Insert(0, $"{DateTimeOffset.Now:O} golden-bugs-editor-log-write-failed: {ex.Message}");
+        }
+    }
+
+    private void AppendGoldenBugsBitfieldTestingLog(string entry)
+    {
+        GoldenBugsBitfieldDiagnostics.Insert(0, entry);
+        while (GoldenBugsBitfieldDiagnostics.Count > 100)
+        {
+            GoldenBugsBitfieldDiagnostics.RemoveAt(GoldenBugsBitfieldDiagnostics.Count - 1);
+        }
+
+        try
+        {
+            var logDirectory = Path.GetDirectoryName(GoldenBugsBitfieldTestingLogPath);
+            if (!string.IsNullOrWhiteSpace(logDirectory))
+            {
+                Directory.CreateDirectory(logDirectory);
+            }
+
+            File.AppendAllText(GoldenBugsBitfieldTestingLogPath, entry + Environment.NewLine);
+        }
+        catch (Exception ex)
+        {
+            GoldenBugsBitfieldDiagnostics.Insert(0, $"{DateTimeOffset.Now:O} golden-bugs-bitfield-log-write-failed: {ex.Message}");
+        }
+    }
+
     private void AppendCandidateTestingLog(
         string action,
         uint offset,
@@ -4446,6 +5460,33 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     private static string FormatResearchByte(byte value)
     {
         return $"{value} / 0x{value:X2}";
+    }
+
+    private static string FormatUInt32Binary(uint value)
+    {
+        var binary = Convert.ToString(value, 2).PadLeft(32, '0');
+        return string.Join(" ", Enumerable.Range(0, 4).Select(index => binary.Substring(index * 8, 8)));
+    }
+
+    private static string FormatByteArray(byte[] bytes)
+    {
+        return string.Join(" ", bytes.Select(value => $"0x{value:X2}"));
+    }
+
+    private static string FormatNullableByteArray(byte[]? bytes)
+    {
+        return bytes is null ? "n/a" : FormatByteArray(bytes);
+    }
+
+    private static byte[] GetBigEndianBytes(uint value)
+    {
+        return
+        [
+            (byte)(value >> 24),
+            (byte)(value >> 16),
+            (byte)(value >> 8),
+            (byte)value
+        ];
     }
 
     private static string FormatCandidateLogByte(byte? value)
@@ -4824,9 +5865,68 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         CollectiblesHeartContainersText.Text = HeartContainersText.Text;
     }
 
+    private void UpdateGoldenBugsResearchCurrentDisplay(uint rawValue, bool preserveDirty = true)
+    {
+        GoldenBugsResearchDecimalText.Text = rawValue.ToString(CultureInfo.InvariantCulture);
+        GoldenBugsResearchHexText.Text = $"0x{rawValue:X8}";
+        GoldenBugsResearchBinaryText.Text = FormatUInt32Binary(rawValue);
+        GoldenBugsResearchBitCountText.Text = $"{CountSetBits(rawValue)} set";
+        UpdateGoldenBugsBitRows(GetBigEndianBytes(rawValue), preserveDirty);
+    }
+
+    private void MarkGoldenBugsResearchNotRead()
+    {
+        GoldenBugsEditorOwnedCountText.Text = "Not read";
+        GoldenBugsEditorRawBytesText.Text = "Not read";
+        GoldenBugsEditorStatusText.Text = "Attach to Cemu and rescan before editing Golden Bugs.";
+        GoldenBugsResearchDecimalText.Text = "Not read";
+        GoldenBugsResearchHexText.Text = "Not read";
+        GoldenBugsResearchBinaryText.Text = "Not read";
+        GoldenBugsResearchBitCountText.Text = "Not read";
+        foreach (var bit in GoldenBugsBitRows)
+        {
+            bit.MarkNotRead();
+        }
+    }
+
+    private void UpdateGoldenBugsBitRows(IReadOnlyList<byte> bytes, bool preserveDirty)
+    {
+        foreach (var bit in GoldenBugsBitRows)
+        {
+            var byteIndex = (int)(bit.OffsetValue - GoldenBugsDefinitions.FirstOffset);
+            if (byteIndex < 0 || byteIndex >= bytes.Count)
+            {
+                bit.MarkNotRead();
+                continue;
+            }
+
+            var isSet = (bytes[byteIndex] & (1 << bit.Bit)) != 0;
+            bit.SetDetected(isSet, preserveDirty);
+            bit.CanEdit = HasPlayerData;
+        }
+
+        UpdateGoldenBugsEditorSummary(bytes);
+    }
+
+    private void UpdateGoldenBugsEditorSummary(IReadOnlyList<byte> bytes)
+    {
+        if (bytes.Count < GoldenBugsDefinitions.OwnershipByteCount)
+        {
+            GoldenBugsEditorOwnedCountText.Text = "Not read";
+            GoldenBugsEditorRawBytesText.Text = "Not read";
+            return;
+        }
+
+        var ownershipBytes = bytes.Take(GoldenBugsDefinitions.OwnershipByteCount).ToArray();
+        GoldenBugsEditorOwnedCountText.Text =
+            $"{GoldenBugsEditorRows.Count(bit => bit.IsSetDetected == true)} / 24";
+        GoldenBugsEditorRawBytesText.Text = FormatByteArray(ownershipBytes);
+        GoldenBugsCountText.Text = GoldenBugsEditorOwnedCountText.Text;
+    }
+
     private static int CountGoldenBugs(uint flags)
     {
-        var usedBits = flags & 0x00FF_FFFF;
+        var usedBits = flags >> 8;
         var count = 0;
 
         while (usedBits != 0)
@@ -4836,6 +5936,45 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         }
 
         return Math.Min(count, 24);
+    }
+
+    private static int GetGoldenBugReferenceIndex(string bugName)
+    {
+        for (var index = 0; index < GoldenBugCandidateNames.Count; index++)
+        {
+            if (string.Equals(GoldenBugCandidateNames[index], bugName, StringComparison.Ordinal))
+            {
+                return index + 1;
+            }
+        }
+
+        return 0;
+    }
+
+    private static void SetGoldenBugBitInBytes(byte[] bytes, GoldenBugBitViewModel bit, bool isSet)
+    {
+        var byteIndex = (int)(bit.OffsetValue - GoldenBugsDefinitions.FirstOffset);
+        if (byteIndex < 0 || byteIndex >= bytes.Length)
+        {
+            return;
+        }
+
+        var mask = (byte)(1 << bit.Bit);
+        bytes[byteIndex] = isSet
+            ? (byte)(bytes[byteIndex] | mask)
+            : (byte)(bytes[byteIndex] & ~mask);
+    }
+
+    private static int CountSetBits(uint value)
+    {
+        var count = 0;
+        while (value != 0)
+        {
+            count += (int)(value & 1);
+            value >>= 1;
+        }
+
+        return count;
     }
 
     private void MarkMemoryUnavailable()
@@ -4893,6 +6032,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         ApplyProgressionState(ProgressionStateService.CreateUnavailable());
 
         UpdateDerivedDisplays();
+        MarkGoldenBugsResearchNotRead();
         SetStatus("Player data could not be read. Load into gameplay and rescan.", StatusKind.Warning);
     }
 
@@ -4960,6 +6100,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         ApplyProgressionState(ProgressionStateService.CreateUnavailable());
 
         GoldenBugsCountText.Text = "Not read";
+        MarkGoldenBugsResearchNotRead();
         _candidatePreviousOffset = null;
         _candidatePreviousValue = null;
         CandidateAbsoluteAddressText.Text = "-";
@@ -5110,6 +6251,46 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         string RowNote,
         string ColumnNote,
         string Notes);
+
+    private sealed record GoldenBugsResearchExport(
+        DateTimeOffset Timestamp,
+        uint StartOffset,
+        int Length,
+        DateTimeOffset? BeforeCapturedAt,
+        DateTimeOffset? AfterCapturedAt,
+        int ChangedByteCount,
+        int ChangedBitCount,
+        IReadOnlyList<string> CandidateBugReference,
+        IReadOnlyList<GoldenBugsResearchExportRow> Rows);
+
+    private sealed record GoldenBugsResearchExportRow(
+        string Offset,
+        byte BeforeValue,
+        byte AfterValue,
+        string BeforeBinary,
+        string AfterBinary,
+        string ChangedBits,
+        int ByteIndex,
+        int BitIndex,
+        int CandidateBugIndex,
+        string CandidateBugName);
+
+    private sealed record GoldenBugsBitfieldReport(
+        DateTimeOffset Timestamp,
+        DateTimeOffset? RestoreSnapshotCapturedAt,
+        IReadOnlyList<string> RestoreSnapshotBytes,
+        IReadOnlyList<GoldenBugsBitfieldReportRow> Rows);
+
+    private sealed record GoldenBugsBitfieldReportRow(
+        string Offset,
+        int Bit,
+        string CurrentState,
+        bool Desired,
+        string ConfirmedBugName,
+        string MappingStatus,
+        string AssignedBugName,
+        string Notes,
+        string LastWriteStatus);
 
     private sealed class OwnershipCorrelationAccumulator
     {

@@ -748,6 +748,162 @@
             </Border>
         </DataTemplate>
 
+        <DataTemplate x:Key="GoldenBugResearchRowTemplate">
+            <Border BorderBrush="{DynamicResource BorderBrush}"
+                    BorderThickness="0,0,0,1"
+                    Padding="0,4">
+                <Border.Style>
+                    <Style TargetType="Border">
+                        <Setter Property="Background" Value="Transparent" />
+                        <Style.Triggers>
+                            <DataTrigger Binding="{Binding IsChanged}" Value="True">
+                                <Setter Property="Background" Value="{DynamicResource ChangedRowBackgroundBrush}" />
+                            </DataTrigger>
+                        </Style.Triggers>
+                    </Style>
+                </Border.Style>
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="74" />
+                        <ColumnDefinition Width="92" />
+                        <ColumnDefinition Width="92" />
+                        <ColumnDefinition Width="92" />
+                        <ColumnDefinition Width="92" />
+                        <ColumnDefinition Width="90" />
+                        <ColumnDefinition Width="120" />
+                        <ColumnDefinition Width="*" MinWidth="220" />
+                    </Grid.ColumnDefinitions>
+
+                    <TextBlock Text="{Binding Offset}"
+                               FontFamily="Consolas"
+                               VerticalAlignment="Center" />
+                    <TextBlock Grid.Column="1"
+                               Text="{Binding BeforeByte}"
+                               FontFamily="Consolas"
+                               VerticalAlignment="Center" />
+                    <TextBlock Grid.Column="2"
+                               Text="{Binding AfterByte}"
+                               FontFamily="Consolas"
+                               VerticalAlignment="Center" />
+                    <TextBlock Grid.Column="3"
+                               Text="{Binding BeforeBinary}"
+                               FontFamily="Consolas"
+                               VerticalAlignment="Center" />
+                    <TextBlock Grid.Column="4"
+                               Text="{Binding AfterBinary}"
+                               FontFamily="Consolas"
+                               VerticalAlignment="Center" />
+                    <TextBlock Grid.Column="5"
+                               Text="{Binding ChangedBits}"
+                               FontFamily="Consolas"
+                               VerticalAlignment="Center" />
+                    <TextBlock Grid.Column="6"
+                               Text="{Binding CandidateBugIndex}"
+                               VerticalAlignment="Center" />
+                    <TextBlock Grid.Column="7"
+                               Text="{Binding CandidateBugName}"
+                               TextTrimming="CharacterEllipsis"
+                               VerticalAlignment="Center"
+                               Margin="6,0" />
+                </Grid>
+            </Border>
+        </DataTemplate>
+
+        <DataTemplate x:Key="GoldenBugBitRowTemplate">
+            <Border BorderBrush="{DynamicResource BorderBrush}"
+                    BorderThickness="0,0,0,1"
+                    Padding="0,4">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="74" />
+                        <ColumnDefinition Width="48" />
+                        <ColumnDefinition Width="84" />
+                        <ColumnDefinition Width="70" />
+                        <ColumnDefinition Width="150" />
+                        <ColumnDefinition Width="96" />
+                        <ColumnDefinition Width="210" />
+                        <ColumnDefinition Width="*" MinWidth="220" />
+                        <ColumnDefinition Width="180" />
+                    </Grid.ColumnDefinitions>
+
+                    <TextBlock Text="{Binding Offset}"
+                               FontFamily="Consolas"
+                               VerticalAlignment="Center" />
+                    <TextBlock Grid.Column="1"
+                               Text="{Binding Bit}"
+                               VerticalAlignment="Center" />
+                    <TextBlock Grid.Column="2"
+                               Text="{Binding CurrentState}"
+                               VerticalAlignment="Center" />
+                    <CheckBox Grid.Column="3"
+                              IsChecked="{Binding IsSetDesired, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                              IsEnabled="{Binding CanEdit}"
+                              HorizontalAlignment="Center"
+                              VerticalAlignment="Center" />
+                    <TextBlock Grid.Column="4"
+                               Text="{Binding ConfirmedBugName}"
+                               TextTrimming="CharacterEllipsis"
+                               VerticalAlignment="Center"
+                               Margin="6,0" />
+                    <TextBlock Grid.Column="5"
+                               Text="{Binding MappingStatus}"
+                               VerticalAlignment="Center"
+                               Margin="6,0" />
+                    <ComboBox Grid.Column="6"
+                              ItemsSource="{Binding AvailableBugNames}"
+                              SelectedItem="{Binding AssignedBugName, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                              Margin="6,0" />
+                    <TextBox Grid.Column="7"
+                             Text="{Binding Notes, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                             Margin="6,0" />
+                    <TextBlock Grid.Column="8"
+                               Text="{Binding LastWriteStatus}"
+                               TextTrimming="CharacterEllipsis"
+                               VerticalAlignment="Center"
+                               Margin="6,0" />
+                </Grid>
+            </Border>
+        </DataTemplate>
+
+        <DataTemplate x:Key="GoldenBugEditorRowTemplate">
+            <Border BorderBrush="{DynamicResource BorderBrush}"
+                    BorderThickness="0,0,0,1"
+                    Padding="0,4">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="190" />
+                        <ColumnDefinition Width="74" />
+                        <ColumnDefinition Width="48" />
+                        <ColumnDefinition Width="96" />
+                        <ColumnDefinition Width="74" />
+                        <ColumnDefinition Width="70" />
+                    </Grid.ColumnDefinitions>
+
+                    <TextBlock Text="{Binding ConfirmedBugName}"
+                               TextTrimming="CharacterEllipsis"
+                               VerticalAlignment="Center" />
+                    <TextBlock Grid.Column="1"
+                               Text="{Binding Offset}"
+                               FontFamily="Consolas"
+                               VerticalAlignment="Center" />
+                    <TextBlock Grid.Column="2"
+                               Text="{Binding Bit}"
+                               VerticalAlignment="Center" />
+                    <TextBlock Grid.Column="3"
+                               Text="{Binding CurrentState}"
+                               VerticalAlignment="Center" />
+                    <CheckBox Grid.Column="4"
+                              IsChecked="{Binding IsSetDesired, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                              IsEnabled="{Binding CanEdit}"
+                              HorizontalAlignment="Center"
+                              VerticalAlignment="Center" />
+                    <TextBlock Grid.Column="5"
+                               Text="{Binding IsDirty}"
+                               VerticalAlignment="Center" />
+                </Grid>
+            </Border>
+        </DataTemplate>
+
         <DataTemplate x:Key="ResearchSnapshotTemplate">
             <Border BorderBrush="{DynamicResource BorderBrush}"
                     BorderThickness="0,0,0,1"
@@ -1664,7 +1820,8 @@
 
             <TabItem Header="Collectibles">
                 <ScrollViewer VerticalScrollBarVisibility="Auto">
-                    <UniformGrid Columns="2" Margin="6">
+                    <StackPanel Margin="6">
+                    <UniformGrid Columns="2">
                         <GroupBox Header="Poe Souls">
                             <StackPanel>
                                 <TextBlock TextWrapping="Wrap"
@@ -1673,30 +1830,6 @@
                                            Text="CT-backed editable byte at _playerbase+0x2C8. Values are clamped to 0-60 and verified after writing." />
                                 <ContentControl Content="{Binding PoeSouls}"
                                                 ContentTemplate="{StaticResource PoeSoulsValueTemplate}" />
-                            </StackPanel>
-                        </GroupBox>
-                        <GroupBox Header="Golden Bugs">
-                            <StackPanel>
-                                <TextBlock Text="Research Only - Not editable yet"
-                                           FontWeight="SemiBold"
-                                           Foreground="{DynamicResource WarningTextBrush}"
-                                           Margin="0,0,0,8" />
-                                <ContentControl Content="{Binding GoldenBugsFlags}"
-                                                ContentTemplate="{StaticResource ReadOnlyRawValueTemplate}" />
-                                <Grid Margin="0,4">
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="180" />
-                                        <ColumnDefinition Width="140" />
-                                    </Grid.ColumnDefinitions>
-                                    <TextBlock Text="Collected" VerticalAlignment="Center" />
-                                    <TextBox Grid.Column="1"
-                                             Text="{Binding ElementName=GoldenBugsCountText, Path=Text, Mode=OneWay}"
-                                             IsReadOnly="True"
-                                             Background="{DynamicResource ReadOnlyBackgroundBrush}" />
-                                </Grid>
-                                <TextBlock TextWrapping="Wrap"
-                                           Foreground="{DynamicResource SecondaryTextBrush}"
-                                           Text="Golden Bugs are shown as a CT-derived raw bitfield and detected count only. Editing is reserved until individual bug bits are mapped and verified." />
                             </StackPanel>
                         </GroupBox>
                         <GroupBox Header="Health Summary">
@@ -1752,6 +1885,329 @@
                             </StackPanel>
                         </GroupBox>
                     </UniformGrid>
+
+                    <GroupBox Header="Golden Bugs">
+                        <StackPanel>
+                            <Border BorderBrush="{DynamicResource WarningBorderBrush}"
+                                    BorderThickness="1"
+                                    Background="{DynamicResource WarningBackgroundBrush}"
+                                    Padding="8"
+                                    Margin="0,0,0,8">
+                                <TextBlock TextWrapping="Wrap"
+                                           Foreground="{DynamicResource WarningTextBrush}"
+                                           FontWeight="SemiBold"
+                                           Text="Golden Bugs editing uses live-tested ownership bits. Use copied saves. Agitha reward state may be separate from bug ownership." />
+                            </Border>
+
+                            <Grid Margin="0,0,0,8">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="150" />
+                                    <ColumnDefinition Width="120" />
+                                    <ColumnDefinition Width="150" />
+                                    <ColumnDefinition Width="180" />
+                                    <ColumnDefinition Width="*" />
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Text="Owned count"
+                                           VerticalAlignment="Center" />
+                                <TextBox Grid.Column="1"
+                                         x:Name="GoldenBugsEditorOwnedCountText"
+                                         Text="Not read"
+                                         IsReadOnly="True"
+                                         Background="{DynamicResource ReadOnlyBackgroundBrush}" />
+                                <TextBlock Grid.Column="2"
+                                           Text="Raw 0x2A1-0x2A3"
+                                           VerticalAlignment="Center"
+                                           Margin="12,0,0,0" />
+                                <TextBox Grid.Column="3"
+                                         x:Name="GoldenBugsEditorRawBytesText"
+                                         Text="Not read"
+                                         IsReadOnly="True"
+                                         FontFamily="Consolas"
+                                         Background="{DynamicResource ReadOnlyBackgroundBrush}" />
+                            </Grid>
+
+                            <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
+                                <Button Content="Apply Golden Bug Changes"
+                                        Click="ApplyGoldenBugChanges_Click" />
+                                <Button Content="Add All Golden Bugs"
+                                        Click="AddAllGoldenBugs_Click"
+                                        Margin="6,0,0,0" />
+                                <Button Content="Clear All Golden Bugs"
+                                        Click="ClearAllGoldenBugs_Click"
+                                        Margin="6,0,0,0" />
+                                <Button Content="Restore Previous Bug State"
+                                        Click="RestoreGoldenBugState_Click"
+                                        Margin="6,0,0,0" />
+                            </StackPanel>
+
+                            <TextBox x:Name="GoldenBugsEditorStatusText"
+                                     Text="Ready. Golden Bugs are not written on attach or refresh."
+                                     IsReadOnly="True"
+                                     Background="{DynamicResource ReadOnlyBackgroundBrush}"
+                                     Margin="0,0,0,8" />
+
+                            <Grid Margin="0,0,0,4">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="190" />
+                                    <ColumnDefinition Width="74" />
+                                    <ColumnDefinition Width="48" />
+                                    <ColumnDefinition Width="96" />
+                                    <ColumnDefinition Width="74" />
+                                    <ColumnDefinition Width="70" />
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Text="Bug" FontWeight="SemiBold" />
+                                <TextBlock Grid.Column="1" Text="Offset" FontWeight="SemiBold" />
+                                <TextBlock Grid.Column="2" Text="Bit" FontWeight="SemiBold" />
+                                <TextBlock Grid.Column="3" Text="Current" FontWeight="SemiBold" />
+                                <TextBlock Grid.Column="4" Text="Desired" FontWeight="SemiBold" />
+                                <TextBlock Grid.Column="5" Text="Dirty" FontWeight="SemiBold" />
+                            </Grid>
+
+                            <ItemsControl ItemsSource="{Binding GoldenBugsEditorRows}"
+                                          ItemTemplate="{StaticResource GoldenBugEditorRowTemplate}" />
+
+                            <Expander Header="Golden Bugs Editor Diagnostics" IsExpanded="False" Margin="0,8,0,0">
+                                <ScrollViewer Height="140"
+                                              VerticalScrollBarVisibility="Auto"
+                                              HorizontalScrollBarVisibility="Auto"
+                                              Background="{DynamicResource ReadOnlyBackgroundBrush}">
+                                    <ItemsControl ItemsSource="{Binding GoldenBugsEditorDiagnostics}">
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate>
+                                                <TextBlock Text="{Binding}"
+                                                           FontFamily="Consolas"
+                                                           FontSize="11"
+                                                           TextWrapping="NoWrap"
+                                                           Margin="0,0,0,4" />
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+                                </ScrollViewer>
+                            </Expander>
+                        </StackPanel>
+                    </GroupBox>
+
+                    <GroupBox Header="Advanced / Golden Bugs Research">
+                        <StackPanel>
+                    <GroupBox Header="Golden Bugs Research">
+                        <StackPanel>
+                            <Border BorderBrush="{DynamicResource WarningBorderBrush}"
+                                    BorderThickness="1"
+                                    Background="{DynamicResource WarningBackgroundBrush}"
+                                    Padding="8"
+                                    Margin="0,0,0,8">
+                                <TextBlock TextWrapping="Wrap"
+                                           Foreground="{DynamicResource WarningTextBrush}"
+                                           FontWeight="SemiBold"
+                                           Text="Advanced research. The visible Golden Bug ownership bits are confirmed at 0x2A1-0x2A3. Use this area for raw comparisons, 0x2A4 investigation, and reward/turn-in research." />
+                            </Border>
+
+                            <Grid Margin="0,0,0,8">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="120" />
+                                    <ColumnDefinition Width="140" />
+                                    <ColumnDefinition Width="80" />
+                                    <ColumnDefinition Width="120" />
+                                    <ColumnDefinition Width="80" />
+                                    <ColumnDefinition Width="260" />
+                                    <ColumnDefinition Width="80" />
+                                    <ColumnDefinition Width="90" />
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Text="Raw decimal" VerticalAlignment="Center" />
+                                <TextBox Grid.Column="1"
+                                         x:Name="GoldenBugsResearchDecimalText"
+                                         Text="Not read"
+                                         IsReadOnly="True"
+                                         Background="{DynamicResource ReadOnlyBackgroundBrush}" />
+                                <TextBlock Grid.Column="2" Text="Hex" VerticalAlignment="Center" Margin="8,0,0,0" />
+                                <TextBox Grid.Column="3"
+                                         x:Name="GoldenBugsResearchHexText"
+                                         Text="Not read"
+                                         IsReadOnly="True"
+                                         FontFamily="Consolas"
+                                         Background="{DynamicResource ReadOnlyBackgroundBrush}" />
+                                <TextBlock Grid.Column="4" Text="Binary" VerticalAlignment="Center" Margin="8,0,0,0" />
+                                <TextBox Grid.Column="5"
+                                         x:Name="GoldenBugsResearchBinaryText"
+                                         Text="Not read"
+                                         IsReadOnly="True"
+                                         FontFamily="Consolas"
+                                         Background="{DynamicResource ReadOnlyBackgroundBrush}" />
+                                <TextBlock Grid.Column="6" Text="Bits" VerticalAlignment="Center" Margin="8,0,0,0" />
+                                <TextBox Grid.Column="7"
+                                         x:Name="GoldenBugsResearchBitCountText"
+                                         Text="Not read"
+                                         IsReadOnly="True"
+                                         Background="{DynamicResource ReadOnlyBackgroundBrush}" />
+                            </Grid>
+
+                            <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
+                                <TextBlock Text="Start"
+                                           VerticalAlignment="Center" />
+                                <TextBox x:Name="GoldenBugsResearchStartOffsetText"
+                                         Text="0x2A1"
+                                         Width="80"
+                                         Margin="6,0,12,0" />
+                                <TextBlock Text="Length"
+                                           VerticalAlignment="Center" />
+                                <TextBox x:Name="GoldenBugsResearchLengthText"
+                                         Text="0x04"
+                                         Width="60"
+                                         Margin="6,0,12,0" />
+                                <Button Content="Capture Before"
+                                        Click="GoldenBugsCaptureBefore_Click" />
+                                <Button Content="Capture After"
+                                        Click="GoldenBugsCaptureAfter_Click"
+                                        Margin="6,0,0,0" />
+                                <Button Content="Compare"
+                                        Click="GoldenBugsCompare_Click"
+                                        Margin="6,0,0,0" />
+                                <Button Content="Export Report"
+                                        Click="GoldenBugsExportReport_Click"
+                                        Margin="6,0,0,0" />
+                            </StackPanel>
+
+                            <TextBox x:Name="GoldenBugsResearchStatusText"
+                                     Text="Ready. Capture a before snapshot, collect a bug or load a changed save, capture after, then compare."
+                                     IsReadOnly="True"
+                                     Background="{DynamicResource ReadOnlyBackgroundBrush}"
+                                     Margin="0,0,0,8" />
+
+                            <Grid Margin="0,0,0,4">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="74" />
+                                    <ColumnDefinition Width="92" />
+                                    <ColumnDefinition Width="92" />
+                                    <ColumnDefinition Width="92" />
+                                    <ColumnDefinition Width="92" />
+                                    <ColumnDefinition Width="90" />
+                                    <ColumnDefinition Width="120" />
+                                    <ColumnDefinition Width="*" MinWidth="220" />
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Text="Offset" FontWeight="SemiBold" />
+                                <TextBlock Grid.Column="1" Text="Before byte" FontWeight="SemiBold" />
+                                <TextBlock Grid.Column="2" Text="After byte" FontWeight="SemiBold" />
+                                <TextBlock Grid.Column="3" Text="Before bin" FontWeight="SemiBold" />
+                                <TextBlock Grid.Column="4" Text="After bin" FontWeight="SemiBold" />
+                                <TextBlock Grid.Column="5" Text="Changed" FontWeight="SemiBold" />
+                                <TextBlock Grid.Column="6" Text="Candidate index" FontWeight="SemiBold" />
+                                <TextBlock Grid.Column="7" Text="Mapped bug/reference" FontWeight="SemiBold" Margin="6,0" />
+                            </Grid>
+
+                            <ScrollViewer Height="190"
+                                          VerticalScrollBarVisibility="Auto"
+                                          HorizontalScrollBarVisibility="Auto"
+                                          Background="{DynamicResource ReadOnlyBackgroundBrush}">
+                                <ItemsControl ItemsSource="{Binding GoldenBugsResearchRows}"
+                                              ItemTemplate="{StaticResource GoldenBugResearchRowTemplate}" />
+                            </ScrollViewer>
+
+                            <GroupBox Header="Golden Bug Reference" Margin="0,8,0,0">
+                                <ItemsControl ItemsSource="{Binding GoldenBugsCandidateList}">
+                                    <ItemsControl.ItemsPanel>
+                                        <ItemsPanelTemplate>
+                                            <UniformGrid Columns="4" />
+                                        </ItemsPanelTemplate>
+                                    </ItemsControl.ItemsPanel>
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate>
+                                            <TextBlock Text="{Binding}"
+                                                       Margin="0,0,12,4"
+                                                       TextTrimming="CharacterEllipsis" />
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                            </GroupBox>
+                        </StackPanel>
+                    </GroupBox>
+
+                    <GroupBox Header="Golden Bugs Bitfield Tester / Experimental">
+                        <StackPanel>
+                            <Border BorderBrush="{DynamicResource WarningBorderBrush}"
+                                    BorderThickness="1"
+                                    Background="{DynamicResource WarningBackgroundBrush}"
+                                    Padding="8"
+                                    Margin="0,0,0,8">
+                                <TextBlock TextWrapping="Wrap"
+                                           Foreground="{DynamicResource WarningTextBrush}"
+                                           FontWeight="SemiBold"
+                                           Text="Golden Bugs editing is experimental. Only confirmed bits are labeled. Setting unknown bits may mark an unknown bug or affect unused/reserved data. Use copied saves." />
+                            </Border>
+
+                            <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
+                                <Button Content="Capture Current Bitfield"
+                                        Click="GoldenBugsCaptureBitfield_Click" />
+                                <Button Content="Apply Selected Bit Changes"
+                                        Click="GoldenBugsApplyBitChanges_Click"
+                                        Margin="6,0,0,0" />
+                                <Button Content="Restore Previous Bitfield Snapshot"
+                                        Click="GoldenBugsRestoreBitfield_Click"
+                                        Margin="6,0,0,0" />
+                                <Button Content="Export Bitfield Report"
+                                        Click="GoldenBugsExportBitfieldReport_Click"
+                                        Margin="6,0,0,0" />
+                            </StackPanel>
+
+                            <TextBox x:Name="GoldenBugsBitfieldStatusText"
+                                     Text="Ready. Capture current bitfield before testing, then apply selected bit changes."
+                                     IsReadOnly="True"
+                                     Background="{DynamicResource ReadOnlyBackgroundBrush}"
+                                     Margin="0,0,0,8" />
+
+                            <Grid Margin="0,0,0,4">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="74" />
+                                    <ColumnDefinition Width="48" />
+                                    <ColumnDefinition Width="84" />
+                                    <ColumnDefinition Width="70" />
+                                    <ColumnDefinition Width="150" />
+                                    <ColumnDefinition Width="96" />
+                                    <ColumnDefinition Width="210" />
+                                    <ColumnDefinition Width="*" MinWidth="220" />
+                                    <ColumnDefinition Width="180" />
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Text="Offset" FontWeight="SemiBold" />
+                                <TextBlock Grid.Column="1" Text="Bit" FontWeight="SemiBold" />
+                                <TextBlock Grid.Column="2" Text="Current" FontWeight="SemiBold" />
+                                <TextBlock Grid.Column="3" Text="Desired" FontWeight="SemiBold" />
+                                <TextBlock Grid.Column="4" Text="Confirmed bug" FontWeight="SemiBold" Margin="6,0" />
+                                <TextBlock Grid.Column="5" Text="Status" FontWeight="SemiBold" Margin="6,0" />
+                                <TextBlock Grid.Column="6" Text="Assigned bug name" FontWeight="SemiBold" Margin="6,0" />
+                                <TextBlock Grid.Column="7" Text="Notes" FontWeight="SemiBold" Margin="6,0" />
+                                <TextBlock Grid.Column="8" Text="Last write" FontWeight="SemiBold" Margin="6,0" />
+                            </Grid>
+
+                            <ScrollViewer Height="320"
+                                          VerticalScrollBarVisibility="Auto"
+                                          HorizontalScrollBarVisibility="Auto"
+                                          Background="{DynamicResource ReadOnlyBackgroundBrush}">
+                                <ItemsControl ItemsSource="{Binding GoldenBugsBitRows}"
+                                              ItemTemplate="{StaticResource GoldenBugBitRowTemplate}" />
+                            </ScrollViewer>
+
+                            <Expander Header="Golden Bugs Bitfield Testing Diagnostics" IsExpanded="False" Margin="0,8,0,0">
+                                <ScrollViewer Height="160"
+                                              VerticalScrollBarVisibility="Auto"
+                                              HorizontalScrollBarVisibility="Auto"
+                                              Background="{DynamicResource ReadOnlyBackgroundBrush}">
+                                    <ItemsControl ItemsSource="{Binding GoldenBugsBitfieldDiagnostics}">
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate>
+                                                <TextBlock Text="{Binding}"
+                                                           FontFamily="Consolas"
+                                                           FontSize="11"
+                                                           TextWrapping="NoWrap"
+                                                           Margin="0,0,0,4" />
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+                                </ScrollViewer>
+                            </Expander>
+                        </StackPanel>
+                    </GroupBox>
+                        </StackPanel>
+                    </GroupBox>
+                    </StackPanel>
                 </ScrollViewer>
             </TabItem>
 
