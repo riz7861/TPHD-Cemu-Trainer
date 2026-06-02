@@ -9,7 +9,8 @@ public sealed record InventoryOwnershipDefinition(
     string Source,
     string Notes,
     uint? StaticSlotOffset = null,
-    byte? StaticItemId = null)
+    byte? StaticItemId = null,
+    string FixedSlotStatus = "")
 {
     public bool CanWrite => FlagOffset.HasValue && FlagBit.HasValue;
 
@@ -25,5 +26,11 @@ public sealed record InventoryOwnershipDefinition(
         ? $"0x{FlagOffset.Value:X} bit {FlagBit.Value}"
         : "Ownership/progression flag not mapped yet";
 
-    public string EditStatus => CanWrite ? "Writable" : "Detection only";
+    public string EditStatus => !string.IsNullOrWhiteSpace(FixedSlotStatus)
+        ? FixedSlotStatus
+        : CanWrite
+            ? "Writable"
+            : HasStaticVisibleSlotMapping
+                ? "Fixed-slot mapped"
+                : "Detection only";
 }

@@ -16,7 +16,7 @@ This trainer is external only. It does not inject DLLs, install drivers, hook em
 The UI is organized as a tabbed trainer/save-editor hybrid so new systems can be added without crowding one large grid.
 
 - **General**: health, max health, heart container summary, lantern oil, wallet, rupees, Poe Souls, Golden Bugs count
-- **Inventory**: ownership-first item detection, read-only current slot view, mapping research, unsafe removal testing, experimental checkbox writes, and unsafe raw CT writes for research
+- **Inventory**: ownership-first item detection, fixed-slot experimental grant/remove for mapped visible slots, read-only current slot view, mapping research, unsafe removal testing, and unsafe raw CT writes for research
 - **Equipment**: ownership flag editor with read-only current equipped armor/sword/shield diagnostics
 - **Ammo & Upgrades**: wallet, quiver, bomb bag, and seed capacity-aware edits
 - **Collectibles**: verified Poe Souls editing, Golden Bugs research-only bitfield display, and health/heart summaries
@@ -119,15 +119,15 @@ The Ownership Diff Report shows offset, before value, after value, changed statu
 
 The Inventory tab reads the 24 CT-backed visible inventory bytes from `_playerbase+0x258` through `_playerbase+0x26F`. Research indicates these bytes are game-managed display/current-state fields, not arbitrary bag slots. TPHD may rebuild them from authoritative ownership or progression flags and may immediately revert direct writes.
 
-The normal **Owned / Unlocked Inventory Items** section is ownership-first, but currently detection-only because the checked CT source does not identify authoritative inventory ownership/progression flags:
+The normal **Owned / Unlocked Inventory Items** section is ownership-first, but the checked CT source still does not identify authoritative inventory ownership/progression flags:
 
 - **Detected**: visible-slot detection for the listed item families.
-- **Desired**: reserved for future editable checkbox targets when a real ownership flag is mapped.
-- **Dirty**: reserved for future mapped ownership rows.
+- **Desired**: used by the fixed-slot experimental editor for mapped visible slots, and reserved for future real ownership flags.
+- **Dirty**: indicates desired state differs from the current visible-slot detection or future mapped ownership state.
 
 When mapped flags are added later, **Apply Inventory Ownership Changes** will write desired ownership flags in bulk. The trainer writes ownership/progression flags only; it does not fake ownership by writing raw visible inventory slots. Future mapped writes will be verified with immediate and delayed readback, then logged to `logs/inventory-ownership.log`.
 
-The checked CT source currently does not expose real ownership flag offsets/bits for Fishing Rod, Slingshot, Lantern, Hero's Bow, Gale Boomerang, Clawshot, Double Clawshots, Spinner, Dominion Rod, Ball and Chain, Hawkeye, Horse Call, or Bottles. Those rows remain **Detection only**, editing stays disabled, and the UI shows **Detected from visible inventory. Ownership/progression flag not mapped yet.**
+The checked CT source currently does not expose real ownership flag offsets/bits for Fishing Rod, Slingshot, Lantern, Hero's Bow, Gale Boomerang, Clawshot, Double Clawshots, Spinner, Dominion Rod, Ball and Chain, Hawkeye, Horse Call, or Bottles. Normal ownership editing remains disabled for those rows until real flags are mapped.
 
 The **Current Inventory Slots (Read Only)** section shows all 24 CT-derived bytes: slot, offset, raw item ID, decoded item name, and notes. Slot 21 / `_playerbase+0x26C` is labeled as the Fishing Rod field with the note: **Game-managed. Direct writes revert. Real ownership/progression flag not identified yet.**
 
@@ -141,7 +141,11 @@ The **Advanced / Inventory Removal Testing (Unsafe)** section is research-only. 
 
 Inventory removal writes directly to visible game-managed slots. TPHD may revert the value, rebuild it from authoritative state, or leave the save in an unexpected state. Use only on copied saves or save states. This tool is intended to help discover which visible values are authoritative and which are rebuilt by the game. It does not add items, does not write item IDs other than `0xFF` for removal, and does not write ownership/progression flags.
 
-The **Enable experimental inventory checkbox writes** option is also research-only. It does not represent solved ownership. When enabled, a checked inventory item row attempts to write that row's captured known item ID back to its captured visible slot; an unchecked row writes `0xFF` / `Nothing`. If the item is currently detected, the trainer uses the detected slot/value. If it is absent but has a known fixed/special static mapping, the trainer still shows the static slot and can test writing that value after a restart. This lets known items such as Fishing Rod be re-added experimentally after removing, saving, closing, reopening, and reattaching. The trainer verifies immediate readback plus 250ms and 1000ms delayed reads, labels values that revert as **Reverted by game**, logs whether the mapping source was **Detected** or **Static**, and writes diagnostics to `logs/inventory-checkbox-testing.log`. Bottles are not enabled for this mode.
+The **Fixed Slot Inventory Editor / Experimental** option is research-only. It edits fixed visible inventory slots, not story progression or authoritative ownership flags. When enabled, a checked inventory item row attempts to write that row's detected or static known item ID back to its fixed visible slot; an unchecked row writes `0xFF` / `Nothing`. If the item is currently detected, the trainer uses the detected slot/value. If it is absent but has a known fixed/special static mapping, the trainer still shows the static slot and can test writing that value after a restart.
+
+Forest Temple save testing has confirmed fixed-slot grant/remove for Gale Boomerang, Lantern, Iron Boots, Hero's Bow, Spinner, Ball and Chain, Hawkeye, Horse Call, Double Clawshots, Fishing Rod, Slingshot, and Dominion Rod. Dominion Rod writes grant/remove the red unpowered variant; story flags or related state may still be needed before it behaves like the fully powered item. Clawshot is mapped for fixed-slot testing at slot 10 / `_playerbase+0x261` with item ID `68`.
+
+This fixed-slot mode is intentionally not arbitrary item replacement. Some items may appear but be unusable until story flags or related state are set, and button assignments are separate from inventory slots. The trainer verifies immediate readback plus 250ms and 1000ms delayed reads, labels values that revert as **Reverted by game**, logs whether the mapping source was **Detected** or **Static**, and writes diagnostics to `logs/inventory-checkbox-testing.log`. Bottles are not enabled for this mode.
 
 The **Advanced / Raw Inventory Writes (Unsafe)** section keeps the existing raw write diagnostics behind **Enable unsafe raw inventory writes**. Raw mode exposes the broad CT dropdown, **Apply**, and **Clear** for research only. Raw inventory writes are experimental; TPHD may immediately revert invalid writes. Use only on copied saves or save states.
 
@@ -261,10 +265,10 @@ The app does not parse or execute Cheat Engine scripts at runtime. The relevant 
 - The first scan can still be slower than later rescans because no cache has been validated yet.
 - Missing player data is handled as a rescan state, not an application failure.
 - Story flags, hidden skills, and quest items are laid out for future expansion but not yet written.
-- Inventory ownership editing uses detected/desired/apply where real flags are mapped. Current listed inventory items remain read-only because their ownership flags are not identified yet.
-- Adding inventory items is not solved yet. Candidate ownership tests can persist without granting items, so normal Inventory ownership editing remains disabled.
-- Experimental checkbox writes use detected or static visible-slot mappings for known fixed/special items only. They are still research writes, not confirmed ownership.
-- Clawshot to Double Clawshots and similar visible-slot replacement attempts may revert or fail to grant real item functionality.
+- Inventory ownership editing uses detected/desired/apply where real flags are mapped. Current listed inventory ownership flags are not identified yet.
+- General inventory ownership/progression editing is not solved yet. Static fixed-slot grant/remove is confirmed only for specific visible-slot item/slot pairs.
+- The fixed-slot experimental editor uses detected or static visible-slot mappings for known fixed/special items only. These are confirmed slot writes for tested items, not confirmed story progression or authoritative ownership flags.
+- Arbitrary visible-slot replacement is not supported. Use the known static item/slot pairs only.
 - Inventory removal testing is unsafe/research-only and may be reverted by game-managed visible slots.
 - Inventory removal restore buffers are not saved to disk and are lost when the app closes.
 - Button assignments are not cleared by inventory removal writes.

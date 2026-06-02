@@ -7,6 +7,7 @@ public static class InventoryDefinitions
     public const int SlotCount = 24;
     public const byte EmptyItemId = 255;
     public const int FishingRodSlotIndex = 20;
+    private const string FixedSlotConfirmedStatus = "Confirmed grant/remove";
 
     public static IReadOnlyList<InventoryItemDefinition> SafeItems { get; } =
     [
@@ -109,89 +110,103 @@ public static class InventoryDefinitions
             [74, 91, 92, 93, 94, 95],
             "Detected from visible inventory. Ownership/progression flag not mapped yet. Visible CT slot 21 / _playerbase+0x26C reflects fishing rod state, but direct writes revert.",
             staticSlotOffset: 0x26C,
-            staticItemId: 92),
+            staticItemId: 92,
+            fixedSlotStatus: FixedSlotConfirmedStatus),
         CreateUnknownOwnership(
             "slingshot",
             "Slingshot",
             [75],
             "Detected from visible inventory. Ownership/progression flag not mapped yet. Raw CT item ID 75 indicates Slingshot when present.",
             staticSlotOffset: 0x26F,
-            staticItemId: 75),
+            staticItemId: 75,
+            fixedSlotStatus: FixedSlotConfirmedStatus),
         CreateUnknownOwnership(
             "lantern",
             "Lantern",
             [72, 248],
             "Detected from visible inventory. Ownership/progression flag not mapped yet. Raw CT lantern item IDs indicate Lantern when present.",
             staticSlotOffset: 0x259,
-            staticItemId: 72),
+            staticItemId: 72,
+            fixedSlotStatus: FixedSlotConfirmedStatus),
         CreateUnknownOwnership(
             "iron-boots",
             "Iron Boots",
             [69],
             "Detected from visible inventory. Ownership/progression flag not mapped yet. Raw CT item ID 69 indicates Iron Boots when present.",
             staticSlotOffset: 0x25B,
-            staticItemId: 69),
+            staticItemId: 69,
+            fixedSlotStatus: FixedSlotConfirmedStatus),
         CreateUnknownOwnership(
             "heros-bow",
             "Hero's Bow",
             [67, 89, 90],
             "Detected from visible inventory. Ownership/progression flag not mapped yet. Raw CT bow item IDs indicate Hero's Bow when present.",
             staticSlotOffset: 0x25C,
-            staticItemId: 67),
+            staticItemId: 67,
+            fixedSlotStatus: FixedSlotConfirmedStatus),
         CreateUnknownOwnership(
             "gale-boomerang",
             "Gale Boomerang",
             [64],
             "Detected from visible inventory. Ownership/progression flag not mapped yet. Raw CT item ID 64 indicates Gale Boomerang when present.",
             staticSlotOffset: 0x258,
-            staticItemId: 64),
+            staticItemId: 64,
+            fixedSlotStatus: FixedSlotConfirmedStatus),
         CreateUnknownOwnership(
             "clawshot",
             "Clawshot",
             [68],
-            "Detected from visible inventory. Ownership/progression flag not mapped yet. Raw CT item ID 68 indicates Clawshot when present."),
+            "Detected from visible inventory. Ownership/progression flag not mapped yet. Raw CT item ID 68 indicates Clawshot when present.",
+            staticSlotOffset: 0x261,
+            staticItemId: 68),
         CreateUnknownOwnership(
             "double-clawshots",
             "Double Clawshots",
             [71],
             "Detected from visible inventory. Ownership/progression flag not mapped yet. Raw CT item ID 71 indicates Double Clawshots when present.",
             staticSlotOffset: 0x262,
-            staticItemId: 71),
+            staticItemId: 71,
+            fixedSlotStatus: FixedSlotConfirmedStatus),
         CreateUnknownOwnership(
             "spinner",
             "Spinner",
             [65],
             "Detected from visible inventory. Ownership/progression flag not mapped yet. Raw CT item ID 65 indicates Spinner when present.",
             staticSlotOffset: 0x25A,
-            staticItemId: 65),
+            staticItemId: 65,
+            fixedSlotStatus: FixedSlotConfirmedStatus),
         CreateUnknownOwnership(
             "dominion-rod",
             "Dominion Rod",
             [70, 76],
             "Detected from visible inventory. Ownership/progression flag not mapped yet. Raw CT dominion rod item IDs indicate Dominion Rod when present.",
             staticSlotOffset: 0x260,
-            staticItemId: 70),
+            staticItemId: 70,
+            fixedSlotStatus: "Confirmed grant/remove; unpowered/red variant"),
         CreateUnknownOwnership(
             "ball-and-chain",
             "Ball and Chain",
             [66],
             "Detected from visible inventory. Ownership/progression flag not mapped yet. Raw CT item ID 66 indicates Ball and Chain when present.",
             staticSlotOffset: 0x25E,
-            staticItemId: 66),
+            staticItemId: 66,
+            fixedSlotStatus: FixedSlotConfirmedStatus),
         CreateUnknownOwnership(
             "hawkeye",
             "Hawkeye",
             [62, 90],
             "Detected from visible inventory. Ownership/progression flag not mapped yet. Hawkeye-related CT item IDs indicate Hawkeye when present.",
             staticSlotOffset: 0x25D,
-            staticItemId: 62),
+            staticItemId: 62,
+            fixedSlotStatus: FixedSlotConfirmedStatus),
         CreateUnknownOwnership(
             "horse-call",
             "Horse Call",
             [132],
             "Detected from visible inventory. Ownership/progression flag not mapped yet. Raw CT item ID 132 indicates Horse Call when present.",
             staticSlotOffset: 0x26D,
-            staticItemId: 132),
+            staticItemId: 132,
+            fixedSlotStatus: FixedSlotConfirmedStatus),
         CreateUnknownOwnership(
             "bottles",
             "Bottles",
@@ -266,17 +281,23 @@ public static class InventoryDefinitions
         IReadOnlyList<byte> detectedItemIds,
         string notes,
         uint? staticSlotOffset = null,
-        byte? staticItemId = null)
+        byte? staticItemId = null,
+        string fixedSlotStatus = "")
     {
+        var source = staticSlotOffset.HasValue
+            ? "Static fixed visible slot mapping from CT-derived slots and live-save research. Ownership/progression flag not mapped."
+            : "Ownership/progression flag not mapped in the checked CT source. Visible slots are detection-only.";
+
         return new InventoryOwnershipDefinition(
             id,
             name,
             detectedItemIds,
             null,
             null,
-            "Ownership/progression flag not mapped in the checked CT source. Visible slots are detection-only.",
+            source,
             notes,
             staticSlotOffset,
-            staticItemId);
+            staticItemId,
+            fixedSlotStatus);
     }
 }

@@ -272,7 +272,7 @@
                         <ColumnDefinition Width="74" />
                         <ColumnDefinition Width="54" />
                         <ColumnDefinition Width="150" />
-                        <ColumnDefinition Width="96" />
+                        <ColumnDefinition Width="170" />
                         <ColumnDefinition Width="150" />
                         <ColumnDefinition Width="190" />
                         <ColumnDefinition Width="*" MinWidth="220" />
@@ -304,6 +304,8 @@
                                Margin="6,0" />
                     <TextBlock Grid.Column="6"
                                Text="{Binding EditStatus}"
+                               ToolTip="{Binding EditStatus}"
+                               TextTrimming="CharacterEllipsis"
                                Foreground="{DynamicResource SecondaryTextBrush}"
                                VerticalAlignment="Center"
                                Margin="6,0" />
@@ -998,7 +1000,7 @@
                                 <TextBlock TextWrapping="Wrap"
                                            Foreground="{DynamicResource WarningTextBrush}"
                                            Margin="0,0,0,8"
-                                           Text="Inventory ownership/progression flags have not been mapped yet. Known items are detected from visible inventory data and remain read-only until real flags are identified." />
+                                           Text="Inventory ownership/progression flags have not been mapped yet. Known items are detected from visible inventory data. The fixed-slot editor below edits visible slots only; it does not set story progression." />
 
                                 <Border BorderBrush="{DynamicResource WarningBorderBrush}"
                                         BorderThickness="1"
@@ -1008,7 +1010,7 @@
                                     <TextBlock TextWrapping="Wrap"
                                                Foreground="{DynamicResource WarningTextBrush}"
                                                FontWeight="SemiBold"
-                                               Text="Detected from visible inventory. Ownership/progression flag not mapped yet. Raw inventory slots are game-managed and may revert. The trainer will not fake ownership by writing raw inventory slots." />
+                                               Text="This edits fixed visible inventory slots, not story progression. Some items may appear but be unusable until story flags or related state are set. Button assignments are separate from inventory slots." />
                                 </Border>
 
                                 <Border BorderBrush="{DynamicResource WarningBorderBrush}"
@@ -1019,7 +1021,7 @@
                                     <TextBlock TextWrapping="Wrap"
                                                Foreground="{DynamicResource WarningTextBrush}"
                                                FontWeight="SemiBold"
-                                               Text="Inventory ownership changes may not appear if the in-game inventory menu is already open. Close and reopen the inventory menu after applying changes." />
+                                               Text="Fixed-slot inventory changes may not appear if the in-game inventory menu is already open. Close and reopen the inventory menu after applying changes." />
                                 </Border>
 
                                 <Border x:Name="InventoryOwnershipAcceptanceWarningText"
@@ -1083,14 +1085,14 @@
                                         <TextBlock TextWrapping="Wrap"
                                                    Foreground="{DynamicResource WarningTextBrush}"
                                                    FontWeight="SemiBold"
-                                                   Text="Experimental checkbox writes are research-only. Checked attempts to write the row's captured visible item ID to its captured visible slot. Unchecked writes 0xFF / Nothing to remove it. This is not solved ownership and may revert or fail to appear in-game." />
+                                                   Text="Fixed Slot Inventory Editor / Experimental. Checked writes the row's detected or static fixed-slot item ID to its fixed visible slot. Unchecked writes 0xFF / Nothing to remove it. This is not solved ownership and may revert or fail to appear in-game if related progression state is missing." />
                                         <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
-                                            <CheckBox Content="Enable experimental inventory checkbox writes"
+                                            <CheckBox Content="Enable fixed-slot inventory editor / experimental"
                                                       IsChecked="{Binding EnableExperimentalInventoryCheckboxWrites, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                                                       VerticalAlignment="Center"
                                                       Margin="0,0,12,0" />
                                             <Button x:Name="ApplyInventoryCheckboxTestingButton"
-                                                    Content="Apply Experimental Checkbox Writes"
+                                                    Content="Apply Fixed-Slot Inventory Changes"
                                                     Click="ApplyInventoryCheckboxTesting_Click" />
                                         </StackPanel>
                                     </StackPanel>
@@ -1104,7 +1106,7 @@
                                         <ColumnDefinition Width="74" />
                                         <ColumnDefinition Width="54" />
                                         <ColumnDefinition Width="150" />
-                                        <ColumnDefinition Width="96" />
+                                        <ColumnDefinition Width="170" />
                                         <ColumnDefinition Width="150" />
                                         <ColumnDefinition Width="190" />
                                         <ColumnDefinition Width="*" MinWidth="220" />
@@ -1115,9 +1117,9 @@
                                     <TextBlock Grid.Column="3" Text="Desired" FontWeight="SemiBold" HorizontalAlignment="Center" />
                                     <TextBlock Grid.Column="4" Text="Dirty" FontWeight="SemiBold" />
                                     <TextBlock Grid.Column="5" Text="Ownership flag" FontWeight="SemiBold" Margin="6,0" />
-                                    <TextBlock Grid.Column="6" Text="Edit status" FontWeight="SemiBold" Margin="6,0" />
+                                    <TextBlock Grid.Column="6" Text="Fixed-slot status" FontWeight="SemiBold" Margin="6,0" />
                                     <TextBlock Grid.Column="7" Text="Known slot" FontWeight="SemiBold" Margin="6,0" />
-                                    <TextBlock Grid.Column="8" Text="Experimental status" FontWeight="SemiBold" Margin="6,0" />
+                                    <TextBlock Grid.Column="8" Text="Write status" FontWeight="SemiBold" Margin="6,0" />
                                     <TextBlock Grid.Column="9" Text="Notes" FontWeight="SemiBold" Margin="6,0" />
                                 </Grid>
 
