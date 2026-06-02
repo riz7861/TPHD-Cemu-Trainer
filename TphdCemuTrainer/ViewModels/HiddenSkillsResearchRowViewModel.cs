@@ -3,6 +3,8 @@ namespace TphdCemuTrainer.ViewModels;
 public sealed class HiddenSkillsResearchRowViewModel : ObservableObject
 {
     private bool _isClusteredChange;
+    private bool _isPinned;
+    private string _groupName = "-";
 
     public HiddenSkillsResearchRowViewModel(
         uint offset,
@@ -57,15 +59,39 @@ public sealed class HiddenSkillsResearchRowViewModel : ObservableObject
             {
                 OnPropertyChanged(nameof(CandidateScore));
                 OnPropertyChanged(nameof(HighlightLabel));
+                OnPropertyChanged(nameof(IsCandidate));
             }
         }
+    }
+
+    public bool IsPinned
+    {
+        get => _isPinned;
+        set
+        {
+            if (SetField(ref _isPinned, value))
+            {
+                OnPropertyChanged(nameof(CandidateScore));
+                OnPropertyChanged(nameof(HighlightLabel));
+                OnPropertyChanged(nameof(IsCandidate));
+            }
+        }
+    }
+
+    public string GroupName
+    {
+        get => _groupName;
+        private set => SetField(ref _groupName, value);
     }
 
     public int CandidateScore =>
         (IsChanged ? 1 : 0) +
         (IsSingleBitChange ? 2 : 0) +
         (IsPersistedChange ? 2 : 0) +
-        (IsClusteredChange ? 1 : 0);
+        (IsClusteredChange ? 1 : 0) +
+        (IsPinned ? 3 : 0);
+
+    public bool IsCandidate => IsPinned || IsSingleBitChange || IsPersistedChange || CandidateScore >= 6;
 
     public string HighlightLabel
     {
@@ -87,6 +113,11 @@ public sealed class HiddenSkillsResearchRowViewModel : ObservableObject
                 labels.Add("clustered");
             }
 
+            if (IsPinned)
+            {
+                labels.Add("pinned");
+            }
+
             return labels.Count == 0 ? "-" : string.Join(", ", labels);
         }
     }
@@ -94,6 +125,11 @@ public sealed class HiddenSkillsResearchRowViewModel : ObservableObject
     public void SetClusteredChange(bool isClustered)
     {
         IsClusteredChange = isClustered;
+    }
+
+    public void SetGroupName(string groupName)
+    {
+        GroupName = groupName;
     }
 
     private static string FormatByte(byte value)

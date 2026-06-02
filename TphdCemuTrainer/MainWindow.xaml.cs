@@ -61,6 +61,8 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     private DateTimeOffset? _hiddenSkillsBeforeCapturedAt;
     private DateTimeOffset? _hiddenSkillsAfterCapturedAt;
     private HiddenSkillsResearchExport? _lastHiddenSkillsResearchExport;
+    private List<HiddenSkillsResearchRowViewModel> _hiddenSkillsAllResearchRows = [];
+    private readonly Dictionary<uint, bool> _hiddenSkillsPinnedOffsets = [];
     private byte[]? _goldenBugsBitfieldRestoreSnapshotBytes;
     private DateTimeOffset? _goldenBugsBitfieldRestoreSnapshotCapturedAt;
     private byte[]? _goldenBugsEditorRestoreSnapshotBytes;
@@ -145,6 +147,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         GoldenBugsBitfieldDiagnostics = [];
         GoldenBugsEditorDiagnostics = [];
         HiddenSkillsResearchRows = [];
+        HiddenSkillsCandidateGroups = [];
 
         EquipmentSlots = new ObservableCollection<EquipmentSlotViewModel>(
             EquipmentDefinitions.Slots.Select(slot => new EquipmentSlotViewModel(slot)));
@@ -235,6 +238,9 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     private static string HiddenSkillsResearchLogPath =>
         Path.Combine(AppContext.BaseDirectory, "logs", "hidden-skills-research.log");
 
+    private static string HiddenSkillsCaptureDirectory =>
+        Path.Combine(ResearchSnapshotStore.ExportDirectory, "hidden-skills-captures");
+
     private static string ProgressionLogPath =>
         Path.Combine(AppContext.BaseDirectory, "logs", "progression.log");
 
@@ -324,6 +330,8 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     public ObservableCollection<string> GoldenBugsEditorDiagnostics { get; }
 
     public ObservableCollection<HiddenSkillsResearchRowViewModel> HiddenSkillsResearchRows { get; }
+
+    public ObservableCollection<HiddenSkillsCandidateGroupViewModel> HiddenSkillsCandidateGroups { get; }
 
     public ObservableCollection<EquipmentSlotViewModel> EquipmentSlots { get; }
 
@@ -826,12 +834,23 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         _hiddenSkillsBeforeSnapshotStart = startOffset;
         _hiddenSkillsBeforeCapturedAt = DateTimeOffset.Now;
         _lastHiddenSkillsResearchExport = null;
-        HiddenSkillsResearchRows.Clear();
+        ClearHiddenSkillsResearchResults();
         HiddenSkillsResearchStatusText.Text =
             $"Captured Before at _playerbase+0x{startOffset:X}, length 0x{bytes.Length:X}.";
-        TryWriteHiddenSkillsSnapshotExport("hidden-skills-before.json", "Before", startOffset, bytes, _hiddenSkillsBeforeCapturedAt);
+        var savedPath = TrySaveHiddenSkillsCapture(
+            "before",
+            startOffset,
+            bytes,
+            _hiddenSkillsBeforeCapturedAt.Value,
+            GetHiddenSkillsCaptureLabel());
+        if (!string.IsNullOrWhiteSpace(savedPath))
+        {
+            HiddenSkillsResearchStatusText.Text =
+                $"Captured and saved Before: {Path.GetFileName(savedPath)}.";
+        }
+
         AppendHiddenSkillsResearchLog(
-            $"action=capture-before start=0x{startOffset:X} length=0x{bytes.Length:X} bytes=\"{FormatByteArray(bytes)}\"");
+            $"action=capture-before start=0x{startOffset:X} length=0x{bytes.Length:X} saved=\"{savedPath}\" bytes=\"{FormatByteArray(bytes)}\"");
         SetStatus("Hidden Skills Before snapshot captured.", StatusKind.Connected);
     }
 
@@ -846,13 +865,76 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         _hiddenSkillsAfterSnapshotStart = startOffset;
         _hiddenSkillsAfterCapturedAt = DateTimeOffset.Now;
         _lastHiddenSkillsResearchExport = null;
-        HiddenSkillsResearchRows.Clear();
+        ClearHiddenSkillsResearchResults();
         HiddenSkillsResearchStatusText.Text =
             $"Captured After at _playerbase+0x{startOffset:X}, length 0x{bytes.Length:X}.";
-        TryWriteHiddenSkillsSnapshotExport("hidden-skills-after.json", "After", startOffset, bytes, _hiddenSkillsAfterCapturedAt);
+        var savedPath = TrySaveHiddenSkillsCapture(
+            "after",
+            startOffset,
+            bytes,
+            _hiddenSkillsAfterCapturedAt.Value,
+            GetHiddenSkillsCaptureLabel());
+        if (!string.IsNullOrWhiteSpace(savedPath))
+        {
+            HiddenSkillsResearchStatusText.Text =
+                $"Captured and saved After: {Path.GetFileName(savedPath)}.";
+        }
+
         AppendHiddenSkillsResearchLog(
-            $"action=capture-after start=0x{startOffset:X} length=0x{bytes.Length:X} bytes=\"{FormatByteArray(bytes)}\"");
+            $"action=capture-after start=0x{startOffset:X} length=0x{bytes.Length:X} saved=\"{savedPath}\" bytes=\"{FormatByteArray(bytes)}\"");
         SetStatus("Hidden Skills After snapshot captured.", StatusKind.Connected);
+    }
+
+    private void HiddenSkillsLoadBeforeCapture_Click(object sender, RoutedEventArgs e)
+    {
+        if (!TryLoadHiddenSkillsCapture("before", out var capture))
+        {
+            return;
+        }
+
+        _hiddenSkillsBeforeSnapshotBytes = ParseHiddenSkillsCaptureBytes(capture);
+        _hiddenSkillsBeforeSnapshotStart = capture.StartOffset;
+        _hiddenSkillsBeforeCapturedAt = capture.Timestamp;
+        _lastHiddenSkillsResearchExport = null;
+        ClearHiddenSkillsResearchResults();
+        HiddenSkillsResearchStartOffsetText.Text = $"0x{capture.StartOffset:X}";
+        HiddenSkillsResearchLengthText.Text = $"0x{capture.Length:X}";
+        if (!string.IsNullOrWhiteSpace(capture.Label))
+        {
+            HiddenSkillsCaptureLabelText.Text = capture.Label;
+        }
+
+        HiddenSkillsResearchStatusText.Text =
+            $"Loaded Before capture: {capture.LabelOrDefault} ({capture.Timestamp.ToLocalTime():g}, 0x{capture.StartOffset:X}/0x{capture.Length:X}).";
+        AppendHiddenSkillsResearchLog(
+            $"action=load-before label=\"{capture.Label}\" start=0x{capture.StartOffset:X} length=0x{capture.Length:X}");
+        SetStatus("Hidden Skills Before capture loaded.", StatusKind.Connected);
+    }
+
+    private void HiddenSkillsLoadAfterCapture_Click(object sender, RoutedEventArgs e)
+    {
+        if (!TryLoadHiddenSkillsCapture("after", out var capture))
+        {
+            return;
+        }
+
+        _hiddenSkillsAfterSnapshotBytes = ParseHiddenSkillsCaptureBytes(capture);
+        _hiddenSkillsAfterSnapshotStart = capture.StartOffset;
+        _hiddenSkillsAfterCapturedAt = capture.Timestamp;
+        _lastHiddenSkillsResearchExport = null;
+        ClearHiddenSkillsResearchResults();
+        HiddenSkillsResearchStartOffsetText.Text = $"0x{capture.StartOffset:X}";
+        HiddenSkillsResearchLengthText.Text = $"0x{capture.Length:X}";
+        if (!string.IsNullOrWhiteSpace(capture.Label))
+        {
+            HiddenSkillsCaptureLabelText.Text = capture.Label;
+        }
+
+        HiddenSkillsResearchStatusText.Text =
+            $"Loaded After capture: {capture.LabelOrDefault} ({capture.Timestamp.ToLocalTime():g}, 0x{capture.StartOffset:X}/0x{capture.Length:X}).";
+        AppendHiddenSkillsResearchLog(
+            $"action=load-after label=\"{capture.Label}\" start=0x{capture.StartOffset:X} length=0x{capture.Length:X}");
+        SetStatus("Hidden Skills After capture loaded.", StatusKind.Connected);
     }
 
     private void HiddenSkillsCompare_Click(object sender, RoutedEventArgs e)
@@ -894,18 +976,17 @@ public partial class MainWindow : Window, INotifyPropertyChanged
                 Math.Abs((long)offset - row.OffsetValue) <= 2));
         }
 
-        HiddenSkillsResearchRows.Clear();
-        foreach (var row in rows)
-        {
-            HiddenSkillsResearchRows.Add(row);
-        }
+        _hiddenSkillsAllResearchRows = rows;
+        ApplyHiddenSkillsPinnedOffsets();
+        RebuildHiddenSkillsCandidateGroups();
+        ApplyHiddenSkillsResearchFilter();
 
         _lastHiddenSkillsResearchExport = CreateHiddenSkillsResearchExport();
-        var changedCount = HiddenSkillsResearchRows.Count(row => row.IsChanged);
-        var singleBitCount = HiddenSkillsResearchRows.Count(row => row.IsSingleBitChange);
-        var clusteredCount = HiddenSkillsResearchRows.Count(row => row.IsClusteredChange);
+        var changedCount = _hiddenSkillsAllResearchRows.Count(row => row.IsChanged);
+        var singleBitCount = _hiddenSkillsAllResearchRows.Count(row => row.IsSingleBitChange);
+        var clusteredCount = _hiddenSkillsAllResearchRows.Count(row => row.IsClusteredChange);
         HiddenSkillsResearchStatusText.Text =
-            $"Compared Hidden Skills snapshots. Changed bytes: {changedCount}. Single-bit: {singleBitCount}. Clustered: {clusteredCount}.";
+            $"Compared Hidden Skills snapshots. Changed bytes: {changedCount}. Single-bit: {singleBitCount}. Clustered: {clusteredCount}. Showing {HiddenSkillsResearchRows.Count} row(s). Groups: {HiddenSkillsCandidateGroups.Count}.";
         AppendHiddenSkillsResearchLog(
             $"action=compare start=0x{_hiddenSkillsBeforeSnapshotStart:X} length=0x{_hiddenSkillsBeforeSnapshotBytes.Length:X} " +
             $"changed={changedCount} single-bit={singleBitCount} clustered={clusteredCount} persisted={treatAfterAsPersisted}");
@@ -979,6 +1060,63 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         {
             HiddenSkillsResearchStatusText.Text = $"Hidden Skills CSV export failed: {ex.Message}";
             SetStatus("Hidden Skills CSV export failed.", StatusKind.Warning);
+        }
+    }
+
+    private void HiddenSkillsFilterChanged_Click(object sender, RoutedEventArgs e)
+    {
+        ApplyHiddenSkillsResearchFilter();
+        if (_hiddenSkillsAllResearchRows.Count > 0)
+        {
+            HiddenSkillsResearchStatusText.Text =
+                $"Filter updated. Showing {HiddenSkillsResearchRows.Count} of {_hiddenSkillsAllResearchRows.Count} Hidden Skills research row(s).";
+        }
+    }
+
+    private void HiddenSkillsPinChanged_Click(object sender, RoutedEventArgs e)
+    {
+        if ((sender as FrameworkElement)?.Tag is not HiddenSkillsResearchRowViewModel row)
+        {
+            return;
+        }
+
+        _hiddenSkillsPinnedOffsets[row.OffsetValue] = row.IsPinned;
+        RebuildHiddenSkillsCandidateGroups();
+        ApplyHiddenSkillsResearchFilter();
+        _lastHiddenSkillsResearchExport = CreateHiddenSkillsResearchExport();
+        AppendHiddenSkillsResearchLog(
+            $"action=pin offset={row.Offset} pinned={row.IsPinned} score={row.CandidateScore}");
+        HiddenSkillsResearchStatusText.Text =
+            $"{(row.IsPinned ? "Pinned" : "Unpinned")} {row.Offset}. Candidate groups: {HiddenSkillsCandidateGroups.Count}.";
+    }
+
+    private void HiddenSkillsExportCandidateGroups_Click(object sender, RoutedEventArgs e)
+    {
+        if (HiddenSkillsCandidateGroups.Count == 0)
+        {
+            HiddenSkillsResearchStatusText.Text = "No Hidden Skills candidate groups to export. Compare captures or pin offsets first.";
+            SetStatus("No Hidden Skills candidate groups to export.", StatusKind.Neutral);
+            return;
+        }
+
+        try
+        {
+            Directory.CreateDirectory(ResearchSnapshotStore.ExportDirectory);
+            var export = CreateHiddenSkillsCandidateGroupsExport();
+            var jsonPath = Path.Combine(ResearchSnapshotStore.ExportDirectory, "hidden-skills-candidate-groups.json");
+            var csvPath = Path.Combine(ResearchSnapshotStore.ExportDirectory, "hidden-skills-candidate-groups.csv");
+            File.WriteAllText(jsonPath, JsonSerializer.Serialize(export, ExportJsonOptions));
+            File.WriteAllLines(csvPath, CreateHiddenSkillsCandidateGroupsCsvLines(export.Groups));
+            HiddenSkillsResearchStatusText.Text =
+                $"Exported Hidden Skills candidate groups: {Path.GetFileName(jsonPath)} and {Path.GetFileName(csvPath)}.";
+            AppendHiddenSkillsResearchLog(
+                $"action=export-candidate-groups json=\"{jsonPath}\" csv=\"{csvPath}\" groups={export.Groups.Count}");
+            SetStatus("Hidden Skills candidate groups exported.", StatusKind.Connected);
+        }
+        catch (Exception ex)
+        {
+            HiddenSkillsResearchStatusText.Text = $"Hidden Skills candidate group export failed: {ex.Message}";
+            SetStatus("Hidden Skills candidate group export failed.", StatusKind.Warning);
         }
     }
 
@@ -5239,6 +5377,95 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         }
     }
 
+    private void ClearHiddenSkillsResearchResults()
+    {
+        _hiddenSkillsAllResearchRows = [];
+        HiddenSkillsResearchRows.Clear();
+        HiddenSkillsCandidateGroups.Clear();
+        _lastHiddenSkillsResearchExport = null;
+    }
+
+    private void ApplyHiddenSkillsPinnedOffsets()
+    {
+        foreach (var row in _hiddenSkillsAllResearchRows)
+        {
+            row.IsPinned = _hiddenSkillsPinnedOffsets.TryGetValue(row.OffsetValue, out var pinned) && pinned;
+        }
+    }
+
+    private void ApplyHiddenSkillsResearchFilter()
+    {
+        HiddenSkillsResearchRows.Clear();
+
+        var filterEnabled = HiddenSkillsFilterEnabledCheckBox.IsChecked == true;
+        var showSingleBit = HiddenSkillsFilterSingleBitCheckBox.IsChecked == true;
+        var showPersisted = HiddenSkillsFilterPersistedCheckBox.IsChecked == true;
+        var showScore = HiddenSkillsFilterScoreCheckBox.IsChecked == true;
+
+        foreach (var row in _hiddenSkillsAllResearchRows)
+        {
+            if (!filterEnabled ||
+                row.IsPinned ||
+                showSingleBit && row.IsSingleBitChange ||
+                showPersisted && row.IsPersistedChange ||
+                showScore && row.CandidateScore >= 6)
+            {
+                HiddenSkillsResearchRows.Add(row);
+            }
+        }
+    }
+
+    private void RebuildHiddenSkillsCandidateGroups()
+    {
+        foreach (var row in _hiddenSkillsAllResearchRows)
+        {
+            row.SetGroupName("-");
+        }
+
+        HiddenSkillsCandidateGroups.Clear();
+        var candidateRows = _hiddenSkillsAllResearchRows
+            .Where(row => row.IsCandidate)
+            .OrderBy(row => row.OffsetValue)
+            .ToList();
+        if (candidateRows.Count == 0)
+        {
+            return;
+        }
+
+        var groups = new List<List<HiddenSkillsResearchRowViewModel>>();
+        List<HiddenSkillsResearchRowViewModel>? currentGroup = null;
+        uint? previousOffset = null;
+        foreach (var row in candidateRows)
+        {
+            if (currentGroup is null || !previousOffset.HasValue || row.OffsetValue - previousOffset.Value > 4)
+            {
+                currentGroup = [];
+                groups.Add(currentGroup);
+            }
+
+            currentGroup.Add(row);
+            previousOffset = row.OffsetValue;
+        }
+
+        for (var index = 0; index < groups.Count; index++)
+        {
+            var groupName = GetHiddenSkillsCandidateGroupName(index);
+            foreach (var row in groups[index])
+            {
+                row.SetGroupName(groupName);
+            }
+
+            HiddenSkillsCandidateGroups.Add(new HiddenSkillsCandidateGroupViewModel(groupName, groups[index]));
+        }
+    }
+
+    private static string GetHiddenSkillsCandidateGroupName(int index)
+    {
+        return index < 26
+            ? $"Group {(char)('A' + index)}"
+            : $"Group {index + 1}";
+    }
+
     private HiddenSkillsResearchExport CreateHiddenSkillsResearchExport()
     {
         return new HiddenSkillsResearchExport(
@@ -5249,7 +5476,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             _hiddenSkillsAfterCapturedAt,
             HiddenSkillsPersistedAfterReloadCheckBox.IsChecked == true,
             FutureFeatureCatalog.HiddenSkills.Select(skill => skill.Name).ToList(),
-            HiddenSkillsResearchRows.Select(row => new HiddenSkillsResearchExportRow(
+            _hiddenSkillsAllResearchRows.Select(row => new HiddenSkillsResearchExportRow(
                 row.Offset,
                 row.BeforeValue,
                 row.AfterValue,
@@ -5262,12 +5489,15 @@ public partial class MainWindow : Window, INotifyPropertyChanged
                 row.IsPersistedChange,
                 row.IsClusteredChange,
                 row.CandidateScore,
-                row.HighlightLabel)).ToList());
+                row.HighlightLabel,
+                row.IsPinned,
+                row.GroupName)).ToList(),
+            CreateHiddenSkillsCandidateGroupExports());
     }
 
     private static IEnumerable<string> CreateHiddenSkillsResearchCsvLines(IEnumerable<HiddenSkillsResearchExportRow> rows)
     {
-        yield return "Offset,Before Byte,After Byte,Before Binary,After Binary,Changed Bits,Changed Bit Count,Changed,Single Bit,Persisted,Clustered,Candidate Score,Highlights";
+        yield return "Offset,Before Byte,After Byte,Before Binary,After Binary,Changed Bits,Changed Bit Count,Changed,Single Bit,Persisted,Clustered,Candidate Score,Highlights,Pinned,Group";
         foreach (var row in rows)
         {
             yield return string.Join(
@@ -5284,7 +5514,61 @@ public partial class MainWindow : Window, INotifyPropertyChanged
                 Csv(row.PersistedChange.ToString()),
                 Csv(row.ClusteredChange.ToString()),
                 Csv(row.CandidateScore.ToString(CultureInfo.InvariantCulture)),
-                Csv(row.Highlights));
+                Csv(row.Highlights),
+                Csv(row.Pinned.ToString()),
+                Csv(row.GroupName));
+        }
+    }
+
+    private HiddenSkillsCandidateGroupsExport CreateHiddenSkillsCandidateGroupsExport()
+    {
+        return new HiddenSkillsCandidateGroupsExport(
+            DateTimeOffset.Now,
+            _hiddenSkillsBeforeSnapshotStart,
+            _hiddenSkillsBeforeSnapshotBytes?.Length ?? 0,
+            CreateHiddenSkillsCandidateGroupExports());
+    }
+
+    private IReadOnlyList<HiddenSkillsCandidateGroupExport> CreateHiddenSkillsCandidateGroupExports()
+    {
+        return HiddenSkillsCandidateGroups.Select(group => new HiddenSkillsCandidateGroupExport(
+            group.Name,
+            group.Offsets,
+            group.Count,
+            group.HighestScore,
+            group.Reasons,
+            group.Rows.Select(row => new HiddenSkillsCandidateGroupRowExport(
+                row.Offset,
+                row.BeforeValue,
+                row.AfterValue,
+                row.ChangedBits,
+                row.CandidateScore,
+                row.HighlightLabel,
+                row.IsPinned)).ToList())).ToList();
+    }
+
+    private static IEnumerable<string> CreateHiddenSkillsCandidateGroupsCsvLines(IEnumerable<HiddenSkillsCandidateGroupExport> groups)
+    {
+        yield return "Group,Offsets,Count,Highest Score,Reasons,Row Offset,Before Value,After Value,Changed Bits,Candidate Score,Highlights,Pinned";
+        foreach (var group in groups)
+        {
+            foreach (var row in group.Rows)
+            {
+                yield return string.Join(
+                    ",",
+                    Csv(group.Name),
+                    Csv(group.Offsets),
+                    Csv(group.Count.ToString(CultureInfo.InvariantCulture)),
+                    Csv(group.HighestScore.ToString(CultureInfo.InvariantCulture)),
+                    Csv(group.Reasons),
+                    Csv(row.Offset),
+                    Csv(row.BeforeValue.ToString(CultureInfo.InvariantCulture)),
+                    Csv(row.AfterValue.ToString(CultureInfo.InvariantCulture)),
+                    Csv(row.ChangedBits),
+                    Csv(row.CandidateScore.ToString(CultureInfo.InvariantCulture)),
+                    Csv(row.Highlights),
+                    Csv(row.Pinned.ToString()));
+            }
         }
     }
 
@@ -5330,6 +5614,17 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     private static string Csv(string value)
     {
         return "\"" + value.Replace("\"", "\"\"", StringComparison.Ordinal) + "\"";
+    }
+
+    private static string SanitizeFileName(string value)
+    {
+        var fileName = string.IsNullOrWhiteSpace(value) ? "capture" : value.Trim();
+        foreach (var invalidCharacter in Path.GetInvalidFileNameChars())
+        {
+            fileName = fileName.Replace(invalidCharacter, '-');
+        }
+
+        return fileName.Replace(' ', '-');
     }
 
     private static List<string> InferOwnershipDiscoveryItemGains(OwnershipDiscoveryExport export)
@@ -5521,6 +5816,138 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         }
     }
 
+    private string GetHiddenSkillsCaptureLabel()
+    {
+        return HiddenSkillsCaptureLabelText.Text.Trim();
+    }
+
+    private string? TrySaveHiddenSkillsCapture(
+        string kind,
+        uint startOffset,
+        byte[] bytes,
+        DateTimeOffset timestamp,
+        string label)
+    {
+        try
+        {
+            Directory.CreateDirectory(HiddenSkillsCaptureDirectory);
+            var fileName = CreateHiddenSkillsCaptureFileName(kind, timestamp, label);
+            var path = Path.Combine(HiddenSkillsCaptureDirectory, fileName);
+            var capture = new HiddenSkillsCaptureDocument(
+                timestamp,
+                startOffset,
+                bytes.Length,
+                bytes.Select(value => $"0x{value:X2}").ToList(),
+                label);
+            File.WriteAllText(path, JsonSerializer.Serialize(capture, ExportJsonOptions));
+            return path;
+        }
+        catch (Exception ex)
+        {
+            HiddenSkillsResearchStatusText.Text =
+                $"{HiddenSkillsResearchStatusText.Text} Capture save failed: {ex.Message}";
+            AppendHiddenSkillsResearchLog($"action=capture-save-failed kind={kind} error=\"{ex.Message}\"");
+            return null;
+        }
+    }
+
+    private bool TryLoadHiddenSkillsCapture(string kind, out HiddenSkillsCaptureDocument capture)
+    {
+        capture = new HiddenSkillsCaptureDocument(DateTimeOffset.MinValue, 0, 0, [], string.Empty);
+
+        var dialog = new OpenFileDialog
+        {
+            Title = $"Load Hidden Skills {kind} capture",
+            Filter = "Hidden Skills captures (*.json)|*.json|All files (*.*)|*.*",
+            FileName = $"hidden-skills-{kind}_*.json"
+        };
+
+        if (Directory.Exists(HiddenSkillsCaptureDirectory))
+        {
+            dialog.InitialDirectory = HiddenSkillsCaptureDirectory;
+        }
+
+        if (dialog.ShowDialog(this) != true)
+        {
+            return false;
+        }
+
+        try
+        {
+            var loaded = JsonSerializer.Deserialize<HiddenSkillsCaptureDocument>(
+                File.ReadAllText(dialog.FileName),
+                ExportJsonOptions);
+            if (loaded is null)
+            {
+                HiddenSkillsResearchStatusText.Text = "Selected Hidden Skills capture could not be read.";
+                SetStatus("Hidden Skills capture load failed.", StatusKind.Warning);
+                return false;
+            }
+
+            if (!TryParseHiddenSkillsCaptureBytes(loaded, out _, out var parseError))
+            {
+                HiddenSkillsResearchStatusText.Text = parseError;
+                SetStatus("Hidden Skills capture load failed.", StatusKind.Warning);
+                return false;
+            }
+
+            capture = loaded;
+            return true;
+        }
+        catch (Exception ex)
+        {
+            HiddenSkillsResearchStatusText.Text = $"Hidden Skills capture load failed: {ex.Message}";
+            SetStatus("Hidden Skills capture load failed.", StatusKind.Warning);
+            return false;
+        }
+    }
+
+    private static byte[] ParseHiddenSkillsCaptureBytes(HiddenSkillsCaptureDocument capture)
+    {
+        return TryParseHiddenSkillsCaptureBytes(capture, out var bytes, out _)
+            ? bytes
+            : [];
+    }
+
+    private static bool TryParseHiddenSkillsCaptureBytes(
+        HiddenSkillsCaptureDocument capture,
+        out byte[] bytes,
+        out string error)
+    {
+        bytes = [];
+        error = string.Empty;
+
+        if (capture.RawBytes.Count != capture.Length)
+        {
+            error = $"Capture length mismatch: metadata says 0x{capture.Length:X}, file contains 0x{capture.RawBytes.Count:X} byte(s).";
+            return false;
+        }
+
+        var parsedBytes = new byte[capture.RawBytes.Count];
+        for (var index = 0; index < capture.RawBytes.Count; index++)
+        {
+            if (!TryParseCandidateValue(capture.RawBytes[index], out parsedBytes[index], out _))
+            {
+                error = $"Invalid byte value at capture index {index}: {capture.RawBytes[index]}";
+                return false;
+            }
+        }
+
+        bytes = parsedBytes;
+        return true;
+    }
+
+    private static string CreateHiddenSkillsCaptureFileName(
+        string kind,
+        DateTimeOffset timestamp,
+        string label)
+    {
+        var suffix = string.IsNullOrWhiteSpace(label)
+            ? string.Empty
+            : "_" + SanitizeFileName(label);
+        return $"hidden-skills-{kind}_{timestamp:yyyyMMdd_HHmmss}{suffix}.json";
+    }
+
     private void TryWriteHiddenSkillsSnapshotExport(
         string fileName,
         string label,
@@ -5531,12 +5958,12 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         try
         {
             Directory.CreateDirectory(ResearchSnapshotStore.ExportDirectory);
-            var snapshot = new HiddenSkillsSnapshotExport(
-                label,
+            var snapshot = new HiddenSkillsCaptureDocument(
                 capturedAt ?? DateTimeOffset.Now,
                 startOffset,
                 bytes.Length,
-                bytes.Select(value => $"0x{value:X2}").ToList());
+                bytes.Select(value => $"0x{value:X2}").ToList(),
+                label);
             var path = Path.Combine(ResearchSnapshotStore.ExportDirectory, fileName);
             File.WriteAllText(path, JsonSerializer.Serialize(snapshot, ExportJsonOptions));
         }
@@ -6587,12 +7014,15 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         int CandidateBugIndex,
         string CandidateBugName);
 
-    private sealed record HiddenSkillsSnapshotExport(
-        string Label,
-        DateTimeOffset CapturedAt,
+    private sealed record HiddenSkillsCaptureDocument(
+        DateTimeOffset Timestamp,
         uint StartOffset,
         int Length,
-        IReadOnlyList<string> Bytes);
+        IReadOnlyList<string> RawBytes,
+        string Label)
+    {
+        public string LabelOrDefault => string.IsNullOrWhiteSpace(Label) ? "Unlabeled capture" : Label;
+    }
 
     private sealed record HiddenSkillsResearchExport(
         DateTimeOffset Timestamp,
@@ -6602,7 +7032,8 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         DateTimeOffset? AfterCapturedAt,
         bool TreatAfterAsPersisted,
         IReadOnlyList<string> KnownSkills,
-        IReadOnlyList<HiddenSkillsResearchExportRow> Rows);
+        IReadOnlyList<HiddenSkillsResearchExportRow> Rows,
+        IReadOnlyList<HiddenSkillsCandidateGroupExport> CandidateGroups);
 
     private sealed record HiddenSkillsResearchExportRow(
         string Offset,
@@ -6617,7 +7048,32 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         bool PersistedChange,
         bool ClusteredChange,
         int CandidateScore,
-        string Highlights);
+        string Highlights,
+        bool Pinned,
+        string GroupName);
+
+    private sealed record HiddenSkillsCandidateGroupsExport(
+        DateTimeOffset Timestamp,
+        uint StartOffset,
+        int Length,
+        IReadOnlyList<HiddenSkillsCandidateGroupExport> Groups);
+
+    private sealed record HiddenSkillsCandidateGroupExport(
+        string Name,
+        string Offsets,
+        int Count,
+        int HighestScore,
+        string Reasons,
+        IReadOnlyList<HiddenSkillsCandidateGroupRowExport> Rows);
+
+    private sealed record HiddenSkillsCandidateGroupRowExport(
+        string Offset,
+        byte BeforeValue,
+        byte AfterValue,
+        string ChangedBits,
+        int CandidateScore,
+        string Highlights,
+        bool Pinned);
 
     private sealed record GoldenBugsBitfieldReport(
         DateTimeOffset Timestamp,

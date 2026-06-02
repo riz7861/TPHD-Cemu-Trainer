@@ -9,6 +9,8 @@ The trainer includes a read-only **Hidden Skills Research** workflow in the Debu
 - Start: `_playerbase+0x200`
 - Length: `0x100`
 
+Before and After captures are persisted immediately so the trainer and Cemu can be closed between save states.
+
 No Hidden Skills editing is implemented.
 
 ## Known Skills
@@ -32,11 +34,14 @@ No offset, bit, or byte mapping is confirmed yet.
 
 ## Suggested Workflow
 
-1. Capture Before.
-2. Learn one Hidden Skill naturally.
-3. Capture After.
-4. Compare.
-5. Export JSON and CSV reports.
+1. Enter a capture label, such as `Forest Temple Ending Blow`.
+2. Save Before Capture.
+3. Close/reopen the trainer or Cemu if needed.
+4. Load Before Capture from disk.
+5. Learn one Hidden Skill naturally or load the after-save.
+6. Save After Capture, or load a previous After capture.
+7. Compare Loaded Captures.
+8. Export JSON and CSV reports.
 
 If possible, capture After from a reloaded save so the tool can mark changes as persisted candidates.
 
@@ -45,10 +50,22 @@ If possible, capture After from a reloaded save so the tool can mark changes as 
 The research tool writes:
 
 - `logs/hidden-skills-research.log`
+- `logs/research/hidden-skills-captures/hidden-skills-before_<timestamp>_<optional-label>.json`
+- `logs/research/hidden-skills-captures/hidden-skills-after_<timestamp>_<optional-label>.json`
 - `logs/research/hidden-skills-before.json`
 - `logs/research/hidden-skills-after.json`
 - `logs/research/hidden-skills-report.json`
 - `logs/research/hidden-skills-report.csv`
+- `logs/research/hidden-skills-candidate-groups.json`
+- `logs/research/hidden-skills-candidate-groups.csv`
+
+Capture files include:
+
+- Timestamp
+- Playerbase-relative start offset
+- Length
+- Raw bytes
+- Optional label
 
 ## Candidate Scoring
 
@@ -58,8 +75,38 @@ Rows score higher when they:
 - Changed exactly one bit.
 - Were captured after reload/persistence.
 - Are clustered near other changed bytes.
+- Were pinned manually as suspected Hidden Skill candidates.
 
 This score is a research aid only. It is not confirmation.
+
+## Filtering
+
+The Debug tab filter can show only rows matching likely candidate criteria:
+
+- Single-bit changes
+- Persisted changes
+- Candidate score `>= 6`
+
+Pinned offsets are always shown while filtering is enabled.
+
+## Pinning
+
+Use the Pin checkbox beside a row to mark that offset as a Hidden Skill candidate. Pins are session-only research annotations, but they are included in reports and candidate-group exports.
+
+## Candidate Groups
+
+Candidate rows are grouped automatically when nearby offsets are within 4 bytes of each other.
+
+Example group shapes:
+
+- Group A: `0x20F`, `0x210`, `0x214`, `0x218`
+- Group B: `0x238`, `0x239`
+- Group C: `0x272`
+
+Candidate groups can be exported to:
+
+- `logs/research/hidden-skills-candidate-groups.json`
+- `logs/research/hidden-skills-candidate-groups.csv`
 
 ## Safety
 

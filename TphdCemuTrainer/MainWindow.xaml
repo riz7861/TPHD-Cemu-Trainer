@@ -773,6 +773,7 @@
                 </Border.Style>
                 <Grid>
                     <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="56" />
                         <ColumnDefinition Width="74" />
                         <ColumnDefinition Width="92" />
                         <ColumnDefinition Width="92" />
@@ -780,38 +781,87 @@
                         <ColumnDefinition Width="92" />
                         <ColumnDefinition Width="118" />
                         <ColumnDefinition Width="64" />
+                        <ColumnDefinition Width="86" />
                         <ColumnDefinition Width="*" MinWidth="170" />
                     </Grid.ColumnDefinitions>
 
-                    <TextBlock Text="{Binding Offset}"
-                               FontFamily="Consolas"
-                               VerticalAlignment="Center" />
+                    <CheckBox IsChecked="{Binding IsPinned, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                              Tag="{Binding}"
+                              Click="HiddenSkillsPinChanged_Click"
+                              HorizontalAlignment="Center"
+                              VerticalAlignment="Center"
+                              ToolTip="Pin this offset as a Hidden Skill candidate." />
                     <TextBlock Grid.Column="1"
-                               Text="{Binding BeforeByte}"
+                               Text="{Binding Offset}"
                                FontFamily="Consolas"
                                VerticalAlignment="Center" />
                     <TextBlock Grid.Column="2"
-                               Text="{Binding AfterByte}"
+                               Text="{Binding BeforeByte}"
                                FontFamily="Consolas"
                                VerticalAlignment="Center" />
                     <TextBlock Grid.Column="3"
-                               Text="{Binding BeforeBinary}"
+                               Text="{Binding AfterByte}"
                                FontFamily="Consolas"
                                VerticalAlignment="Center" />
                     <TextBlock Grid.Column="4"
-                               Text="{Binding AfterBinary}"
+                               Text="{Binding BeforeBinary}"
                                FontFamily="Consolas"
                                VerticalAlignment="Center" />
                     <TextBlock Grid.Column="5"
-                               Text="{Binding ChangedBits}"
+                               Text="{Binding AfterBinary}"
                                FontFamily="Consolas"
                                VerticalAlignment="Center" />
                     <TextBlock Grid.Column="6"
+                               Text="{Binding ChangedBits}"
+                               FontFamily="Consolas"
+                               VerticalAlignment="Center" />
+                    <TextBlock Grid.Column="7"
                                Text="{Binding CandidateScore}"
                                FontWeight="SemiBold"
                                VerticalAlignment="Center" />
-                    <TextBlock Grid.Column="7"
+                    <TextBlock Grid.Column="8"
+                               Text="{Binding GroupName}"
+                               TextTrimming="CharacterEllipsis"
+                               VerticalAlignment="Center"
+                               Margin="6,0" />
+                    <TextBlock Grid.Column="9"
                                Text="{Binding HighlightLabel}"
+                               TextTrimming="CharacterEllipsis"
+                               VerticalAlignment="Center"
+                               Margin="6,0" />
+                </Grid>
+            </Border>
+        </DataTemplate>
+
+        <DataTemplate x:Key="HiddenSkillsCandidateGroupTemplate">
+            <Border BorderBrush="{DynamicResource BorderBrush}"
+                    BorderThickness="0,0,0,1"
+                    Padding="0,4">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="76" />
+                        <ColumnDefinition Width="*" MinWidth="220" />
+                        <ColumnDefinition Width="56" />
+                        <ColumnDefinition Width="86" />
+                        <ColumnDefinition Width="*" MinWidth="180" />
+                    </Grid.ColumnDefinitions>
+                    <TextBlock Text="{Binding Name}"
+                               FontWeight="SemiBold"
+                               VerticalAlignment="Center" />
+                    <TextBlock Grid.Column="1"
+                               Text="{Binding Offsets}"
+                               FontFamily="Consolas"
+                               TextTrimming="CharacterEllipsis"
+                               VerticalAlignment="Center" />
+                    <TextBlock Grid.Column="2"
+                               Text="{Binding Count}"
+                               VerticalAlignment="Center" />
+                    <TextBlock Grid.Column="3"
+                               Text="{Binding HighestScore}"
+                               FontWeight="SemiBold"
+                               VerticalAlignment="Center" />
+                    <TextBlock Grid.Column="4"
+                               Text="{Binding Reasons}"
                                TextTrimming="CharacterEllipsis"
                                VerticalAlignment="Center"
                                Margin="6,0" />
@@ -2844,6 +2894,7 @@
                                         <ColumnDefinition Width="110" />
                                         <ColumnDefinition Width="62" />
                                         <ColumnDefinition Width="90" />
+                                        <ColumnDefinition Width="52" />
                                         <ColumnDefinition Width="*" />
                                     </Grid.ColumnDefinitions>
 
@@ -2864,15 +2915,29 @@
                                              Text="0x100"
                                              FontFamily="Consolas"
                                              Margin="0,0,8,0" />
+                                    <TextBlock Grid.Column="4"
+                                               Text="Label"
+                                               VerticalAlignment="Center"
+                                               Margin="0,0,6,0" />
+                                    <TextBox Grid.Column="5"
+                                             x:Name="HiddenSkillsCaptureLabelText"
+                                             Text="Forest Temple Ending Blow"
+                                             Margin="0,0,0,0" />
                                 </Grid>
 
                                 <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
-                                    <Button Content="Capture Before"
+                                    <Button Content="Save Before Capture"
                                             Click="HiddenSkillsCaptureBefore_Click" />
-                                    <Button Content="Capture After"
+                                    <Button Content="Save After Capture"
                                             Click="HiddenSkillsCaptureAfter_Click"
                                             Margin="6,0,0,0" />
-                                    <Button Content="Compare"
+                                    <Button Content="Load Before Capture"
+                                            Click="HiddenSkillsLoadBeforeCapture_Click"
+                                            Margin="6,0,0,0" />
+                                    <Button Content="Load After Capture"
+                                            Click="HiddenSkillsLoadAfterCapture_Click"
+                                            Margin="6,0,0,0" />
+                                    <Button Content="Compare Loaded Captures"
                                             Click="HiddenSkillsCompare_Click"
                                             Margin="6,0,0,0" />
                                     <Button Content="Export JSON"
@@ -2880,6 +2945,9 @@
                                             Margin="6,0,0,0" />
                                     <Button Content="Export CSV"
                                             Click="HiddenSkillsExportCsv_Click"
+                                            Margin="6,0,0,0" />
+                                    <Button Content="Export Candidate Groups"
+                                            Click="HiddenSkillsExportCandidateGroups_Click"
                                             Margin="6,0,0,0" />
                                 </StackPanel>
 
@@ -2889,8 +2957,30 @@
                                           ToolTip="Adds candidate-score weight and highlighting for changed bytes that were captured after a reload."
                                           Margin="0,0,0,8" />
 
+                                <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
+                                    <CheckBox x:Name="HiddenSkillsFilterEnabledCheckBox"
+                                              Content="Filter rows"
+                                              Click="HiddenSkillsFilterChanged_Click"
+                                              Margin="0,0,12,0"
+                                              ToolTip="When enabled, show only rows matching the selected candidate criteria. Pinned offsets are always shown." />
+                                    <CheckBox x:Name="HiddenSkillsFilterSingleBitCheckBox"
+                                              Content="Single-bit changes"
+                                              IsChecked="True"
+                                              Click="HiddenSkillsFilterChanged_Click"
+                                              Margin="0,0,12,0" />
+                                    <CheckBox x:Name="HiddenSkillsFilterPersistedCheckBox"
+                                              Content="Persisted changes"
+                                              IsChecked="True"
+                                              Click="HiddenSkillsFilterChanged_Click"
+                                              Margin="0,0,12,0" />
+                                    <CheckBox x:Name="HiddenSkillsFilterScoreCheckBox"
+                                              Content="Candidate score >= 6"
+                                              IsChecked="True"
+                                              Click="HiddenSkillsFilterChanged_Click" />
+                                </StackPanel>
+
                                 <TextBox x:Name="HiddenSkillsResearchStatusText"
-                                         Text="Ready. Suggested workflow: Capture Before, learn one Hidden Skill, Capture After, Compare, then export."
+                                         Text="Ready. Suggested workflow: Save Before Capture, change saves if needed, load/capture After, Compare Loaded Captures, then export."
                                          IsReadOnly="True"
                                          TextWrapping="Wrap"
                                          Background="{DynamicResource ReadOnlyBackgroundBrush}"
@@ -2898,6 +2988,7 @@
 
                                 <Grid Margin="0,0,0,4">
                                     <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="56" />
                                         <ColumnDefinition Width="74" />
                                         <ColumnDefinition Width="92" />
                                         <ColumnDefinition Width="92" />
@@ -2905,16 +2996,19 @@
                                         <ColumnDefinition Width="92" />
                                         <ColumnDefinition Width="118" />
                                         <ColumnDefinition Width="64" />
+                                        <ColumnDefinition Width="86" />
                                         <ColumnDefinition Width="*" MinWidth="170" />
                                     </Grid.ColumnDefinitions>
-                                    <TextBlock Text="Offset" FontWeight="SemiBold" />
-                                    <TextBlock Grid.Column="1" Text="Before byte" FontWeight="SemiBold" />
-                                    <TextBlock Grid.Column="2" Text="After byte" FontWeight="SemiBold" />
-                                    <TextBlock Grid.Column="3" Text="Before bin" FontWeight="SemiBold" />
-                                    <TextBlock Grid.Column="4" Text="After bin" FontWeight="SemiBold" />
-                                    <TextBlock Grid.Column="5" Text="Changed bits" FontWeight="SemiBold" />
-                                    <TextBlock Grid.Column="6" Text="Score" FontWeight="SemiBold" />
-                                    <TextBlock Grid.Column="7" Text="Highlights" FontWeight="SemiBold" Margin="6,0" />
+                                    <TextBlock Text="Pin" FontWeight="SemiBold" />
+                                    <TextBlock Grid.Column="1" Text="Offset" FontWeight="SemiBold" />
+                                    <TextBlock Grid.Column="2" Text="Before byte" FontWeight="SemiBold" />
+                                    <TextBlock Grid.Column="3" Text="After byte" FontWeight="SemiBold" />
+                                    <TextBlock Grid.Column="4" Text="Before bin" FontWeight="SemiBold" />
+                                    <TextBlock Grid.Column="5" Text="After bin" FontWeight="SemiBold" />
+                                    <TextBlock Grid.Column="6" Text="Changed bits" FontWeight="SemiBold" />
+                                    <TextBlock Grid.Column="7" Text="Score" FontWeight="SemiBold" />
+                                    <TextBlock Grid.Column="8" Text="Group" FontWeight="SemiBold" Margin="6,0" />
+                                    <TextBlock Grid.Column="9" Text="Highlights" FontWeight="SemiBold" Margin="6,0" />
                                 </Grid>
 
                                 <ScrollViewer Height="260"
@@ -2925,7 +3019,33 @@
                                                   ItemTemplate="{StaticResource HiddenSkillsResearchRowTemplate}" />
                                 </ScrollViewer>
 
-                                <TextBlock Text="Exports: logs/research/hidden-skills-before.json, hidden-skills-after.json, hidden-skills-report.json, hidden-skills-report.csv. Logs: logs/hidden-skills-research.log."
+                                <TextBlock Text="Candidate Groups"
+                                           FontWeight="SemiBold"
+                                           Margin="0,8,0,4" />
+                                <Grid Margin="0,0,0,4">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="76" />
+                                        <ColumnDefinition Width="*" MinWidth="220" />
+                                        <ColumnDefinition Width="56" />
+                                        <ColumnDefinition Width="86" />
+                                        <ColumnDefinition Width="*" MinWidth="180" />
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Text="Group" FontWeight="SemiBold" />
+                                    <TextBlock Grid.Column="1" Text="Offsets" FontWeight="SemiBold" />
+                                    <TextBlock Grid.Column="2" Text="Count" FontWeight="SemiBold" />
+                                    <TextBlock Grid.Column="3" Text="High score" FontWeight="SemiBold" />
+                                    <TextBlock Grid.Column="4" Text="Reasons" FontWeight="SemiBold" Margin="6,0" />
+                                </Grid>
+
+                                <ScrollViewer Height="110"
+                                              VerticalScrollBarVisibility="Auto"
+                                              HorizontalScrollBarVisibility="Auto"
+                                              Background="{DynamicResource ReadOnlyBackgroundBrush}">
+                                    <ItemsControl ItemsSource="{Binding HiddenSkillsCandidateGroups}"
+                                                  ItemTemplate="{StaticResource HiddenSkillsCandidateGroupTemplate}" />
+                                </ScrollViewer>
+
+                                <TextBlock Text="Captures: logs/research/hidden-skills-captures/. Exports: logs/research/hidden-skills-before.json, hidden-skills-after.json, hidden-skills-report.json, hidden-skills-report.csv. Logs: logs/hidden-skills-research.log."
                                            Foreground="{DynamicResource SecondaryTextBrush}"
                                            TextWrapping="Wrap"
                                            Margin="0,8,0,0" />

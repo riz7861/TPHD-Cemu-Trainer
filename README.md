@@ -268,17 +268,24 @@ Hidden Skills are currently under investigation. The Hidden Skills tab shows a d
 - Jump Strike
 - Great Spin
 
-The Debug tab includes **Hidden Skills Research**, a read-only range comparison workflow. It defaults to `_playerbase+0x200` length `0x100`, but the start offset and length are user-configurable.
+The Debug tab includes **Hidden Skills Research**, a read-only range comparison workflow. It defaults to `_playerbase+0x200` length `0x100`, but the start offset and length are user-configurable. Captures are saved immediately to `logs/research/hidden-skills-captures/` so you can close Cemu or the trainer between Save A and Save B.
 
 Suggested workflow:
 
-1. Capture Before.
-2. Learn one Hidden Skill.
-3. Capture After.
-4. Compare.
-5. Export results.
+1. Enter a capture label, such as `Forest Temple Ending Blow`.
+2. Save Before Capture.
+3. Close/reopen Cemu or switch saves if needed.
+4. Load Before Capture from disk.
+5. Learn one Hidden Skill or load the after-save.
+6. Save After Capture, or load a previous After capture.
+7. Compare Loaded Captures.
+8. Export results.
 
-The comparison table shows offset, before byte, after byte, before binary, after binary, changed bits, candidate score, and highlight labels for single-bit, persisted, or clustered changes. Captures and reports are written to `logs/research/hidden-skills-before.json`, `logs/research/hidden-skills-after.json`, `logs/research/hidden-skills-report.json`, and `logs/research/hidden-skills-report.csv`. Activity is logged to `logs/hidden-skills-research.log`.
+Persistent capture filenames use `hidden-skills-before_<timestamp>_<optional-label>.json` and `hidden-skills-after_<timestamp>_<optional-label>.json`. Each capture stores timestamp, playerbase-relative start offset, length, raw bytes, and optional label.
+
+The comparison table shows offset, before byte, after byte, before binary, after binary, changed bits, candidate score, and highlight labels for single-bit, persisted, or clustered changes. Report exports are written to `logs/research/hidden-skills-before.json`, `logs/research/hidden-skills-after.json`, `logs/research/hidden-skills-report.json`, and `logs/research/hidden-skills-report.csv`. Activity is logged to `logs/hidden-skills-research.log`.
+
+The Hidden Skills research table can filter to likely candidates: single-bit changes, persisted changes, and rows with candidate score `>= 6`. You can pin offsets as manual Hidden Skill candidates; pinned offsets are included in the filtered view and candidate grouping. Nearby candidate offsets are grouped automatically using a 4-byte proximity window, then exported with **Export Candidate Groups** to `logs/research/hidden-skills-candidate-groups.json` and `logs/research/hidden-skills-candidate-groups.csv`.
 
 No Hidden Skills editing is implemented yet. Details are tracked in `docs/research/HiddenSkillsResearch.md`.
 
