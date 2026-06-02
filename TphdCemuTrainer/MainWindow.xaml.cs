@@ -54,6 +54,13 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     private DateTimeOffset? _goldenBugsBeforeCapturedAt;
     private DateTimeOffset? _goldenBugsAfterCapturedAt;
     private GoldenBugsResearchExport? _lastGoldenBugsResearchExport;
+    private byte[]? _hiddenSkillsBeforeSnapshotBytes;
+    private byte[]? _hiddenSkillsAfterSnapshotBytes;
+    private uint _hiddenSkillsBeforeSnapshotStart;
+    private uint _hiddenSkillsAfterSnapshotStart;
+    private DateTimeOffset? _hiddenSkillsBeforeCapturedAt;
+    private DateTimeOffset? _hiddenSkillsAfterCapturedAt;
+    private HiddenSkillsResearchExport? _lastHiddenSkillsResearchExport;
     private byte[]? _goldenBugsBitfieldRestoreSnapshotBytes;
     private DateTimeOffset? _goldenBugsBitfieldRestoreSnapshotCapturedAt;
     private byte[]? _goldenBugsEditorRestoreSnapshotBytes;
@@ -137,6 +144,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
                     bit.OffsetValue == definition.Offset && bit.Bit == definition.Bit)));
         GoldenBugsBitfieldDiagnostics = [];
         GoldenBugsEditorDiagnostics = [];
+        HiddenSkillsResearchRows = [];
 
         EquipmentSlots = new ObservableCollection<EquipmentSlotViewModel>(
             EquipmentDefinitions.Slots.Select(slot => new EquipmentSlotViewModel(slot)));
@@ -223,6 +231,9 @@ public partial class MainWindow : Window, INotifyPropertyChanged
 
     private static string GoldenBugsEditorLogPath =>
         Path.Combine(AppContext.BaseDirectory, "logs", "golden-bugs-editor.log");
+
+    private static string HiddenSkillsResearchLogPath =>
+        Path.Combine(AppContext.BaseDirectory, "logs", "hidden-skills-research.log");
 
     private static string ProgressionLogPath =>
         Path.Combine(AppContext.BaseDirectory, "logs", "progression.log");
@@ -311,6 +322,8 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     public ObservableCollection<string> GoldenBugsBitfieldDiagnostics { get; }
 
     public ObservableCollection<string> GoldenBugsEditorDiagnostics { get; }
+
+    public ObservableCollection<HiddenSkillsResearchRowViewModel> HiddenSkillsResearchRows { get; }
 
     public ObservableCollection<EquipmentSlotViewModel> EquipmentSlots { get; }
 
@@ -799,6 +812,173 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         {
             GoldenBugsResearchStatusText.Text = $"Export failed: {ex.Message}";
             SetStatus("Golden Bugs research export failed.", StatusKind.Warning);
+        }
+    }
+
+    private void HiddenSkillsCaptureBefore_Click(object sender, RoutedEventArgs e)
+    {
+        if (!TryReadHiddenSkillsResearchRange(out var startOffset, out var bytes, out _))
+        {
+            return;
+        }
+
+        _hiddenSkillsBeforeSnapshotBytes = bytes;
+        _hiddenSkillsBeforeSnapshotStart = startOffset;
+        _hiddenSkillsBeforeCapturedAt = DateTimeOffset.Now;
+        _lastHiddenSkillsResearchExport = null;
+        HiddenSkillsResearchRows.Clear();
+        HiddenSkillsResearchStatusText.Text =
+            $"Captured Before at _playerbase+0x{startOffset:X}, length 0x{bytes.Length:X}.";
+        TryWriteHiddenSkillsSnapshotExport("hidden-skills-before.json", "Before", startOffset, bytes, _hiddenSkillsBeforeCapturedAt);
+        AppendHiddenSkillsResearchLog(
+            $"action=capture-before start=0x{startOffset:X} length=0x{bytes.Length:X} bytes=\"{FormatByteArray(bytes)}\"");
+        SetStatus("Hidden Skills Before snapshot captured.", StatusKind.Connected);
+    }
+
+    private void HiddenSkillsCaptureAfter_Click(object sender, RoutedEventArgs e)
+    {
+        if (!TryReadHiddenSkillsResearchRange(out var startOffset, out var bytes, out _))
+        {
+            return;
+        }
+
+        _hiddenSkillsAfterSnapshotBytes = bytes;
+        _hiddenSkillsAfterSnapshotStart = startOffset;
+        _hiddenSkillsAfterCapturedAt = DateTimeOffset.Now;
+        _lastHiddenSkillsResearchExport = null;
+        HiddenSkillsResearchRows.Clear();
+        HiddenSkillsResearchStatusText.Text =
+            $"Captured After at _playerbase+0x{startOffset:X}, length 0x{bytes.Length:X}.";
+        TryWriteHiddenSkillsSnapshotExport("hidden-skills-after.json", "After", startOffset, bytes, _hiddenSkillsAfterCapturedAt);
+        AppendHiddenSkillsResearchLog(
+            $"action=capture-after start=0x{startOffset:X} length=0x{bytes.Length:X} bytes=\"{FormatByteArray(bytes)}\"");
+        SetStatus("Hidden Skills After snapshot captured.", StatusKind.Connected);
+    }
+
+    private void HiddenSkillsCompare_Click(object sender, RoutedEventArgs e)
+    {
+        if (_hiddenSkillsBeforeSnapshotBytes is null || _hiddenSkillsAfterSnapshotBytes is null)
+        {
+            HiddenSkillsResearchStatusText.Text = "Capture Before and After snapshots before comparing.";
+            SetStatus("Capture Hidden Skills Before and After snapshots first.", StatusKind.Neutral);
+            return;
+        }
+
+        if (_hiddenSkillsBeforeSnapshotStart != _hiddenSkillsAfterSnapshotStart ||
+            _hiddenSkillsBeforeSnapshotBytes.Length != _hiddenSkillsAfterSnapshotBytes.Length)
+        {
+            HiddenSkillsResearchStatusText.Text = "Before and After ranges must use the same start and length.";
+            SetStatus("Hidden Skills research ranges do not match.", StatusKind.Warning);
+            return;
+        }
+
+        var treatAfterAsPersisted = HiddenSkillsPersistedAfterReloadCheckBox.IsChecked == true;
+        var rows = new List<HiddenSkillsResearchRowViewModel>(_hiddenSkillsBeforeSnapshotBytes.Length);
+        for (var index = 0; index < _hiddenSkillsBeforeSnapshotBytes.Length; index++)
+        {
+            rows.Add(new HiddenSkillsResearchRowViewModel(
+                _hiddenSkillsBeforeSnapshotStart + (uint)index,
+                _hiddenSkillsBeforeSnapshotBytes[index],
+                _hiddenSkillsAfterSnapshotBytes[index],
+                treatAfterAsPersisted));
+        }
+
+        var changedOffsets = rows
+            .Where(row => row.IsChanged)
+            .Select(row => row.OffsetValue)
+            .ToList();
+        foreach (var row in rows.Where(row => row.IsChanged))
+        {
+            row.SetClusteredChange(changedOffsets.Any(offset =>
+                offset != row.OffsetValue &&
+                Math.Abs((long)offset - row.OffsetValue) <= 2));
+        }
+
+        HiddenSkillsResearchRows.Clear();
+        foreach (var row in rows)
+        {
+            HiddenSkillsResearchRows.Add(row);
+        }
+
+        _lastHiddenSkillsResearchExport = CreateHiddenSkillsResearchExport();
+        var changedCount = HiddenSkillsResearchRows.Count(row => row.IsChanged);
+        var singleBitCount = HiddenSkillsResearchRows.Count(row => row.IsSingleBitChange);
+        var clusteredCount = HiddenSkillsResearchRows.Count(row => row.IsClusteredChange);
+        HiddenSkillsResearchStatusText.Text =
+            $"Compared Hidden Skills snapshots. Changed bytes: {changedCount}. Single-bit: {singleBitCount}. Clustered: {clusteredCount}.";
+        AppendHiddenSkillsResearchLog(
+            $"action=compare start=0x{_hiddenSkillsBeforeSnapshotStart:X} length=0x{_hiddenSkillsBeforeSnapshotBytes.Length:X} " +
+            $"changed={changedCount} single-bit={singleBitCount} clustered={clusteredCount} persisted={treatAfterAsPersisted}");
+        SetStatus("Hidden Skills snapshots compared.", StatusKind.Connected);
+    }
+
+    private void HiddenSkillsExportJson_Click(object sender, RoutedEventArgs e)
+    {
+        if (_lastHiddenSkillsResearchExport is null)
+        {
+            HiddenSkillsResearchStatusText.Text = "Compare Hidden Skills snapshots before exporting JSON.";
+            SetStatus("Compare Hidden Skills snapshots before exporting.", StatusKind.Neutral);
+            return;
+        }
+
+        try
+        {
+            Directory.CreateDirectory(ResearchSnapshotStore.ExportDirectory);
+            if (_hiddenSkillsBeforeSnapshotBytes is not null)
+            {
+                TryWriteHiddenSkillsSnapshotExport(
+                    "hidden-skills-before.json",
+                    "Before",
+                    _hiddenSkillsBeforeSnapshotStart,
+                    _hiddenSkillsBeforeSnapshotBytes,
+                    _hiddenSkillsBeforeCapturedAt);
+            }
+
+            if (_hiddenSkillsAfterSnapshotBytes is not null)
+            {
+                TryWriteHiddenSkillsSnapshotExport(
+                    "hidden-skills-after.json",
+                    "After",
+                    _hiddenSkillsAfterSnapshotStart,
+                    _hiddenSkillsAfterSnapshotBytes,
+                    _hiddenSkillsAfterCapturedAt);
+            }
+
+            var reportPath = Path.Combine(ResearchSnapshotStore.ExportDirectory, "hidden-skills-report.json");
+            File.WriteAllText(reportPath, JsonSerializer.Serialize(_lastHiddenSkillsResearchExport, ExportJsonOptions));
+            HiddenSkillsResearchStatusText.Text = "Exported Hidden Skills JSON files to logs/research.";
+            AppendHiddenSkillsResearchLog($"action=export-json report=\"{reportPath}\" rows={_lastHiddenSkillsResearchExport.Rows.Count}");
+            SetStatus("Hidden Skills JSON exported.", StatusKind.Connected);
+        }
+        catch (Exception ex)
+        {
+            HiddenSkillsResearchStatusText.Text = $"Hidden Skills JSON export failed: {ex.Message}";
+            SetStatus("Hidden Skills JSON export failed.", StatusKind.Warning);
+        }
+    }
+
+    private void HiddenSkillsExportCsv_Click(object sender, RoutedEventArgs e)
+    {
+        if (_lastHiddenSkillsResearchExport is null)
+        {
+            HiddenSkillsResearchStatusText.Text = "Compare Hidden Skills snapshots before exporting CSV.";
+            SetStatus("Compare Hidden Skills snapshots before exporting.", StatusKind.Neutral);
+            return;
+        }
+
+        try
+        {
+            Directory.CreateDirectory(ResearchSnapshotStore.ExportDirectory);
+            var csvPath = Path.Combine(ResearchSnapshotStore.ExportDirectory, "hidden-skills-report.csv");
+            File.WriteAllLines(csvPath, CreateHiddenSkillsResearchCsvLines(_lastHiddenSkillsResearchExport.Rows));
+            HiddenSkillsResearchStatusText.Text = "Exported Hidden Skills CSV report to logs/research.";
+            AppendHiddenSkillsResearchLog($"action=export-csv csv=\"{csvPath}\" rows={_lastHiddenSkillsResearchExport.Rows.Count}");
+            SetStatus("Hidden Skills CSV exported.", StatusKind.Connected);
+        }
+        catch (Exception ex)
+        {
+            HiddenSkillsResearchStatusText.Text = $"Hidden Skills CSV export failed: {ex.Message}";
+            SetStatus("Hidden Skills CSV export failed.", StatusKind.Warning);
         }
     }
 
@@ -4117,6 +4297,42 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         return true;
     }
 
+    private bool TryReadHiddenSkillsResearchRange(out uint startOffset, out byte[] bytes, out ulong absoluteAddress)
+    {
+        startOffset = 0;
+        bytes = [];
+        absoluteAddress = 0;
+
+        if (_memory is null || !_playerBaseAddress.HasValue)
+        {
+            HiddenSkillsResearchStatusText.Text = "Not attached. Attach to Cemu and rescan before using Hidden Skills research.";
+            SetStatus("Not attached. Attach to Cemu and rescan before using Hidden Skills research.", StatusKind.Neutral);
+            return false;
+        }
+
+        if (!TryParseResearchOffset(HiddenSkillsResearchStartOffsetText.Text, out startOffset, out var offsetError))
+        {
+            HiddenSkillsResearchStatusText.Text = offsetError;
+            return false;
+        }
+
+        if (!TryParseResearchLength(HiddenSkillsResearchLengthText.Text, out var length, out var lengthError))
+        {
+            HiddenSkillsResearchStatusText.Text = lengthError;
+            return false;
+        }
+
+        absoluteAddress = _playerBaseAddress.Value + startOffset;
+        if (!_memory.TryReadBytes(absoluteAddress, length, out bytes, out var bytesRead) || bytesRead != length)
+        {
+            HiddenSkillsResearchStatusText.Text = $"Could not read 0x{length:X} byte(s) at _playerbase+0x{startOffset:X}.";
+            SetStatus("Could not read Hidden Skills research range.", StatusKind.Warning);
+            return false;
+        }
+
+        return true;
+    }
+
     private bool TryReadGoldenBugsBitfieldBytes(out byte[] bytes, out ulong absoluteAddress)
     {
         bytes = [];
@@ -5023,6 +5239,55 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         }
     }
 
+    private HiddenSkillsResearchExport CreateHiddenSkillsResearchExport()
+    {
+        return new HiddenSkillsResearchExport(
+            DateTimeOffset.Now,
+            _hiddenSkillsBeforeSnapshotStart,
+            _hiddenSkillsBeforeSnapshotBytes?.Length ?? 0,
+            _hiddenSkillsBeforeCapturedAt,
+            _hiddenSkillsAfterCapturedAt,
+            HiddenSkillsPersistedAfterReloadCheckBox.IsChecked == true,
+            FutureFeatureCatalog.HiddenSkills.Select(skill => skill.Name).ToList(),
+            HiddenSkillsResearchRows.Select(row => new HiddenSkillsResearchExportRow(
+                row.Offset,
+                row.BeforeValue,
+                row.AfterValue,
+                row.BeforeBinary,
+                row.AfterBinary,
+                row.ChangedBits,
+                row.ChangedBitCount,
+                row.IsChanged,
+                row.IsSingleBitChange,
+                row.IsPersistedChange,
+                row.IsClusteredChange,
+                row.CandidateScore,
+                row.HighlightLabel)).ToList());
+    }
+
+    private static IEnumerable<string> CreateHiddenSkillsResearchCsvLines(IEnumerable<HiddenSkillsResearchExportRow> rows)
+    {
+        yield return "Offset,Before Byte,After Byte,Before Binary,After Binary,Changed Bits,Changed Bit Count,Changed,Single Bit,Persisted,Clustered,Candidate Score,Highlights";
+        foreach (var row in rows)
+        {
+            yield return string.Join(
+                ",",
+                Csv(row.Offset),
+                Csv(row.BeforeValue.ToString(CultureInfo.InvariantCulture)),
+                Csv(row.AfterValue.ToString(CultureInfo.InvariantCulture)),
+                Csv(row.BeforeBinary),
+                Csv(row.AfterBinary),
+                Csv(row.ChangedBits),
+                Csv(row.ChangedBitCount.ToString(CultureInfo.InvariantCulture)),
+                Csv(row.Changed.ToString()),
+                Csv(row.SingleBitChange.ToString()),
+                Csv(row.PersistedChange.ToString()),
+                Csv(row.ClusteredChange.ToString()),
+                Csv(row.CandidateScore.ToString(CultureInfo.InvariantCulture)),
+                Csv(row.Highlights));
+        }
+    }
+
     private GoldenBugsBitfieldReport CreateGoldenBugsBitfieldReport()
     {
         return new GoldenBugsBitfieldReport(
@@ -5233,6 +5498,53 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         catch (Exception ex)
         {
             GoldenBugsResearchStatusText.Text = $"Golden Bugs research log write failed: {ex.Message}";
+        }
+    }
+
+    private void AppendHiddenSkillsResearchLog(string details)
+    {
+        var entry = $"{DateTimeOffset.Now:O} {details}";
+
+        try
+        {
+            var logDirectory = Path.GetDirectoryName(HiddenSkillsResearchLogPath);
+            if (!string.IsNullOrWhiteSpace(logDirectory))
+            {
+                Directory.CreateDirectory(logDirectory);
+            }
+
+            File.AppendAllText(HiddenSkillsResearchLogPath, entry + Environment.NewLine);
+        }
+        catch (Exception ex)
+        {
+            HiddenSkillsResearchStatusText.Text = $"Hidden Skills research log write failed: {ex.Message}";
+        }
+    }
+
+    private void TryWriteHiddenSkillsSnapshotExport(
+        string fileName,
+        string label,
+        uint startOffset,
+        byte[] bytes,
+        DateTimeOffset? capturedAt)
+    {
+        try
+        {
+            Directory.CreateDirectory(ResearchSnapshotStore.ExportDirectory);
+            var snapshot = new HiddenSkillsSnapshotExport(
+                label,
+                capturedAt ?? DateTimeOffset.Now,
+                startOffset,
+                bytes.Length,
+                bytes.Select(value => $"0x{value:X2}").ToList());
+            var path = Path.Combine(ResearchSnapshotStore.ExportDirectory, fileName);
+            File.WriteAllText(path, JsonSerializer.Serialize(snapshot, ExportJsonOptions));
+        }
+        catch (Exception ex)
+        {
+            HiddenSkillsResearchStatusText.Text =
+                $"{HiddenSkillsResearchStatusText.Text} Snapshot export failed: {ex.Message}";
+            AppendHiddenSkillsResearchLog($"action=snapshot-export-failed file=\"{fileName}\" error=\"{ex.Message}\"");
         }
     }
 
@@ -6274,6 +6586,38 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         int BitIndex,
         int CandidateBugIndex,
         string CandidateBugName);
+
+    private sealed record HiddenSkillsSnapshotExport(
+        string Label,
+        DateTimeOffset CapturedAt,
+        uint StartOffset,
+        int Length,
+        IReadOnlyList<string> Bytes);
+
+    private sealed record HiddenSkillsResearchExport(
+        DateTimeOffset Timestamp,
+        uint StartOffset,
+        int Length,
+        DateTimeOffset? BeforeCapturedAt,
+        DateTimeOffset? AfterCapturedAt,
+        bool TreatAfterAsPersisted,
+        IReadOnlyList<string> KnownSkills,
+        IReadOnlyList<HiddenSkillsResearchExportRow> Rows);
+
+    private sealed record HiddenSkillsResearchExportRow(
+        string Offset,
+        byte BeforeValue,
+        byte AfterValue,
+        string BeforeBinary,
+        string AfterBinary,
+        string ChangedBits,
+        int ChangedBitCount,
+        bool Changed,
+        bool SingleBitChange,
+        bool PersistedChange,
+        bool ClusteredChange,
+        int CandidateScore,
+        string Highlights);
 
     private sealed record GoldenBugsBitfieldReport(
         DateTimeOffset Timestamp,

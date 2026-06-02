@@ -748,6 +748,77 @@
             </Border>
         </DataTemplate>
 
+        <DataTemplate x:Key="HiddenSkillsResearchRowTemplate">
+            <Border BorderBrush="{DynamicResource BorderBrush}"
+                    BorderThickness="0,0,0,1"
+                    Padding="0,4">
+                <Border.Style>
+                    <Style TargetType="Border">
+                        <Setter Property="Background" Value="Transparent" />
+                        <Style.Triggers>
+                            <DataTrigger Binding="{Binding IsChanged}" Value="True">
+                                <Setter Property="Background" Value="{DynamicResource ChangedRowBackgroundBrush}" />
+                            </DataTrigger>
+                            <DataTrigger Binding="{Binding IsSingleBitChange}" Value="True">
+                                <Setter Property="Background" Value="{DynamicResource ChangedBitBackgroundBrush}" />
+                            </DataTrigger>
+                            <DataTrigger Binding="{Binding IsPersistedChange}" Value="True">
+                                <Setter Property="Background" Value="{DynamicResource StrongCandidateBackgroundBrush}" />
+                            </DataTrigger>
+                            <DataTrigger Binding="{Binding IsClusteredChange}" Value="True">
+                                <Setter Property="Background" Value="{DynamicResource StrongCandidateBackgroundBrush}" />
+                            </DataTrigger>
+                        </Style.Triggers>
+                    </Style>
+                </Border.Style>
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="74" />
+                        <ColumnDefinition Width="92" />
+                        <ColumnDefinition Width="92" />
+                        <ColumnDefinition Width="92" />
+                        <ColumnDefinition Width="92" />
+                        <ColumnDefinition Width="118" />
+                        <ColumnDefinition Width="64" />
+                        <ColumnDefinition Width="*" MinWidth="170" />
+                    </Grid.ColumnDefinitions>
+
+                    <TextBlock Text="{Binding Offset}"
+                               FontFamily="Consolas"
+                               VerticalAlignment="Center" />
+                    <TextBlock Grid.Column="1"
+                               Text="{Binding BeforeByte}"
+                               FontFamily="Consolas"
+                               VerticalAlignment="Center" />
+                    <TextBlock Grid.Column="2"
+                               Text="{Binding AfterByte}"
+                               FontFamily="Consolas"
+                               VerticalAlignment="Center" />
+                    <TextBlock Grid.Column="3"
+                               Text="{Binding BeforeBinary}"
+                               FontFamily="Consolas"
+                               VerticalAlignment="Center" />
+                    <TextBlock Grid.Column="4"
+                               Text="{Binding AfterBinary}"
+                               FontFamily="Consolas"
+                               VerticalAlignment="Center" />
+                    <TextBlock Grid.Column="5"
+                               Text="{Binding ChangedBits}"
+                               FontFamily="Consolas"
+                               VerticalAlignment="Center" />
+                    <TextBlock Grid.Column="6"
+                               Text="{Binding CandidateScore}"
+                               FontWeight="SemiBold"
+                               VerticalAlignment="Center" />
+                    <TextBlock Grid.Column="7"
+                               Text="{Binding HighlightLabel}"
+                               TextTrimming="CharacterEllipsis"
+                               VerticalAlignment="Center"
+                               Margin="6,0" />
+                </Grid>
+            </Border>
+        </DataTemplate>
+
         <DataTemplate x:Key="GoldenBugResearchRowTemplate">
             <Border BorderBrush="{DynamicResource BorderBrush}"
                     BorderThickness="0,0,0,1"
@@ -2229,10 +2300,18 @@
 
             <TabItem Header="Hidden Skills">
                 <ScrollViewer VerticalScrollBarVisibility="Auto">
-                    <GroupBox Header="Skills" Margin="13">
-                        <ItemsControl ItemsSource="{Binding HiddenSkills}"
-                                      ItemTemplate="{StaticResource FutureCheckTemplate}" />
-                    </GroupBox>
+                    <StackPanel Margin="6">
+                        <GroupBox Header="Hidden Skills (Research)">
+                            <StackPanel>
+                                <TextBlock Text="Mappings not yet confirmed."
+                                           FontWeight="SemiBold"
+                                           Foreground="{DynamicResource WarningTextBrush}"
+                                           Margin="0,0,0,8" />
+                                <ItemsControl ItemsSource="{Binding HiddenSkills}"
+                                              ItemTemplate="{StaticResource FutureCheckTemplate}" />
+                            </StackPanel>
+                        </GroupBox>
+                    </StackPanel>
                 </ScrollViewer>
             </TabItem>
 
@@ -2749,6 +2828,107 @@
                                     <ItemsControl ItemsSource="{Binding ResearchRangeRows}"
                                                   ItemTemplate="{StaticResource ResearchRangeRowTemplate}" />
                                 </ScrollViewer>
+                            </StackPanel>
+                        </GroupBox>
+
+                        <GroupBox Header="Hidden Skills Research">
+                            <StackPanel>
+                                <TextBlock TextWrapping="Wrap"
+                                           Foreground="{DynamicResource SecondaryTextBrush}"
+                                           Margin="0,0,0,8"
+                                           Text="Research only. Capture before learning one Hidden Skill, capture after learning it, then compare to locate candidate ownership or progression flags. This feature does not write memory." />
+
+                                <Grid Margin="0,0,0,8">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="94" />
+                                        <ColumnDefinition Width="110" />
+                                        <ColumnDefinition Width="62" />
+                                        <ColumnDefinition Width="90" />
+                                        <ColumnDefinition Width="*" />
+                                    </Grid.ColumnDefinitions>
+
+                                    <TextBlock Text="Start offset"
+                                               VerticalAlignment="Center"
+                                               Margin="0,0,6,0" />
+                                    <TextBox Grid.Column="1"
+                                             x:Name="HiddenSkillsResearchStartOffsetText"
+                                             Text="0x200"
+                                             FontFamily="Consolas"
+                                             Margin="0,0,8,0" />
+                                    <TextBlock Grid.Column="2"
+                                               Text="Length"
+                                               VerticalAlignment="Center"
+                                               Margin="0,0,6,0" />
+                                    <TextBox Grid.Column="3"
+                                             x:Name="HiddenSkillsResearchLengthText"
+                                             Text="0x100"
+                                             FontFamily="Consolas"
+                                             Margin="0,0,8,0" />
+                                </Grid>
+
+                                <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
+                                    <Button Content="Capture Before"
+                                            Click="HiddenSkillsCaptureBefore_Click" />
+                                    <Button Content="Capture After"
+                                            Click="HiddenSkillsCaptureAfter_Click"
+                                            Margin="6,0,0,0" />
+                                    <Button Content="Compare"
+                                            Click="HiddenSkillsCompare_Click"
+                                            Margin="6,0,0,0" />
+                                    <Button Content="Export JSON"
+                                            Click="HiddenSkillsExportJson_Click"
+                                            Margin="6,0,0,0" />
+                                    <Button Content="Export CSV"
+                                            Click="HiddenSkillsExportCsv_Click"
+                                            Margin="6,0,0,0" />
+                                </StackPanel>
+
+                                <CheckBox x:Name="HiddenSkillsPersistedAfterReloadCheckBox"
+                                          Content="After snapshot was captured after reload / persisted"
+                                          IsChecked="True"
+                                          ToolTip="Adds candidate-score weight and highlighting for changed bytes that were captured after a reload."
+                                          Margin="0,0,0,8" />
+
+                                <TextBox x:Name="HiddenSkillsResearchStatusText"
+                                         Text="Ready. Suggested workflow: Capture Before, learn one Hidden Skill, Capture After, Compare, then export."
+                                         IsReadOnly="True"
+                                         TextWrapping="Wrap"
+                                         Background="{DynamicResource ReadOnlyBackgroundBrush}"
+                                         Margin="0,0,0,8" />
+
+                                <Grid Margin="0,0,0,4">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="74" />
+                                        <ColumnDefinition Width="92" />
+                                        <ColumnDefinition Width="92" />
+                                        <ColumnDefinition Width="92" />
+                                        <ColumnDefinition Width="92" />
+                                        <ColumnDefinition Width="118" />
+                                        <ColumnDefinition Width="64" />
+                                        <ColumnDefinition Width="*" MinWidth="170" />
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Text="Offset" FontWeight="SemiBold" />
+                                    <TextBlock Grid.Column="1" Text="Before byte" FontWeight="SemiBold" />
+                                    <TextBlock Grid.Column="2" Text="After byte" FontWeight="SemiBold" />
+                                    <TextBlock Grid.Column="3" Text="Before bin" FontWeight="SemiBold" />
+                                    <TextBlock Grid.Column="4" Text="After bin" FontWeight="SemiBold" />
+                                    <TextBlock Grid.Column="5" Text="Changed bits" FontWeight="SemiBold" />
+                                    <TextBlock Grid.Column="6" Text="Score" FontWeight="SemiBold" />
+                                    <TextBlock Grid.Column="7" Text="Highlights" FontWeight="SemiBold" Margin="6,0" />
+                                </Grid>
+
+                                <ScrollViewer Height="260"
+                                              VerticalScrollBarVisibility="Auto"
+                                              HorizontalScrollBarVisibility="Auto"
+                                              Background="{DynamicResource ReadOnlyBackgroundBrush}">
+                                    <ItemsControl ItemsSource="{Binding HiddenSkillsResearchRows}"
+                                                  ItemTemplate="{StaticResource HiddenSkillsResearchRowTemplate}" />
+                                </ScrollViewer>
+
+                                <TextBlock Text="Exports: logs/research/hidden-skills-before.json, hidden-skills-after.json, hidden-skills-report.json, hidden-skills-report.csv. Logs: logs/hidden-skills-research.log."
+                                           Foreground="{DynamicResource SecondaryTextBrush}"
+                                           TextWrapping="Wrap"
+                                           Margin="0,8,0,0" />
                             </StackPanel>
                         </GroupBox>
 

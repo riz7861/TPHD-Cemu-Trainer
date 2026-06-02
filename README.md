@@ -21,9 +21,9 @@ The UI is organized as a tabbed trainer/save-editor hybrid so new systems can be
 - **Ammo & Upgrades**: wallet, quiver, bomb bag, and seed capacity-aware edits
 - **Collectibles**: verified Poe Souls editing, full Golden Bugs ownership editor, Golden Bugs research tools, and health/heart summaries
 - **Story Flags**: reserved progression flags
-- **Hidden Skills**: reserved hidden-skill tracking
+- **Hidden Skills**: disabled research preview for the seven known skills
 - **Quest Items**: reserved quest item/progression tracking
-- **Debug**: player base, AOB pattern, progression diagnostics, research snapshots, Ownership Discovery Mode, raw CT-backed values, and future memory tools
+- **Debug**: player base, AOB pattern, progression diagnostics, research snapshots, Hidden Skills Research, Ownership Discovery Mode, raw CT-backed values, and future memory tools
 
 The top bar includes a **Dark Mode** toggle. The app defaults to Light mode and stores the local preference under the user's AppData folder when possible.
 
@@ -256,6 +256,32 @@ Golden Bugs editing controls collection-screen ownership only. It does not edit 
 
 The **Advanced / Golden Bugs Research** section keeps the raw research tools. The before/after compare defaults to `_playerbase+0x2A1` length `0x04` and logs to `logs/golden-bugs-research.log`. The **Golden Bugs Bitfield Tester / Experimental** still displays all 32 bits across `0x2A1-0x2A4` for controlled research, logs to `logs/golden-bugs-bitfield-testing.log`, and exports reports to `logs/research/`. Use that advanced area for `0x2A4` investigation and reward/turn-in research, not normal ownership editing. Details are tracked in `docs/research/GoldenBugsResearch.md`.
 
+## Hidden Skills Research
+
+Hidden Skills are currently under investigation. The Hidden Skills tab shows a disabled **Hidden Skills (Research)** preview for:
+
+- Ending Blow
+- Shield Attack
+- Back Slice
+- Helm Splitter
+- Mortal Draw
+- Jump Strike
+- Great Spin
+
+The Debug tab includes **Hidden Skills Research**, a read-only range comparison workflow. It defaults to `_playerbase+0x200` length `0x100`, but the start offset and length are user-configurable.
+
+Suggested workflow:
+
+1. Capture Before.
+2. Learn one Hidden Skill.
+3. Capture After.
+4. Compare.
+5. Export results.
+
+The comparison table shows offset, before byte, after byte, before binary, after binary, changed bits, candidate score, and highlight labels for single-bit, persisted, or clustered changes. Captures and reports are written to `logs/research/hidden-skills-before.json`, `logs/research/hidden-skills-after.json`, `logs/research/hidden-skills-report.json`, and `logs/research/hidden-skills-report.csv`. Activity is logged to `logs/hidden-skills-research.log`.
+
+No Hidden Skills editing is implemented yet. Details are tracked in `docs/research/HiddenSkillsResearch.md`.
+
 ## Equipment Editor
 
 The Equipment tab reads CT-derived equipment bytes from TPHD 2.2.CT:
@@ -346,6 +372,7 @@ The app does not parse or execute Cheat Engine scripts at runtime. The relevant 
 - `TphdCemuTrainer/Cheats/FutureFeatureCatalog.cs`: reserved trainer/save-editor feature groups
 - `TphdCemuTrainer/Research/`: named memory snapshots plus JSON/CSV comparison and ownership discovery exports
 - `TphdCemuTrainer/ViewModels/`: UI-facing value and capacity models
+- `docs/research/HiddenSkillsResearch.md`: current Hidden Skills mapping notes and workflow
 - `TphdCemuTrainer/MainWindow.xaml`: tabbed WPF trainer UI
 
 ## Known Limitations
@@ -353,7 +380,8 @@ The app does not parse or execute Cheat Engine scripts at runtime. The relevant 
 - The player base scan depends on the CT table AOB. It may fail on unsupported game revisions, different memory layouts, or if gameplay is not loaded.
 - The first scan can still be slower than later rescans because no cache has been validated yet.
 - Missing player data is handled as a rescan state, not an application failure.
-- Story flags, hidden skills, and quest items are laid out for future expansion but not yet written.
+- Story flags and quest items are laid out for future expansion but not yet written.
+- Hidden Skills are research-only. The trainer can compare configurable before/after ranges, but no skill ownership mappings are confirmed and no editing is implemented.
 - Inventory ownership editing uses detected/desired/apply where real flags are mapped. Current listed inventory ownership flags are not identified yet.
 - Bottle Editor v1 edits visible bottle-content slots only; bottle ownership and unconfirmed bottled item raw values are still being researched.
 - General inventory ownership/progression editing is not solved yet. Static fixed-slot grant/remove is confirmed only for specific visible-slot item/slot pairs.
