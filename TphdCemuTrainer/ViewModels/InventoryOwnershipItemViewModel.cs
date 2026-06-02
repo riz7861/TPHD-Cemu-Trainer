@@ -11,6 +11,7 @@ public sealed class InventoryOwnershipItemViewModel : ObservableObject
     private bool _canEdit;
     private int? _knownSlotIndex;
     private byte? _knownItemId;
+    private string _knownMappingSource = "None";
     private string _experimentalStatus = "Not tested";
 
     public InventoryOwnershipItemViewModel(InventoryOwnershipDefinition definition)
@@ -60,7 +61,7 @@ public sealed class InventoryOwnershipItemViewModel : ObservableObject
     }
 
     public string KnownSlotText => KnownSlotIndex.HasValue
-        ? $"Slot {KnownSlotIndex.Value + 1} ({InventoryDefinitions.GetSlotOffset(KnownSlotIndex.Value)})"
+        ? $"{KnownMappingSource} slot {KnownSlotIndex.Value + 1} ({InventoryDefinitions.GetSlotOffset(KnownSlotIndex.Value)})"
         : "No visible slot captured";
 
     public string KnownItemText => KnownItemId.HasValue
@@ -70,7 +71,19 @@ public sealed class InventoryOwnershipItemViewModel : ObservableObject
     public bool CanExperimentalCheckboxWrite =>
         KnownSlotIndex.HasValue &&
         KnownItemId.HasValue &&
-        Definition.Id is not "double-clawshots" and not "bottles";
+        Definition.Id is not "bottles";
+
+    public string KnownMappingSource
+    {
+        get => _knownMappingSource;
+        private set
+        {
+            if (SetField(ref _knownMappingSource, value))
+            {
+                OnPropertyChanged(nameof(KnownSlotText));
+            }
+        }
+    }
 
     public string ExperimentalStatus
     {
@@ -157,17 +170,29 @@ public sealed class InventoryOwnershipItemViewModel : ObservableObject
         if (rawSlots.Count == 0)
         {
             CurrentDetectedState = "Not read";
+            ApplyStaticVisibleSlotFallback();
+            return;
+        }
+
+        if (matches.Count == 0 && Definition.HasStaticVisibleSlotMapping)
+        {
+            ApplyStaticVisibleSlotFallback();
+            CurrentDetectedState = rawSlots.All(value => value == InventoryDefinitions.EmptyItemId)
+                ? "Not detected in visible CT slots; static mapping available"
+                : "Not detected in visible CT slots; static mapping available";
             return;
         }
 
         if (rawSlots.All(value => value == InventoryDefinitions.EmptyItemId))
         {
+            ClearKnownVisibleSlot();
             CurrentDetectedState = "Inventory not initialized / not detected";
             return;
         }
 
         if (matches.Count == 0)
         {
+            ClearKnownVisibleSlot();
             CurrentDetectedState = "Not detected in visible CT slots";
             return;
         }
@@ -175,6 +200,7 @@ public sealed class InventoryOwnershipItemViewModel : ObservableObject
         var firstMatch = matches[0];
         KnownSlotIndex = firstMatch.SlotIndex;
         KnownItemId = firstMatch.Value;
+        KnownMappingSource = "Detected";
         CurrentDetectedState = string.Join(
             "; ",
             matches.Select(match =>
@@ -188,9 +214,30 @@ public sealed class InventoryOwnershipItemViewModel : ObservableObject
         IsOwnedDesired = false;
         BackingValue = "Not read";
         CanEdit = false;
-        KnownSlotIndex = null;
-        KnownItemId = null;
+        ClearKnownVisibleSlot();
         ExperimentalStatus = "Not tested";
         OnPropertyChanged(nameof(IsDirty));
+    }
+
+    private void ApplyStaticVisibleSlotFallback()
+    {
+        if (!Definition.HasStaticVisibleSlotMapping ||
+            !Definition.StaticSlotIndex.HasValue ||
+            !Definition.StaticItemId.HasValue)
+        {
+            ClearKnownVisibleSlot();
+            return;
+        }
+
+        KnownSlotIndex = Definition.StaticSlotIndex.Value;
+        KnownItemId = Definition.StaticItemId.Value;
+        KnownMappingSource = "Static";
+    }
+
+    private void ClearKnownVisibleSlot()
+    {
+        KnownSlotIndex = null;
+        KnownItemId = null;
+        KnownMappingSource = "None";
     }
 }

@@ -7,9 +7,17 @@ public sealed record InventoryOwnershipDefinition(
     uint? FlagOffset,
     int? FlagBit,
     string Source,
-    string Notes)
+    string Notes,
+    uint? StaticSlotOffset = null,
+    byte? StaticItemId = null)
 {
     public bool CanWrite => FlagOffset.HasValue && FlagBit.HasValue;
+
+    public bool HasStaticVisibleSlotMapping => StaticSlotOffset.HasValue && StaticItemId.HasValue;
+
+    public int? StaticSlotIndex => StaticSlotOffset.HasValue
+        ? (int)(StaticSlotOffset.Value - InventoryDefinitions.FirstSlotOffset)
+        : null;
 
     public byte Mask => FlagBit.HasValue ? (byte)(1 << FlagBit.Value) : (byte)0;
 

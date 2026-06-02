@@ -2283,6 +2283,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             AppendInventoryCheckboxTestingDiagnostic(
                 item,
                 action,
+                item.KnownMappingSource,
                 slotIndex,
                 absoluteAddress,
                 oldValue,
@@ -2799,6 +2800,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     private void AppendInventoryCheckboxTestingDiagnostic(
         InventoryOwnershipItemViewModel item,
         string action,
+        string mappingSource,
         int slotIndex,
         ulong absoluteAddress,
         byte? oldValue,
@@ -2810,7 +2812,8 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     {
         var entry =
             $"{DateTimeOffset.Now:O} kind=inventory-checkbox-testing action={action} item=\"{item.Name}\" " +
-            $"slot={slotIndex + 1} offset={InventoryDefinitions.GetSlotOffset(slotIndex)} address=0x{absoluteAddress:X} " +
+            $"mapping-source={mappingSource} slot={slotIndex + 1} offset={InventoryDefinitions.GetSlotOffset(slotIndex)} " +
+            $"address=0x{absoluteAddress:X} " +
             $"old={FormatEquipmentByte(oldValue)} wrote={FormatEquipmentByte(writtenValue)} " +
             $"immediate={FormatEquipmentByte(immediateReadback)} read250ms={FormatEquipmentByte(delayed250Readback)} " +
             $"read1000ms={FormatEquipmentByte(delayed1000Readback)} status={diagnosticStatus}";
