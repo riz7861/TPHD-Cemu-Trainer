@@ -143,18 +143,28 @@ The **Bottle Editor / Experimental** section edits only the four currently mappe
 
 Bottle ownership is not fully understood yet. These bytes are currently believed to represent visible bottle contents, not necessarily authoritative bottle ownership. The editor does not automatically create bottle ownership, does not modify non-bottle inventory slots, and does not alter assigned button slots.
 
-Only confirmed live-tested values are enabled by default:
+These values are confirmed from live TPHD memory testing and are enabled by default:
 
-- `255` / `0xFF`: Nothing / No Bottle
 - `96` / `0x60`: Empty Bottle
+- `97` / `0x61`: Milk
+- `100` / `0x64`: Red Potion
+- `101` / `0x65`: Milk (1/2)
+- `102` / `0x66`: Lantern Oil
 - `108` / `0x6C`: Fairy
 - `115` / `0x73`: Great Fairy's Tears
+- `116` / `0x74`: Worm
+- `118` / `0x76`: Bee Larvae
 - `119` / `0x77`: Rare Chu Jelly
+- `120` / `0x78`: Red Chu Jelly
 - `121` / `0x79`: Blue Chu Jelly
+- `122` / `0x7A`: Green Chu Jelly
+- `123` / `0x7B`: Yellow Chu Jelly
+- `124` / `0x7C`: Purple Chu Jelly
+- `255` / `0xFF`: Nothing / No Bottle
 
 Bottle Editor writes happen only when **Apply**, **Set Nothing**, or **Restore** is clicked. Each write reads the previous value, writes one byte, verifies immediate readback, verifies again after 250ms and 1000ms, refreshes bottle state, and logs to `logs/bottle-editor.log`. Restore buffers are per bottle slot and session-only. This feature is experimental; use copied saves or save states.
 
-Known Twilight Princess bottled item names such as Milk, Red Potion, Blue Potion, Lantern Oil, Bee Larva, Worm, Red Chu Jelly, Yellow Chu Jelly, and Purple Chu Jelly are documented in `docs/research/BottleResearch.md` but are not exposed in Bottle Editor v1 until their bottle-slot raw values are confirmed. The external reference used for item names is Zelda Dungeon's [Twilight Princess Bottles](https://www.zeldadungeon.net/wiki/Twilight_Princess_Bottles) page.
+No unconfirmed, internal, or research-only bottle values are exposed in Bottle Editor v1. The confirmed bottle values are also documented in `docs/research/BottleResearch.md`.
 
 Current removal findings: removing visible inventory slot values can remove items from the in-game inventory, and some removals can persist after save/reload. Button assignments are separate from visible inventory slots, so a removed item assigned to Y/X/R may remain usable until manually unequipped or replaced. Removing all primary/progression items can also make bombs or bottles unreachable in the in-game inventory menu.
 
