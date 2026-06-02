@@ -6,6 +6,7 @@ public sealed class InventoryRemovalItemViewModel : ObservableObject
 {
     private byte? _currentItemId;
     private byte? _previousItemId;
+    private DateTimeOffset? _removalTimestamp;
     private string _status = "Detected";
 
     public InventoryRemovalItemViewModel(int slotIndex)
@@ -65,6 +66,22 @@ public sealed class InventoryRemovalItemViewModel : ObservableObject
         ? InventoryDefinitions.GetItemName(PreviousItemId.Value)
         : "-";
 
+    public DateTimeOffset? RemovalTimestamp
+    {
+        get => _removalTimestamp;
+        private set
+        {
+            if (SetField(ref _removalTimestamp, value))
+            {
+                OnPropertyChanged(nameof(RemovalTimestampText));
+            }
+        }
+    }
+
+    public string RemovalTimestampText => RemovalTimestamp.HasValue
+        ? RemovalTimestamp.Value.ToLocalTime().ToString("g")
+        : "-";
+
     public string Status
     {
         get => _status;
@@ -86,12 +103,14 @@ public sealed class InventoryRemovalItemViewModel : ObservableObject
     public void CapturePrevious(byte itemId)
     {
         PreviousItemId = itemId;
+        RemovalTimestamp = DateTimeOffset.Now;
         Status = $"Previous captured: {FormatItemId(itemId)}";
     }
 
     public void ClearPrevious()
     {
         PreviousItemId = null;
+        RemovalTimestamp = null;
     }
 
     public void MarkNotRead()

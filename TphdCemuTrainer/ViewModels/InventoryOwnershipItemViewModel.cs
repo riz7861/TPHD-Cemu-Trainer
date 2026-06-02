@@ -9,6 +9,9 @@ public sealed class InventoryOwnershipItemViewModel : ObservableObject
     private bool _isOwnedDesired;
     private string _backingValue = "Not read";
     private bool _canEdit;
+    private int? _knownSlotIndex;
+    private byte? _knownItemId;
+    private string _experimentalStatus = "Not tested";
 
     public InventoryOwnershipItemViewModel(InventoryOwnershipDefinition definition)
     {
@@ -29,6 +32,51 @@ public sealed class InventoryOwnershipItemViewModel : ObservableObject
     public string Source => Definition.Source;
 
     public uint? FlagOffsetValue => Definition.FlagOffset;
+
+    public int? KnownSlotIndex
+    {
+        get => _knownSlotIndex;
+        private set
+        {
+            if (SetField(ref _knownSlotIndex, value))
+            {
+                OnPropertyChanged(nameof(KnownSlotText));
+                OnPropertyChanged(nameof(CanExperimentalCheckboxWrite));
+            }
+        }
+    }
+
+    public byte? KnownItemId
+    {
+        get => _knownItemId;
+        private set
+        {
+            if (SetField(ref _knownItemId, value))
+            {
+                OnPropertyChanged(nameof(KnownItemText));
+                OnPropertyChanged(nameof(CanExperimentalCheckboxWrite));
+            }
+        }
+    }
+
+    public string KnownSlotText => KnownSlotIndex.HasValue
+        ? $"Slot {KnownSlotIndex.Value + 1} ({InventoryDefinitions.GetSlotOffset(KnownSlotIndex.Value)})"
+        : "No visible slot captured";
+
+    public string KnownItemText => KnownItemId.HasValue
+        ? $"{KnownItemId.Value} / {InventoryDefinitions.GetItemName(KnownItemId.Value)}"
+        : "No item ID captured";
+
+    public bool CanExperimentalCheckboxWrite =>
+        KnownSlotIndex.HasValue &&
+        KnownItemId.HasValue &&
+        Definition.Id is not "double-clawshots" and not "bottles";
+
+    public string ExperimentalStatus
+    {
+        get => _experimentalStatus;
+        set => SetField(ref _experimentalStatus, value);
+    }
 
     public string BackingValue
     {
@@ -124,6 +172,9 @@ public sealed class InventoryOwnershipItemViewModel : ObservableObject
             return;
         }
 
+        var firstMatch = matches[0];
+        KnownSlotIndex = firstMatch.SlotIndex;
+        KnownItemId = firstMatch.Value;
         CurrentDetectedState = string.Join(
             "; ",
             matches.Select(match =>
@@ -137,6 +188,9 @@ public sealed class InventoryOwnershipItemViewModel : ObservableObject
         IsOwnedDesired = false;
         BackingValue = "Not read";
         CanEdit = false;
+        KnownSlotIndex = null;
+        KnownItemId = null;
+        ExperimentalStatus = "Not tested";
         OnPropertyChanged(nameof(IsDirty));
     }
 }

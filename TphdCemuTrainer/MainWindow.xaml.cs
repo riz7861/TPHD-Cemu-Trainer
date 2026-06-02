@@ -4,6 +4,7 @@ using System.Diagnostics;
 using System.Globalization;
 using System.IO;
 using System.Runtime.CompilerServices;
+using System.Text.Json;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
@@ -31,6 +32,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     private bool _holdInventoryValueAfterApply;
     private bool _allowEditingUninitializedInventory;
     private bool _allowUnsafeRawInventoryWrites;
+    private bool _enableExperimentalInventoryCheckboxWrites;
     private bool _allowEditingUninitializedEquipment;
     private bool _userConfirmedPastIntroArc;
     private bool _allowOwnershipEditsBeforeIntroCompletion;
@@ -61,6 +63,11 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         new("Collectibles", 0x2A1, 0x30)
     ];
 
+    private static readonly JsonSerializerOptions ExportJsonOptions = new()
+    {
+        WriteIndented = true
+    };
+
     public MainWindow()
     {
         _capacities = CheatCatalog.Capacities
@@ -84,9 +91,13 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         FixedInventoryItems = new ObservableCollection<InventoryFixedSlotViewModel>(
             InventoryDefinitions.FixedSlots.Select(slot => new InventoryFixedSlotViewModel(slot)));
         InventoryRemovalItems = [];
+        InventoryMappingItems = new ObservableCollection<InventoryMappingSlotViewModel>(
+            Enumerable.Range(0, InventoryDefinitions.SlotCount)
+                .Select(slotIndex => new InventoryMappingSlotViewModel(slotIndex)));
         InventoryDiagnostics = [];
         InventoryOwnershipDiagnostics = [];
         InventoryRemovalDiagnostics = [];
+        InventoryCheckboxTestingDiagnostics = [];
         CollectiblesDiagnostics = [];
 
         EquipmentSlots = new ObservableCollection<EquipmentSlotViewModel>(
@@ -137,6 +148,9 @@ public partial class MainWindow : Window, INotifyPropertyChanged
 
     private static string InventoryRemovalLogPath =>
         Path.Combine(AppContext.BaseDirectory, "logs", "inventory-removal.log");
+
+    private static string InventoryCheckboxTestingLogPath =>
+        Path.Combine(AppContext.BaseDirectory, "logs", "inventory-checkbox-testing.log");
 
     private static string EquipmentLogPath =>
         Path.Combine(AppContext.BaseDirectory, "logs", "equipment.log");
@@ -204,11 +218,15 @@ public partial class MainWindow : Window, INotifyPropertyChanged
 
     public ObservableCollection<InventoryRemovalItemViewModel> InventoryRemovalItems { get; }
 
+    public ObservableCollection<InventoryMappingSlotViewModel> InventoryMappingItems { get; }
+
     public ObservableCollection<string> InventoryDiagnostics { get; }
 
     public ObservableCollection<string> InventoryOwnershipDiagnostics { get; }
 
     public ObservableCollection<string> InventoryRemovalDiagnostics { get; }
+
+    public ObservableCollection<string> InventoryCheckboxTestingDiagnostics { get; }
 
     public ObservableCollection<string> CollectiblesDiagnostics { get; }
 
@@ -294,6 +312,20 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             if (_allowUnsafeRawInventoryWrites != value)
             {
                 _allowUnsafeRawInventoryWrites = value;
+                OnPropertyChanged();
+                UpdateInventoryEditGuard();
+            }
+        }
+    }
+
+    public bool EnableExperimentalInventoryCheckboxWrites
+    {
+        get => _enableExperimentalInventoryCheckboxWrites;
+        set
+        {
+            if (_enableExperimentalInventoryCheckboxWrites != value)
+            {
+                _enableExperimentalInventoryCheckboxWrites = value;
                 OnPropertyChanged();
                 UpdateInventoryEditGuard();
             }
@@ -674,6 +706,81 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         {
             await RestoreInventoryVisibleItemAsync(item);
         }
+    }
+
+    private async void RestoreAllInventoryRemovedItems_Click(object sender, RoutedEventArgs e)
+    {
+        var removedItems = InventoryRemovalItems
+            .Where(item => item.CanRestore)
+            .ToList();
+        if (removedItems.Count == 0)
+        {
+            SetStatus("No inventory removal restore buffers are available.", StatusKind.Neutral);
+            return;
+        }
+
+        var restoredCount = 0;
+        foreach (var item in removedItems)
+        {
+            if (await RestoreInventoryVisibleItemAsync(item))
+            {
+                restoredCount++;
+            }
+        }
+
+        SetStatus(
+            $"Restored {restoredCount} of {removedItems.Count} removed inventory slot(s).",
+            restoredCount == removedItems.Count ? StatusKind.Connected : StatusKind.Warning);
+    }
+
+    private void ClearInventoryRestoreBuffer_Click(object sender, RoutedEventArgs e)
+    {
+        foreach (var item in InventoryRemovalItems)
+        {
+            item.ClearPrevious();
+            item.Status = item.CurrentItemId == InventoryDefinitions.EmptyItemId
+                ? "Restore buffer cleared; slot currently empty."
+                : "Restore buffer cleared.";
+        }
+
+        RefreshInventorySlots(showStatus: false);
+        SetStatus("Inventory removal restore buffers cleared for this session.", StatusKind.Neutral);
+    }
+
+    private async void ApplyInventoryCheckboxTesting_Click(object sender, RoutedEventArgs e)
+    {
+        if (!EnableExperimentalInventoryCheckboxWrites)
+        {
+            SetStatus("Enable experimental inventory checkbox writes before applying checkbox tests.", StatusKind.Warning);
+            return;
+        }
+
+        var changedItems = InventoryOwnershipItems
+            .Where(item => item.IsDirty && item.CanExperimentalCheckboxWrite)
+            .ToList();
+        if (changedItems.Count == 0)
+        {
+            SetStatus("No supported experimental inventory checkbox changes to apply.", StatusKind.Neutral);
+            return;
+        }
+
+        var completed = 0;
+        foreach (var item in changedItems)
+        {
+            if (await WriteInventoryCheckboxTestAsync(item))
+            {
+                completed++;
+            }
+        }
+
+        SetStatus(
+            $"Applied {completed} of {changedItems.Count} experimental inventory checkbox test(s).",
+            completed == changedItems.Count ? StatusKind.Connected : StatusKind.Warning);
+    }
+
+    private void ExportInventoryMapping_Click(object sender, RoutedEventArgs e)
+    {
+        ExportInventoryMapping();
     }
 
     private void RefreshEquipmentButton_Click(object sender, RoutedEventArgs e)
@@ -1469,6 +1576,11 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             item.SetCurrentItem(rawBytes[item.SlotIndex]);
         }
 
+        foreach (var item in InventoryMappingItems)
+        {
+            item.SetCurrentItem(rawBytes[item.SlotIndex]);
+        }
+
         UpdateInventoryRemovalItems(rawBytes);
 
         if (!RefreshInventoryOwnership(rawBytes, preserveDirty: true))
@@ -1684,12 +1796,17 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         foreach (var item in InventoryOwnershipItems)
         {
             item.CanEdit =
-                item.Definition.CanWrite &&
-                canOwnershipEdit;
+                EnableExperimentalInventoryCheckboxWrites
+                    ? item.CanExperimentalCheckboxWrite
+                    : item.Definition.CanWrite && canOwnershipEdit;
         }
 
         ApplyInventoryOwnershipButton.IsEnabled =
             canOwnershipEdit && InventoryOwnershipItems.Any(item => item.Definition.CanWrite);
+        ApplyInventoryCheckboxTestingButton.IsEnabled =
+            EnableExperimentalInventoryCheckboxWrites &&
+            HasPlayerData &&
+            InventoryOwnershipItems.Any(item => item.CanExperimentalCheckboxWrite);
 
         InventoryInitializationWarningText.Visibility = HasPlayerData && !InventoryInitialized
             ? Visibility.Visible
@@ -2035,6 +2152,145 @@ public partial class MainWindow : Window, INotifyPropertyChanged
                 immediateReadback,
                 diagnosticStatus);
 
+        }
+    }
+
+    private async Task<bool> WriteInventoryCheckboxTestAsync(InventoryOwnershipItemViewModel item)
+    {
+        var memory = _memory;
+        if (memory is null || !_playerBaseAddress.HasValue)
+        {
+            SetStatus("Not attached. Attach to Cemu and rescan before testing inventory checkboxes.", StatusKind.Neutral);
+            return false;
+        }
+
+        if (!item.CanExperimentalCheckboxWrite || !item.KnownSlotIndex.HasValue || !item.KnownItemId.HasValue)
+        {
+            item.ExperimentalStatus = "No supported visible slot captured for experimental write.";
+            SetStatus($"{item.Name} has no supported captured visible slot for experimental writing.", StatusKind.Warning);
+            return false;
+        }
+
+        var desiredValue = item.IsOwnedDesired
+            ? item.KnownItemId.Value
+            : InventoryDefinitions.EmptyItemId;
+        var action = item.IsOwnedDesired ? "write-known-item-id" : "remove-visible-slot";
+        var slotIndex = item.KnownSlotIndex.Value;
+        var absoluteAddress = _playerBaseAddress.Value + InventoryDefinitions.FirstSlotOffset + (uint)slotIndex;
+
+        byte? oldValue = null;
+        byte? immediateReadback = null;
+        byte? delayed250Readback = null;
+        byte? delayed1000Readback = null;
+        var diagnosticStatus = "started";
+
+        try
+        {
+            if (!InventoryMemoryService.TryReadSlot(
+                    memory,
+                    _playerBaseAddress.Value,
+                    slotIndex,
+                    out var oldItemId,
+                    out var oldReadError))
+            {
+                diagnosticStatus = $"old-read-failed: {oldReadError}";
+                item.ExperimentalStatus = oldReadError;
+                SetStatus(oldReadError, StatusKind.Warning);
+                return false;
+            }
+
+            oldValue = oldItemId;
+
+            if (!InventoryMemoryService.TryWriteSlot(
+                    memory,
+                    _playerBaseAddress.Value,
+                    slotIndex,
+                    desiredValue,
+                    out var writeError))
+            {
+                diagnosticStatus = $"write-call-failed: {writeError}";
+                item.ExperimentalStatus = $"Write failed: {writeError}";
+                SetStatus(item.ExperimentalStatus, StatusKind.Warning);
+                return false;
+            }
+
+            if (!InventoryMemoryService.TryReadSlot(
+                    memory,
+                    _playerBaseAddress.Value,
+                    slotIndex,
+                    out var immediateValue,
+                    out var immediateReadError))
+            {
+                diagnosticStatus = $"immediate-read-failed: {immediateReadError}";
+                item.ExperimentalStatus = immediateReadError;
+                SetStatus(immediateReadError, StatusKind.Warning);
+                return false;
+            }
+
+            immediateReadback = immediateValue;
+            if (immediateReadback.Value != desiredValue)
+            {
+                diagnosticStatus = "immediate-mismatch";
+                item.ExperimentalStatus = $"Write failed: expected {desiredValue} but read {immediateReadback.Value}.";
+                SetStatus(item.ExperimentalStatus, StatusKind.Warning);
+                RefreshInventorySlots(showStatus: false);
+                return false;
+            }
+
+            await Task.Delay(250);
+            if (InventoryMemoryService.TryReadSlot(
+                    memory,
+                    _playerBaseAddress.Value,
+                    slotIndex,
+                    out var delayed250Value,
+                    out _))
+            {
+                delayed250Readback = delayed250Value;
+            }
+
+            await Task.Delay(750);
+            if (InventoryMemoryService.TryReadSlot(
+                    memory,
+                    _playerBaseAddress.Value,
+                    slotIndex,
+                    out var delayed1000Value,
+                    out _))
+            {
+                delayed1000Readback = delayed1000Value;
+            }
+
+            var reverted =
+                delayed250Readback.HasValue && delayed250Readback.Value != desiredValue ||
+                delayed1000Readback.HasValue && delayed1000Readback.Value != desiredValue;
+            if (reverted)
+            {
+                diagnosticStatus = "reverted-by-game";
+                item.ExperimentalStatus = "Reverted by game.";
+                SetStatus($"{item.Name}: Reverted by game.", StatusKind.Warning);
+            }
+            else
+            {
+                diagnosticStatus = "memory-changed";
+                item.ExperimentalStatus = "Memory changed; game may require menu reopen or additional flags.";
+                SetStatus($"{item.Name}: Memory changed; game may require menu reopen or additional flags.", StatusKind.Connected);
+            }
+
+            RefreshInventorySlots(showStatus: false);
+            return !reverted;
+        }
+        finally
+        {
+            AppendInventoryCheckboxTestingDiagnostic(
+                item,
+                action,
+                slotIndex,
+                absoluteAddress,
+                oldValue,
+                desiredValue,
+                immediateReadback,
+                delayed250Readback,
+                delayed1000Readback,
+                diagnosticStatus);
         }
     }
 
@@ -2537,6 +2793,52 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         catch (Exception ex)
         {
             InventoryRemovalDiagnostics.Insert(0, $"{DateTimeOffset.Now:O} inventory-removal-log-write-failed: {ex.Message}");
+        }
+    }
+
+    private void AppendInventoryCheckboxTestingDiagnostic(
+        InventoryOwnershipItemViewModel item,
+        string action,
+        int slotIndex,
+        ulong absoluteAddress,
+        byte? oldValue,
+        byte writtenValue,
+        byte? immediateReadback,
+        byte? delayed250Readback,
+        byte? delayed1000Readback,
+        string diagnosticStatus)
+    {
+        var entry =
+            $"{DateTimeOffset.Now:O} kind=inventory-checkbox-testing action={action} item=\"{item.Name}\" " +
+            $"slot={slotIndex + 1} offset={InventoryDefinitions.GetSlotOffset(slotIndex)} address=0x{absoluteAddress:X} " +
+            $"old={FormatEquipmentByte(oldValue)} wrote={FormatEquipmentByte(writtenValue)} " +
+            $"immediate={FormatEquipmentByte(immediateReadback)} read250ms={FormatEquipmentByte(delayed250Readback)} " +
+            $"read1000ms={FormatEquipmentByte(delayed1000Readback)} status={diagnosticStatus}";
+
+        AppendInventoryCheckboxTestingLogEntry(entry);
+    }
+
+    private void AppendInventoryCheckboxTestingLogEntry(string entry)
+    {
+        InventoryCheckboxTestingDiagnostics.Insert(0, entry);
+        while (InventoryCheckboxTestingDiagnostics.Count > 100)
+        {
+            InventoryCheckboxTestingDiagnostics.RemoveAt(InventoryCheckboxTestingDiagnostics.Count - 1);
+        }
+
+        try
+        {
+            var logDirectory = Path.GetDirectoryName(InventoryCheckboxTestingLogPath);
+            if (!string.IsNullOrWhiteSpace(logDirectory))
+            {
+                Directory.CreateDirectory(logDirectory);
+            }
+
+            File.AppendAllText(InventoryCheckboxTestingLogPath, entry + Environment.NewLine);
+        }
+        catch (Exception ex)
+        {
+            InventoryCheckboxTestingDiagnostics.Insert(0, $"{DateTimeOffset.Now:O} inventory-checkbox-testing-log-write-failed: {ex.Message}");
         }
     }
 
@@ -3425,6 +3727,62 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         SetStatus("Ownership correlation report built.", StatusKind.Connected);
     }
 
+    private void ExportInventoryMapping()
+    {
+        try
+        {
+            Directory.CreateDirectory(ResearchSnapshotStore.ExportDirectory);
+            var rows = InventoryMappingItems
+                .Select(item => new InventoryMappingExportRow(
+                    item.SlotNumber,
+                    item.Offset,
+                    item.RawValue,
+                    item.DecodedItem,
+                    item.DetectedVisualGroup,
+                    item.SelectedResearchGroup,
+                    item.RowNote,
+                    item.ColumnNote,
+                    item.Notes))
+                .ToList();
+            var export = new InventoryMappingExport(DateTimeOffset.Now, rows);
+            var jsonPath = Path.Combine(ResearchSnapshotStore.ExportDirectory, "inventory-mapping.json");
+            var csvPath = Path.Combine(ResearchSnapshotStore.ExportDirectory, "inventory-mapping.csv");
+
+            File.WriteAllText(jsonPath, JsonSerializer.Serialize(export, ExportJsonOptions));
+            File.WriteAllLines(csvPath, CreateInventoryMappingCsvLines(rows));
+
+            SetStatus("Inventory mapping exported to logs/research.", StatusKind.Connected);
+        }
+        catch (Exception ex)
+        {
+            SetStatus($"Inventory mapping export failed: {ex.Message}", StatusKind.Warning);
+        }
+    }
+
+    private static IEnumerable<string> CreateInventoryMappingCsvLines(IEnumerable<InventoryMappingExportRow> rows)
+    {
+        yield return "Slot,Offset,Raw Value,Decoded Item,Detected Visual Group,Research Group,Row Note,Column Note,Notes";
+        foreach (var row in rows)
+        {
+            yield return string.Join(
+                ",",
+                Csv(row.SlotNumber.ToString(CultureInfo.InvariantCulture)),
+                Csv(row.Offset),
+                Csv(row.RawValue.ToString(CultureInfo.InvariantCulture)),
+                Csv(row.DecodedItem),
+                Csv(row.DetectedVisualGroup),
+                Csv(row.ResearchGroup),
+                Csv(row.RowNote),
+                Csv(row.ColumnNote),
+                Csv(row.Notes));
+        }
+    }
+
+    private static string Csv(string value)
+    {
+        return "\"" + value.Replace("\"", "\"\"", StringComparison.Ordinal) + "\"";
+    }
+
     private static List<string> InferOwnershipDiscoveryItemGains(OwnershipDiscoveryExport export)
     {
         var itemGains = new List<string>();
@@ -4119,6 +4477,11 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             item.MarkNotRead();
         }
 
+        foreach (var item in InventoryMappingItems)
+        {
+            item.MarkNotRead();
+        }
+
         foreach (var slot in EquipmentSlots)
         {
             slot.MarkNotRead();
@@ -4176,6 +4539,11 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             item.MarkNotRead();
         }
 
+        foreach (var item in InventoryMappingItems)
+        {
+            item.MarkNotRead();
+        }
+
         foreach (var slot in EquipmentSlots)
         {
             slot.MarkNotRead();
@@ -4227,6 +4595,11 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             SetBrush("StrongCandidateBackgroundBrush", 0x1F, 0x45, 0x31);
             SetBrush("ChangedBitBackgroundBrush", 0x8A, 0x66, 0x19);
             SetBrush("StatusNeutralBrush", 0xA5, 0xA8, 0xAE);
+            SetBrush("TabSelectedBackgroundBrush", 0x33, 0x35, 0x3A);
+            SetBrush("TabUnselectedBackgroundBrush", 0x22, 0x24, 0x28);
+            SetBrush("TabHoverBackgroundBrush", 0x2D, 0x30, 0x36);
+            SetBrush("TabSelectedTextBrush", 0xFF, 0xFF, 0xFF);
+            SetBrush("DisabledTextBrush", 0x8F, 0x94, 0x9B);
         }
         else
         {
@@ -4244,6 +4617,11 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             SetBrush("StrongCandidateBackgroundBrush", 0xDF, 0xF4, 0xE7);
             SetBrush("ChangedBitBackgroundBrush", 0xFF, 0xC6, 0x4D);
             SetBrush("StatusNeutralBrush", 0x80, 0x80, 0x80);
+            SetBrush("TabSelectedBackgroundBrush", 0xFF, 0xFF, 0xFF);
+            SetBrush("TabUnselectedBackgroundBrush", 0xE8, 0xE8, 0xE8);
+            SetBrush("TabHoverBackgroundBrush", 0xF4, 0xF4, 0xF4);
+            SetBrush("TabSelectedTextBrush", 0x11, 0x11, 0x11);
+            SetBrush("DisabledTextBrush", 0x77, 0x77, 0x77);
         }
     }
 
@@ -4314,6 +4692,21 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     }
 
     private readonly record struct OwnershipDiscoveryRangePreset(string Label, uint StartOffset, int Length);
+
+    private sealed record InventoryMappingExport(
+        DateTimeOffset Timestamp,
+        IReadOnlyList<InventoryMappingExportRow> Rows);
+
+    private sealed record InventoryMappingExportRow(
+        int SlotNumber,
+        string Offset,
+        byte RawValue,
+        string DecodedItem,
+        string DetectedVisualGroup,
+        string ResearchGroup,
+        string RowNote,
+        string ColumnNote,
+        string Notes);
 
     private sealed class OwnershipCorrelationAccumulator
     {
