@@ -3045,6 +3045,169 @@
                                                   ItemTemplate="{StaticResource HiddenSkillsCandidateGroupTemplate}" />
                                 </ScrollViewer>
 
+                                <GroupBox Header="Hidden Skills Bit Tester / Experimental" Margin="0,8,0,0">
+                                    <StackPanel>
+                                        <Border BorderBrush="{DynamicResource WarningBorderBrush}"
+                                                BorderThickness="1"
+                                                Background="{DynamicResource WarningBackgroundBrush}"
+                                                Padding="8"
+                                                Margin="0,0,0,8">
+                                            <TextBlock TextWrapping="Wrap"
+                                                       Foreground="{DynamicResource WarningTextBrush}"
+                                                       FontWeight="SemiBold"
+                                                       Text="Research only. This writes one selected bit while preserving the rest of the byte. Use copied saves or save states. This is not a Hidden Skills editor." />
+                                        </Border>
+
+                                        <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
+                                            <Button Content="0x218 bit0"
+                                                    Tag="0x218|0"
+                                                    Click="HiddenSkillsBitPreset_Click" />
+                                            <Button Content="0x219 bit0"
+                                                    Tag="0x219|0"
+                                                    Click="HiddenSkillsBitPreset_Click"
+                                                    Margin="6,0,0,0" />
+                                            <Button Content="0x214 bit1"
+                                                    Tag="0x214|1"
+                                                    Click="HiddenSkillsBitPreset_Click"
+                                                    Margin="6,0,0,0" />
+                                            <Button Content="0x238 bit0"
+                                                    Tag="0x238|0"
+                                                    Click="HiddenSkillsBitPreset_Click"
+                                                    Margin="6,0,0,0" />
+                                        </StackPanel>
+
+                                        <Grid Margin="0,0,0,8">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="86" />
+                                                <ColumnDefinition Width="98" />
+                                                <ColumnDefinition Width="34" />
+                                                <ColumnDefinition Width="48" />
+                                                <ColumnDefinition Width="Auto" />
+                                                <ColumnDefinition Width="Auto" />
+                                                <ColumnDefinition Width="Auto" />
+                                                <ColumnDefinition Width="*" />
+                                            </Grid.ColumnDefinitions>
+
+                                            <TextBlock Text="Offset"
+                                                       VerticalAlignment="Center"
+                                                       Margin="0,0,6,0" />
+                                            <TextBox Grid.Column="1"
+                                                     x:Name="HiddenSkillsBitOffsetText"
+                                                     Text="0x218"
+                                                     FontFamily="Consolas"
+                                                     Margin="0,0,8,0" />
+                                            <TextBlock Grid.Column="2"
+                                                       Text="Bit"
+                                                       VerticalAlignment="Center"
+                                                       Margin="0,0,6,0" />
+                                            <TextBox Grid.Column="3"
+                                                     x:Name="HiddenSkillsBitIndexText"
+                                                     Text="0"
+                                                     FontFamily="Consolas"
+                                                     Margin="0,0,8,0" />
+                                            <Button Grid.Column="4"
+                                                    Content="Read Current"
+                                                    Click="HiddenSkillsBitReadCurrent_Click" />
+                                            <Button Grid.Column="5"
+                                                    Content="Toggle State"
+                                                    Click="HiddenSkillsBitToggleState_Click"
+                                                    Margin="6,0,0,0" />
+                                            <Button Grid.Column="6"
+                                                    Content="Apply"
+                                                    Click="HiddenSkillsBitApply_Click"
+                                                    Margin="6,0,0,0" />
+                                            <CheckBox Grid.Column="7"
+                                                      x:Name="HiddenSkillsBitDesiredStateCheckBox"
+                                                      Content="Desired bit set"
+                                                      VerticalAlignment="Center"
+                                                      Margin="12,0,0,0" />
+                                        </Grid>
+
+                                        <Grid Margin="0,0,0,8">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="126" />
+                                                <ColumnDefinition Width="*" />
+                                                <ColumnDefinition Width="110" />
+                                                <ColumnDefinition Width="*" />
+                                            </Grid.ColumnDefinitions>
+                                            <Grid.RowDefinitions>
+                                                <RowDefinition Height="Auto" />
+                                                <RowDefinition Height="Auto" />
+                                                <RowDefinition Height="Auto" />
+                                                <RowDefinition Height="Auto" />
+                                            </Grid.RowDefinitions>
+
+                                            <TextBlock Text="Absolute address" VerticalAlignment="Center" Margin="0,0,8,5" />
+                                            <TextBox Grid.Column="1"
+                                                     x:Name="HiddenSkillsBitAbsoluteAddressText"
+                                                     Text="-"
+                                                     IsReadOnly="True"
+                                                     FontFamily="Consolas"
+                                                     Background="{DynamicResource ReadOnlyBackgroundBrush}"
+                                                     Margin="0,0,8,5" />
+                                            <TextBlock Grid.Column="2" Text="Current byte" VerticalAlignment="Center" Margin="0,0,8,5" />
+                                            <TextBox Grid.Column="3"
+                                                     x:Name="HiddenSkillsBitCurrentByteText"
+                                                     Text="Not read"
+                                                     IsReadOnly="True"
+                                                     FontFamily="Consolas"
+                                                     Background="{DynamicResource ReadOnlyBackgroundBrush}"
+                                                     Margin="0,0,0,5" />
+
+                                            <TextBlock Grid.Row="1" Text="Current bit" VerticalAlignment="Center" Margin="0,0,8,5" />
+                                            <TextBox Grid.Row="1"
+                                                     Grid.Column="1"
+                                                     x:Name="HiddenSkillsBitCurrentStateText"
+                                                     Text="Not read"
+                                                     IsReadOnly="True"
+                                                     Background="{DynamicResource ReadOnlyBackgroundBrush}"
+                                                     Margin="0,0,8,5" />
+                                            <TextBlock Grid.Row="1" Grid.Column="2" Text="Immediate" VerticalAlignment="Center" Margin="0,0,8,5" />
+                                            <TextBox Grid.Row="1"
+                                                     Grid.Column="3"
+                                                     x:Name="HiddenSkillsBitImmediateReadbackText"
+                                                     Text="Not written"
+                                                     IsReadOnly="True"
+                                                     FontFamily="Consolas"
+                                                     Background="{DynamicResource ReadOnlyBackgroundBrush}"
+                                                     Margin="0,0,0,5" />
+
+                                            <TextBlock Grid.Row="2" Text="250ms readback" VerticalAlignment="Center" Margin="0,0,8,5" />
+                                            <TextBox Grid.Row="2"
+                                                     Grid.Column="1"
+                                                     x:Name="HiddenSkillsBit250ReadbackText"
+                                                     Text="Not written"
+                                                     IsReadOnly="True"
+                                                     FontFamily="Consolas"
+                                                     Background="{DynamicResource ReadOnlyBackgroundBrush}"
+                                                     Margin="0,0,8,5" />
+                                            <TextBlock Grid.Row="2" Grid.Column="2" Text="1000ms readback" VerticalAlignment="Center" Margin="0,0,8,5" />
+                                            <TextBox Grid.Row="2"
+                                                     Grid.Column="3"
+                                                     x:Name="HiddenSkillsBit1000ReadbackText"
+                                                     Text="Not written"
+                                                     IsReadOnly="True"
+                                                     FontFamily="Consolas"
+                                                     Background="{DynamicResource ReadOnlyBackgroundBrush}"
+                                                     Margin="0,0,0,5" />
+
+                                            <TextBlock Grid.Row="3" Text="Status" VerticalAlignment="Center" Margin="0,0,8,0" />
+                                            <TextBox Grid.Row="3"
+                                                     Grid.Column="1"
+                                                     Grid.ColumnSpan="3"
+                                                     x:Name="HiddenSkillsBitStatusText"
+                                                     Text="Ready. No automatic writes."
+                                                     IsReadOnly="True"
+                                                     TextWrapping="Wrap"
+                                                     Background="{DynamicResource ReadOnlyBackgroundBrush}" />
+                                        </Grid>
+
+                                        <TextBlock Text="Bit tester writes are logged to logs/hidden-skills-bit-testing.log."
+                                                   Foreground="{DynamicResource SecondaryTextBrush}"
+                                                   TextWrapping="Wrap" />
+                                    </StackPanel>
+                                </GroupBox>
+
                                 <TextBlock Text="Captures: logs/research/hidden-skills-captures/. Exports: logs/research/hidden-skills-before.json, hidden-skills-after.json, hidden-skills-report.json, hidden-skills-report.csv. Logs: logs/hidden-skills-research.log."
                                            Foreground="{DynamicResource SecondaryTextBrush}"
                                            TextWrapping="Wrap"

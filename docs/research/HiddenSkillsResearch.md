@@ -58,6 +58,7 @@ The research tool writes:
 - `logs/research/hidden-skills-report.csv`
 - `logs/research/hidden-skills-candidate-groups.json`
 - `logs/research/hidden-skills-candidate-groups.csv`
+- `logs/hidden-skills-bit-testing.log`
 
 Capture files include:
 
@@ -108,6 +109,27 @@ Candidate groups can be exported to:
 - `logs/research/hidden-skills-candidate-groups.json`
 - `logs/research/hidden-skills-candidate-groups.csv`
 
+## Bit Tester
+
+The **Hidden Skills Bit Tester / Experimental** section can test one candidate bit without promoting it to a real editor.
+
+Controls:
+
+- Offset
+- Bit
+- Read Current
+- Toggle State
+- Apply
+
+Suggested presets:
+
+- `0x218` bit `0`
+- `0x219` bit `0`
+- `0x214` bit `1`
+- `0x238` bit `0`
+
+Apply writes only the selected bit and preserves all other bits in the same byte. The tester verifies immediate, 250ms, and 1000ms readbacks and logs to `logs/hidden-skills-bit-testing.log`.
+
 ## Safety
 
-Hidden Skills Research does not write memory. It is intended only to discover candidate ownership, unlock, or progression bytes for later live testing.
+Hidden Skills snapshot capture and comparison do not write memory. The experimental bit tester writes one selected bit only when Apply is clicked. Use copied saves or save states when testing candidate bits.

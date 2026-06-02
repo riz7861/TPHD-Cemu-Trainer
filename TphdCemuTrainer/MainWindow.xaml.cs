@@ -238,6 +238,9 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     private static string HiddenSkillsResearchLogPath =>
         Path.Combine(AppContext.BaseDirectory, "logs", "hidden-skills-research.log");
 
+    private static string HiddenSkillsBitTestingLogPath =>
+        Path.Combine(AppContext.BaseDirectory, "logs", "hidden-skills-bit-testing.log");
+
     private static string HiddenSkillsCaptureDirectory =>
         Path.Combine(ResearchSnapshotStore.ExportDirectory, "hidden-skills-captures");
 
@@ -1117,6 +1120,162 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         {
             HiddenSkillsResearchStatusText.Text = $"Hidden Skills candidate group export failed: {ex.Message}";
             SetStatus("Hidden Skills candidate group export failed.", StatusKind.Warning);
+        }
+    }
+
+    private void HiddenSkillsBitPreset_Click(object sender, RoutedEventArgs e)
+    {
+        if ((sender as FrameworkElement)?.Tag is not string preset)
+        {
+            return;
+        }
+
+        var parts = preset.Split('|');
+        if (parts.Length != 2)
+        {
+            return;
+        }
+
+        HiddenSkillsBitOffsetText.Text = parts[0];
+        HiddenSkillsBitIndexText.Text = parts[1];
+        HiddenSkillsBitStatusText.Text = $"Loaded Hidden Skills bit preset {parts[0]} bit {parts[1]}.";
+    }
+
+    private void HiddenSkillsBitReadCurrent_Click(object sender, RoutedEventArgs e)
+    {
+        if (!TryReadHiddenSkillsBitTestByte(out var offset, out var bit, out var value, out var absoluteAddress))
+        {
+            return;
+        }
+
+        var isSet = IsBitSet(value, bit);
+        HiddenSkillsBitAbsoluteAddressText.Text = $"0x{absoluteAddress:X}";
+        HiddenSkillsBitCurrentByteText.Text = FormatResearchByte(value);
+        HiddenSkillsBitCurrentStateText.Text = isSet ? "Set" : "Clear";
+        HiddenSkillsBitDesiredStateCheckBox.IsChecked = isSet;
+        HiddenSkillsBitImmediateReadbackText.Text = "Not written";
+        HiddenSkillsBit250ReadbackText.Text = "Not written";
+        HiddenSkillsBit1000ReadbackText.Text = "Not written";
+        HiddenSkillsBitStatusText.Text =
+            $"Read _playerbase+0x{offset:X} bit {bit}: {(isSet ? "set" : "clear")}.";
+        AppendHiddenSkillsBitTestingLog(
+            $"action=read offset=0x{offset:X} bit={bit} address=0x{absoluteAddress:X} byte={FormatCandidateLogByte(value)} state={isSet}");
+        SetStatus("Hidden Skills bit read.", StatusKind.Connected);
+    }
+
+    private void HiddenSkillsBitToggleState_Click(object sender, RoutedEventArgs e)
+    {
+        if (!TryReadHiddenSkillsBitTestByte(out var offset, out var bit, out var value, out _))
+        {
+            return;
+        }
+
+        var newDesiredState = !IsBitSet(value, bit);
+        HiddenSkillsBitCurrentByteText.Text = FormatResearchByte(value);
+        HiddenSkillsBitCurrentStateText.Text = newDesiredState ? "Clear -> Set" : "Set -> Clear";
+        HiddenSkillsBitDesiredStateCheckBox.IsChecked = newDesiredState;
+        HiddenSkillsBitStatusText.Text =
+            $"Toggled desired state for _playerbase+0x{offset:X} bit {bit} to {(newDesiredState ? "set" : "clear")}. Click Apply to write.";
+        SetStatus("Hidden Skills bit desired state toggled.", StatusKind.Neutral);
+    }
+
+    private async void HiddenSkillsBitApply_Click(object sender, RoutedEventArgs e)
+    {
+        if (!TryReadHiddenSkillsBitTestByte(out var offset, out var bit, out var beforeValue, out var absoluteAddress))
+        {
+            return;
+        }
+
+        var memory = _memory;
+        if (memory is null)
+        {
+            HiddenSkillsBitStatusText.Text = "Not attached.";
+            SetStatus("Not attached. Attach to Cemu and rescan before testing Hidden Skills bits.", StatusKind.Neutral);
+            return;
+        }
+
+        var desiredState = HiddenSkillsBitDesiredStateCheckBox.IsChecked == true;
+        var mask = (byte)(1 << bit);
+        var desiredValue = desiredState
+            ? (byte)(beforeValue | mask)
+            : (byte)(beforeValue & ~mask);
+        byte? immediateReadback = null;
+        byte? delayed250Readback = null;
+        byte? delayed1000Readback = null;
+        var status = "started";
+
+        try
+        {
+            if (!memory.TryWriteBytes(absoluteAddress, [desiredValue], out var writeError))
+            {
+                status = $"write-failed: {writeError}";
+                HiddenSkillsBitStatusText.Text = $"Write failed: {writeError}";
+                SetStatus("Hidden Skills bit write failed.", StatusKind.Warning);
+                return;
+            }
+
+            if (!TryReadCandidateByteAt(offset, absoluteAddress, out var immediateValue, out var immediateError))
+            {
+                status = $"immediate-read-failed: {immediateError}";
+                HiddenSkillsBitStatusText.Text = $"Write issued, but immediate verification failed: {immediateError}";
+                SetStatus("Hidden Skills bit immediate verification failed.", StatusKind.Warning);
+                return;
+            }
+
+            immediateReadback = immediateValue;
+            HiddenSkillsBitImmediateReadbackText.Text = FormatResearchByte(immediateValue);
+            if (immediateValue != desiredValue)
+            {
+                status = "immediate-mismatch";
+                HiddenSkillsBitStatusText.Text =
+                    $"Write failed: expected {FormatResearchByte(desiredValue)} but read {FormatResearchByte(immediateValue)}.";
+                SetStatus("Hidden Skills bit immediate readback mismatch.", StatusKind.Warning);
+                return;
+            }
+
+            await Task.Delay(250);
+            if (TryReadCandidateByteAt(offset, absoluteAddress, out var delayed250Value, out _))
+            {
+                delayed250Readback = delayed250Value;
+                HiddenSkillsBit250ReadbackText.Text = FormatResearchByte(delayed250Value);
+            }
+            else
+            {
+                HiddenSkillsBit250ReadbackText.Text = "Read failed";
+            }
+
+            await Task.Delay(750);
+            if (TryReadCandidateByteAt(offset, absoluteAddress, out var delayed1000Value, out _))
+            {
+                delayed1000Readback = delayed1000Value;
+                HiddenSkillsBit1000ReadbackText.Text = FormatResearchByte(delayed1000Value);
+            }
+            else
+            {
+                HiddenSkillsBit1000ReadbackText.Text = "Read failed";
+            }
+
+            var delayedMismatch =
+                delayed250Readback.HasValue && delayed250Readback.Value != desiredValue ||
+                delayed1000Readback.HasValue && delayed1000Readback.Value != desiredValue;
+            status = delayedMismatch ? "delayed-mismatch" : "verified";
+            HiddenSkillsBitCurrentByteText.Text = FormatResearchByte(delayed1000Readback ?? immediateValue);
+            HiddenSkillsBitCurrentStateText.Text = IsBitSet(delayed1000Readback ?? immediateValue, bit) ? "Set" : "Clear";
+            HiddenSkillsBitStatusText.Text = delayedMismatch
+                ? "Write succeeded immediately, but delayed verification changed. Game may have reverted or updated the byte."
+                : $"Verified _playerbase+0x{offset:X} bit {bit} {(desiredState ? "set" : "clear")}.";
+            SetStatus(
+                delayedMismatch ? "Hidden Skills bit changed after delayed verification." : "Hidden Skills bit write verified.",
+                delayedMismatch ? StatusKind.Warning : StatusKind.Connected);
+        }
+        finally
+        {
+            AppendHiddenSkillsBitTestingLog(
+                $"action=apply offset=0x{offset:X} bit={bit} address=0x{absoluteAddress:X} " +
+                $"before={FormatCandidateLogByte(beforeValue)} desired-byte={FormatCandidateLogByte(desiredValue)} " +
+                $"desired-state={desiredState} immediate={FormatCandidateLogByte(immediateReadback)} " +
+                $"read250ms={FormatCandidateLogByte(delayed250Readback)} read1000ms={FormatCandidateLogByte(delayed1000Readback)} " +
+                $"status=\"{status}\"");
         }
     }
 
@@ -4363,6 +4522,69 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         return true;
     }
 
+    private bool TryReadHiddenSkillsBitTestByte(
+        out uint offset,
+        out int bit,
+        out byte value,
+        out ulong absoluteAddress)
+    {
+        offset = 0;
+        bit = 0;
+        value = 0;
+        absoluteAddress = 0;
+
+        if (_memory is null || !_playerBaseAddress.HasValue)
+        {
+            HiddenSkillsBitAbsoluteAddressText.Text = "-";
+            HiddenSkillsBitCurrentByteText.Text = "Not attached";
+            HiddenSkillsBitCurrentStateText.Text = "Not attached";
+            HiddenSkillsBitStatusText.Text = "Not attached. Attach to Cemu and rescan before testing Hidden Skills bits.";
+            SetStatus("Not attached. Attach to Cemu and rescan before testing Hidden Skills bits.", StatusKind.Neutral);
+            return false;
+        }
+
+        if (!TryParseResearchOffset(HiddenSkillsBitOffsetText.Text, out offset, out var offsetError))
+        {
+            HiddenSkillsBitAbsoluteAddressText.Text = "-";
+            HiddenSkillsBitStatusText.Text = offsetError;
+            return false;
+        }
+
+        if (!TryParseHiddenSkillsBit(HiddenSkillsBitIndexText.Text, out bit, out var bitError))
+        {
+            HiddenSkillsBitStatusText.Text = bitError;
+            return false;
+        }
+
+        absoluteAddress = _playerBaseAddress.Value + offset;
+        if (!TryReadCandidateByteAt(offset, absoluteAddress, out value, out var readError))
+        {
+            HiddenSkillsBitAbsoluteAddressText.Text = $"0x{absoluteAddress:X}";
+            HiddenSkillsBitCurrentByteText.Text = "Read failed";
+            HiddenSkillsBitCurrentStateText.Text = "Read failed";
+            HiddenSkillsBitStatusText.Text = readError;
+            SetStatus("Could not read Hidden Skills bit test byte.", StatusKind.Warning);
+            return false;
+        }
+
+        return true;
+    }
+
+    private static bool TryParseHiddenSkillsBit(string text, out int bit, out string error)
+    {
+        bit = 0;
+        error = string.Empty;
+
+        if (!int.TryParse(text.Trim(), NumberStyles.Integer, CultureInfo.InvariantCulture, out bit) ||
+            bit is < 0 or > 7)
+        {
+            error = "Bit must be between 0 and 7.";
+            return false;
+        }
+
+        return true;
+    }
+
     private bool TryReadResearchRange(out uint startOffset, out byte[] bytes, out ulong absoluteAddress)
     {
         startOffset = 0;
@@ -5816,6 +6038,26 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         }
     }
 
+    private void AppendHiddenSkillsBitTestingLog(string details)
+    {
+        var entry = $"{DateTimeOffset.Now:O} {details}";
+
+        try
+        {
+            var logDirectory = Path.GetDirectoryName(HiddenSkillsBitTestingLogPath);
+            if (!string.IsNullOrWhiteSpace(logDirectory))
+            {
+                Directory.CreateDirectory(logDirectory);
+            }
+
+            File.AppendAllText(HiddenSkillsBitTestingLogPath, entry + Environment.NewLine);
+        }
+        catch (Exception ex)
+        {
+            HiddenSkillsBitStatusText.Text = $"Hidden Skills bit testing log write failed: {ex.Message}";
+        }
+    }
+
     private string GetHiddenSkillsCaptureLabel()
     {
         return HiddenSkillsCaptureLabelText.Text.Trim();
@@ -6194,6 +6436,11 @@ public partial class MainWindow : Window, INotifyPropertyChanged
 
         value = (byte)parsedValue;
         return true;
+    }
+
+    private static bool IsBitSet(byte value, int bit)
+    {
+        return (value & (1 << bit)) != 0;
     }
 
     private static string FormatResearchByte(byte value)
