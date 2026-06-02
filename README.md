@@ -16,7 +16,7 @@ This trainer is external only. It does not inject DLLs, install drivers, hook em
 The UI is organized as a tabbed trainer/save-editor hybrid so new systems can be added without crowding one large grid.
 
 - **General**: health, max health, heart container summary, lantern oil, wallet, rupees, Poe Souls, Golden Bugs count
-- **Inventory**: ownership-first item detection, fixed-slot experimental grant/remove for mapped visible slots, read-only current slot view, mapping research, unsafe removal testing, and unsafe raw CT writes for research
+- **Inventory**: ownership-first item detection, fixed-slot experimental grant/remove for mapped visible slots, Bottle Editor v1, read-only current slot view, mapping research, unsafe removal testing, and unsafe raw CT writes for research
 - **Equipment**: ownership flag editor with read-only current equipped armor/sword/shield diagnostics
 - **Ammo & Upgrades**: wallet, quiver, bomb bag, and seed capacity-aware edits
 - **Collectibles**: verified Poe Souls editing, Golden Bugs research-only bitfield display, and health/heart summaries
@@ -42,6 +42,7 @@ The top bar includes a **Dark Mode** toggle. The app defaults to Light mode and 
 - Bomb bag capacity
 - Golden Bugs raw CT bitfield and detected count display
 - Read-only inventory slot detection at `_playerbase+0x258` through `_playerbase+0x26F`
+- Experimental bottle slot editing at `_playerbase+0x263` through `_playerbase+0x266`
 - Unsafe inventory removal testing at `_playerbase+0x258` through `_playerbase+0x26F`
 - Unsafe raw inventory slot writes at `_playerbase+0x258` through `_playerbase+0x26F`
 - Read-only equipped armor at `_playerbase+0x1D1`
@@ -133,6 +134,28 @@ The **Current Inventory Slots (Read Only)** section shows all 24 CT-derived byte
 
 The trainer should eventually grant inventory through ownership/progression flags rather than raw slot forcing. Raw slots are still useful for detection and research, especially when comparing before/after saves or snapshots.
 
+The **Bottle Editor / Experimental** section edits only the four currently mapped bottle-content slots:
+
+- Bottle Slot 1: `_playerbase+0x263`
+- Bottle Slot 2: `_playerbase+0x264`
+- Bottle Slot 3: `_playerbase+0x265`
+- Bottle Slot 4: `_playerbase+0x266`
+
+Bottle ownership is not fully understood yet. These bytes are currently believed to represent visible bottle contents, not necessarily authoritative bottle ownership. The editor does not automatically create bottle ownership, does not modify non-bottle inventory slots, and does not alter assigned button slots.
+
+Only confirmed live-tested values are enabled by default:
+
+- `255` / `0xFF`: Nothing / No Bottle
+- `96` / `0x60`: Empty Bottle
+- `108` / `0x6C`: Fairy
+- `115` / `0x73`: Great Fairy's Tears
+- `119` / `0x77`: Rare Chu Jelly
+- `121` / `0x79`: Blue Chu Jelly
+
+Bottle Editor writes happen only when **Apply**, **Set Nothing**, or **Restore** is clicked. Each write reads the previous value, writes one byte, verifies immediate readback, verifies again after 250ms and 1000ms, refreshes bottle state, and logs to `logs/bottle-editor.log`. Restore buffers are per bottle slot and session-only. This feature is experimental; use copied saves or save states.
+
+Known Twilight Princess bottled item names such as Milk, Red Potion, Blue Potion, Lantern Oil, Bee Larva, Worm, Red Chu Jelly, Yellow Chu Jelly, and Purple Chu Jelly are documented in `docs/research/BottleResearch.md` but are not exposed in Bottle Editor v1 until their bottle-slot raw values are confirmed. The external reference used for item names is Zelda Dungeon's [Twilight Princess Bottles](https://www.zeldadungeon.net/wiki/Twilight_Princess_Bottles) page.
+
 Current removal findings: removing visible inventory slot values can remove items from the in-game inventory, and some removals can persist after save/reload. Button assignments are separate from visible inventory slots, so a removed item assigned to Y/X/R may remain usable until manually unequipped or replaced. Removing all primary/progression items can also make bombs or bottles unreachable in the in-game inventory menu.
 
 The **Inventory Mapping Mode (Research Only)** section documents the visible inventory layout without writing memory. It shows slot, offset, raw value, decoded item, inferred visual group, editable research group, row/column notes, and freeform notes. Exports are written to `logs/research/inventory-mapping.json` and `logs/research/inventory-mapping.csv`.
@@ -143,7 +166,26 @@ Inventory removal writes directly to visible game-managed slots. TPHD may revert
 
 The **Fixed Slot Inventory Editor / Experimental** option is research-only. It edits fixed visible inventory slots, not story progression or authoritative ownership flags. When enabled, a checked inventory item row attempts to write that row's detected or static known item ID back to its fixed visible slot; an unchecked row writes `0xFF` / `Nothing`. If the item is currently detected, the trainer uses the detected slot/value. If it is absent but has a known fixed/special static mapping, the trainer still shows the static slot and can test writing that value after a restart.
 
-Forest Temple save testing has confirmed fixed-slot grant/remove for Gale Boomerang, Lantern, Iron Boots, Hero's Bow, Spinner, Ball and Chain, Hawkeye, Horse Call, Double Clawshots, Fishing Rod, Slingshot, and Dominion Rod. Dominion Rod writes grant/remove the red unpowered variant; story flags or related state may still be needed before it behaves like the fully powered item. Clawshot is mapped for fixed-slot testing at slot 10 / `_playerbase+0x261` with item ID `68`.
+Current confirmed fixed-slot inventory mappings:
+
+- **Gale Boomerang**: `_playerbase+0x258` / `64`
+- **Lantern**: `_playerbase+0x259` / `72`
+- **Spinner**: `_playerbase+0x25A` / `65`
+- **Iron Boots**: `_playerbase+0x25B` / `69`
+- **Hero's Bow**: `_playerbase+0x25C` / `67`
+- **Hawkeye**: `_playerbase+0x25D` / `62`
+- **Ball and Chain**: `_playerbase+0x25E` / `66`
+- **Ghost Lantern**: `_playerbase+0x25F` / `232`
+- **Dominion Rod**: `_playerbase+0x260` / `70`
+- **Clawshot**: `_playerbase+0x261` / `68`
+- **Double Clawshots**: `_playerbase+0x262` / `71`
+- **Fishing Rod + Earring**: `_playerbase+0x26C` / `92`
+- **Horse Call**: `_playerbase+0x26D` / `132`
+- **Slingshot**: `_playerbase+0x26F` / `75`
+
+Forest Temple save testing has confirmed grant/remove for the early and midgame fixed-slot items above. Ghost Lantern is a late-game/story-specific item, so granting it may not fully replicate normal progression. Dominion Rod writes grant/remove the red unpowered variant; story flags or related state may still be needed before it behaves like the fully powered item.
+
+Clawshot and Double Clawshots are separate visible inventory entries and can both be granted, assigned, and used, but enabling both creates an invalid inventory layout state. Live testing showed Dominion Rod can disappear from the visible inventory until the single Clawshot is removed. The trainer treats Clawshot and Double Clawshots as mutually exclusive in the fixed-slot editor: enabling one automatically disables the other, and Apply enforces the same rule as a backstop. Safeguard actions are logged to `logs/inventory-checkbox-testing.log`.
 
 This fixed-slot mode is intentionally not arbitrary item replacement. Some items may appear but be unusable until story flags or related state are set, and button assignments are separate from inventory slots. The trainer verifies immediate readback plus 250ms and 1000ms delayed reads, labels values that revert as **Reverted by game**, logs whether the mapping source was **Detected** or **Static**, and writes diagnostics to `logs/inventory-checkbox-testing.log`. Bottles are not enabled for this mode.
 
@@ -250,6 +292,7 @@ The app does not parse or execute Cheat Engine scripts at runtime. The relevant 
 - `TphdCemuTrainer/Memory/InventoryMemoryService.cs`: CT-backed inventory slot reads, unsafe raw research writes, and mapped inventory ownership flag reads/writes
 - `TphdCemuTrainer/Memory/EquipmentMemoryService.cs`: CT-backed equipment byte and ownership flag reads/writes
 - `TphdCemuTrainer/Cheats/CheatCatalog.cs`: CT-derived cheat and capacity definitions
+- `TphdCemuTrainer/Cheats/BottleDefinitions.cs`: experimental bottle slot and confirmed bottle content definitions
 - `TphdCemuTrainer/Cheats/InventoryDefinitions.cs`: safe CT inventory item dropdowns, ownership candidates, and managed slot metadata
 - `TphdCemuTrainer/Cheats/InventoryOwnershipDefinition.cs`: inventory ownership/progression candidate metadata
 - `TphdCemuTrainer/Cheats/InventoryFixedSlotDefinition.cs`: known fixed/game-managed inventory slot metadata
@@ -266,8 +309,10 @@ The app does not parse or execute Cheat Engine scripts at runtime. The relevant 
 - Missing player data is handled as a rescan state, not an application failure.
 - Story flags, hidden skills, and quest items are laid out for future expansion but not yet written.
 - Inventory ownership editing uses detected/desired/apply where real flags are mapped. Current listed inventory ownership flags are not identified yet.
+- Bottle Editor v1 edits visible bottle-content slots only; bottle ownership and unconfirmed bottled item raw values are still being researched.
 - General inventory ownership/progression editing is not solved yet. Static fixed-slot grant/remove is confirmed only for specific visible-slot item/slot pairs.
 - The fixed-slot experimental editor uses detected or static visible-slot mappings for known fixed/special items only. These are confirmed slot writes for tested items, not confirmed story progression or authoritative ownership flags.
+- Clawshot and Double Clawshots are mutually exclusive in the fixed-slot editor because enabling both can hide or displace another progression item such as Dominion Rod.
 - Arbitrary visible-slot replacement is not supported. Use the known static item/slot pairs only.
 - Inventory removal testing is unsafe/research-only and may be reverted by game-managed visible slots.
 - Inventory removal restore buffers are not saved to disk and are lost when the app closes.

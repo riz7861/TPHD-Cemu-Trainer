@@ -305,7 +305,7 @@
                     <TextBlock Grid.Column="6"
                                Text="{Binding EditStatus}"
                                ToolTip="{Binding EditStatus}"
-                               TextTrimming="CharacterEllipsis"
+                               TextWrapping="Wrap"
                                Foreground="{DynamicResource SecondaryTextBrush}"
                                VerticalAlignment="Center"
                                Margin="6,0" />
@@ -420,6 +420,108 @@
                             IsEnabled="{Binding CanEdit}"
                             Tag="{Binding}"
                             Click="ClearInventorySlot_Click" />
+                </Grid>
+            </Border>
+        </DataTemplate>
+
+        <DataTemplate x:Key="BottleSlotTemplate">
+            <Border BorderBrush="{DynamicResource BorderBrush}"
+                    BorderThickness="0,0,0,1"
+                    Padding="0,4">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="84" />
+                        <ColumnDefinition Width="74" />
+                        <ColumnDefinition Width="106" />
+                        <ColumnDefinition Width="*" MinWidth="150" />
+                        <ColumnDefinition Width="260" />
+                        <ColumnDefinition Width="170" />
+                        <ColumnDefinition Width="62" />
+                        <ColumnDefinition Width="92" />
+                        <ColumnDefinition Width="80" />
+                    </Grid.ColumnDefinitions>
+
+                    <TextBlock Text="{Binding BottleSlotNumber}"
+                               VerticalAlignment="Center" />
+                    <TextBlock Grid.Column="1"
+                               Text="{Binding Offset}"
+                               FontFamily="Consolas"
+                               VerticalAlignment="Center" />
+                    <TextBlock Grid.Column="2"
+                               Text="{Binding CurrentRawValue}"
+                               FontFamily="Consolas"
+                               VerticalAlignment="Center" />
+                    <TextBlock Grid.Column="3"
+                               Text="{Binding CurrentDecodedContent}"
+                               TextTrimming="CharacterEllipsis"
+                               VerticalAlignment="Center" />
+                    <ComboBox Grid.Column="4"
+                              ItemsSource="{Binding AvailableContents}"
+                              DisplayMemberPath="DisplayName"
+                              SelectedItem="{Binding SelectedContent, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                              Margin="6,0" />
+                    <TextBlock Grid.Column="5"
+                               Text="{Binding Status}"
+                               TextTrimming="CharacterEllipsis"
+                               VerticalAlignment="Center"
+                               Margin="6,0" />
+                    <Button Grid.Column="6"
+                            Content="Apply"
+                            IsEnabled="{Binding CanEdit}"
+                            Tag="{Binding}"
+                            Click="ApplyBottleSlot_Click" />
+                    <Button Grid.Column="7"
+                            Content="Set Nothing"
+                            IsEnabled="{Binding CanEdit}"
+                            Tag="{Binding}"
+                            Click="ClearBottleSlot_Click" />
+                    <Button Grid.Column="8"
+                            Content="Restore"
+                            IsEnabled="{Binding CanRestore}"
+                            Tag="{Binding}"
+                            Click="RestoreBottleSlot_Click" />
+                </Grid>
+            </Border>
+        </DataTemplate>
+
+        <DataTemplate x:Key="BottleDiagnosticTemplate">
+            <Border BorderBrush="{DynamicResource BorderBrush}"
+                    BorderThickness="0,0,0,1"
+                    Padding="0,4">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="54" />
+                        <ColumnDefinition Width="74" />
+                        <ColumnDefinition Width="112" />
+                        <ColumnDefinition Width="112" />
+                        <ColumnDefinition Width="220" />
+                        <ColumnDefinition Width="*" MinWidth="260" />
+                    </Grid.ColumnDefinitions>
+
+                    <TextBlock Text="{Binding BottleSlotNumber}"
+                               VerticalAlignment="Center" />
+                    <TextBlock Grid.Column="1"
+                               Text="{Binding Offset}"
+                               FontFamily="Consolas"
+                               VerticalAlignment="Center" />
+                    <TextBlock Grid.Column="2"
+                               Text="{Binding CurrentRawValue}"
+                               FontFamily="Consolas"
+                               VerticalAlignment="Center" />
+                    <TextBlock Grid.Column="3"
+                               Text="{Binding PreviousRawValue}"
+                               FontFamily="Consolas"
+                               VerticalAlignment="Center" />
+                    <TextBlock Grid.Column="4"
+                               Text="{Binding LastWriteResult}"
+                               TextTrimming="CharacterEllipsis"
+                               VerticalAlignment="Center"
+                               Margin="6,0" />
+                    <TextBlock Grid.Column="5"
+                               Text="{Binding LastVerificationResult}"
+                               TextTrimming="CharacterEllipsis"
+                               VerticalAlignment="Center"
+                               Margin="6,0" />
                 </Grid>
             </Border>
         </DataTemplate>
@@ -1086,6 +1188,11 @@
                                                    Foreground="{DynamicResource WarningTextBrush}"
                                                    FontWeight="SemiBold"
                                                    Text="Fixed Slot Inventory Editor / Experimental. Checked writes the row's detected or static fixed-slot item ID to its fixed visible slot. Unchecked writes 0xFF / Nothing to remove it. This is not solved ownership and may revert or fail to appear in-game if related progression state is missing." />
+                                        <TextBlock TextWrapping="Wrap"
+                                                   Foreground="{DynamicResource WarningTextBrush}"
+                                                   FontWeight="SemiBold"
+                                                   Margin="0,6,0,0"
+                                                   Text="Use only one Clawshot variant. Enabling both can hide or displace another progression item such as the Dominion Rod." />
                                         <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
                                             <CheckBox Content="Enable fixed-slot inventory editor / experimental"
                                                       IsChecked="{Binding EnableExperimentalInventoryCheckboxWrites, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
@@ -1154,6 +1261,49 @@
 
                                 <ItemsControl ItemsSource="{Binding InventorySlots}"
                                               ItemTemplate="{StaticResource InventorySlotReadOnlyTemplate}" />
+                            </StackPanel>
+                        </GroupBox>
+
+                        <GroupBox Header="Bottle Editor / Experimental">
+                            <StackPanel>
+                                <Border BorderBrush="{DynamicResource WarningBorderBrush}"
+                                        BorderThickness="1"
+                                        Background="{DynamicResource WarningBackgroundBrush}"
+                                        Padding="8"
+                                        Margin="0,0,0,8">
+                                    <TextBlock TextWrapping="Wrap"
+                                               Foreground="{DynamicResource WarningTextBrush}"
+                                               FontWeight="SemiBold"
+                                               Text="Bottle ownership and bottle contents are still being researched. Some values may represent bottle contents rather than bottle ownership. Use copied saves. This editor writes only the four bottle slots, does not automatically create bottle ownership, does not alter assigned button slots, and does not modify non-bottle inventory slots." />
+                                </Border>
+
+                                <TextBlock TextWrapping="Wrap"
+                                           Foreground="{DynamicResource SecondaryTextBrush}"
+                                           Margin="0,0,0,8"
+                                           Text="Confirmed bottle-slot values are enabled by default. Other Twilight Princess bottle contents are documented in docs/research/BottleResearch.md until their raw values are confirmed for this editor." />
+
+                                <Grid Margin="0,0,0,4">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="84" />
+                                        <ColumnDefinition Width="74" />
+                                        <ColumnDefinition Width="106" />
+                                        <ColumnDefinition Width="*" MinWidth="150" />
+                                        <ColumnDefinition Width="260" />
+                                        <ColumnDefinition Width="170" />
+                                        <ColumnDefinition Width="62" />
+                                        <ColumnDefinition Width="92" />
+                                        <ColumnDefinition Width="80" />
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Text="Bottle" FontWeight="SemiBold" />
+                                    <TextBlock Grid.Column="1" Text="Offset" FontWeight="SemiBold" />
+                                    <TextBlock Grid.Column="2" Text="Current raw" FontWeight="SemiBold" />
+                                    <TextBlock Grid.Column="3" Text="Current content" FontWeight="SemiBold" />
+                                    <TextBlock Grid.Column="4" Text="Desired content" FontWeight="SemiBold" Margin="6,0" />
+                                    <TextBlock Grid.Column="5" Text="Status" FontWeight="SemiBold" Margin="6,0" />
+                                </Grid>
+
+                                <ItemsControl ItemsSource="{Binding BottleSlots}"
+                                              ItemTemplate="{StaticResource BottleSlotTemplate}" />
                             </StackPanel>
                         </GroupBox>
 
@@ -2620,6 +2770,52 @@
                                               HorizontalScrollBarVisibility="Auto"
                                               Background="{DynamicResource ReadOnlyBackgroundBrush}">
                                     <ItemsControl ItemsSource="{Binding InventoryCheckboxTestingDiagnostics}">
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate>
+                                                <TextBlock Text="{Binding}"
+                                                           FontFamily="Consolas"
+                                                           FontSize="11"
+                                                           TextWrapping="NoWrap"
+                                                           Margin="0,0,0,4" />
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+                                </ScrollViewer>
+                            </StackPanel>
+                        </GroupBox>
+
+                        <GroupBox Header="Bottle Editor Diagnostics">
+                            <StackPanel>
+                                <TextBlock Text="Bottle write diagnostics are also written to logs/bottle-editor.log"
+                                           Foreground="{DynamicResource SecondaryTextBrush}"
+                                           Margin="0,0,0,6" />
+
+                                <Grid Margin="0,0,0,4">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="54" />
+                                        <ColumnDefinition Width="74" />
+                                        <ColumnDefinition Width="112" />
+                                        <ColumnDefinition Width="112" />
+                                        <ColumnDefinition Width="220" />
+                                        <ColumnDefinition Width="*" MinWidth="260" />
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Text="Slot" FontWeight="SemiBold" />
+                                    <TextBlock Grid.Column="1" Text="Offset" FontWeight="SemiBold" />
+                                    <TextBlock Grid.Column="2" Text="Current" FontWeight="SemiBold" />
+                                    <TextBlock Grid.Column="3" Text="Previous" FontWeight="SemiBold" />
+                                    <TextBlock Grid.Column="4" Text="Last write" FontWeight="SemiBold" Margin="6,0" />
+                                    <TextBlock Grid.Column="5" Text="Last verification" FontWeight="SemiBold" Margin="6,0" />
+                                </Grid>
+
+                                <ItemsControl ItemsSource="{Binding BottleSlots}"
+                                              ItemTemplate="{StaticResource BottleDiagnosticTemplate}" />
+
+                                <ScrollViewer Height="170"
+                                              VerticalScrollBarVisibility="Auto"
+                                              HorizontalScrollBarVisibility="Auto"
+                                              Background="{DynamicResource ReadOnlyBackgroundBrush}"
+                                              Margin="0,8,0,0">
+                                    <ItemsControl ItemsSource="{Binding BottleEditorDiagnostics}">
                                         <ItemsControl.ItemTemplate>
                                             <DataTemplate>
                                                 <TextBlock Text="{Binding}"

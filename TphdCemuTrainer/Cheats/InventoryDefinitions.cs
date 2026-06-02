@@ -8,6 +8,8 @@ public static class InventoryDefinitions
     public const byte EmptyItemId = 255;
     public const int FishingRodSlotIndex = 20;
     private const string FixedSlotConfirmedStatus = "Confirmed grant/remove";
+    private const string GhostLanternStatus =
+        "Late-game / story-specific item. Granting may not fully replicate normal progression.";
 
     public static IReadOnlyList<InventoryItemDefinition> SafeItems { get; } =
     [
@@ -158,7 +160,8 @@ public static class InventoryDefinitions
             [68],
             "Detected from visible inventory. Ownership/progression flag not mapped yet. Raw CT item ID 68 indicates Clawshot when present.",
             staticSlotOffset: 0x261,
-            staticItemId: 68),
+            staticItemId: 68,
+            fixedSlotStatus: FixedSlotConfirmedStatus),
         CreateUnknownOwnership(
             "double-clawshots",
             "Double Clawshots",
@@ -191,6 +194,14 @@ public static class InventoryDefinitions
             staticSlotOffset: 0x25E,
             staticItemId: 66,
             fixedSlotStatus: FixedSlotConfirmedStatus),
+        CreateUnknownOwnership(
+            "ghost-lantern",
+            "Ghost Lantern",
+            [232],
+            "Detected from visible inventory. Ownership/progression flag not mapped yet. Raw CT item ID 232 indicates Ghost Lantern when present.",
+            staticSlotOffset: 0x25F,
+            staticItemId: 232,
+            fixedSlotStatus: GhostLanternStatus),
         CreateUnknownOwnership(
             "hawkeye",
             "Hawkeye",

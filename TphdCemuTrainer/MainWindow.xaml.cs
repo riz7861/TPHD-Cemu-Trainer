@@ -29,6 +29,8 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     private bool _inventoryDiagnosticInProgress;
     private bool _inventoryOwnershipDiagnosticInProgress;
     private bool _equipmentDiagnosticInProgress;
+    private bool _suppressInventoryVariantSafeguard;
+    private bool _enforcingInventoryVariantSafeguard;
     private bool _holdInventoryValueAfterApply;
     private bool _allowEditingUninitializedInventory;
     private bool _allowUnsafeRawInventoryWrites;
@@ -54,6 +56,10 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     private OwnershipDiscoveryExport? _lastOwnershipDiscoveryExport;
     private AobScanCache? _scanCache;
     private ProgressionState _progressionState = ProgressionStateService.CreateUnavailable();
+    private string? _lastEnabledClawshotVariantId;
+
+    private const string ClawshotInventoryItemId = "clawshot";
+    private const string DoubleClawshotsInventoryItemId = "double-clawshots";
 
     private static readonly IReadOnlyList<OwnershipDiscoveryRangePreset> OwnershipDiscoveryRanges =
     [
@@ -86,8 +92,15 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         InventorySlots = new ObservableCollection<InventorySlotViewModel>(
             Enumerable.Range(0, InventoryDefinitions.SlotCount)
                 .Select(slotIndex => new InventorySlotViewModel(slotIndex, InventoryDefinitions.SafeItems)));
+        BottleSlots = new ObservableCollection<BottleSlotViewModel>(
+            BottleDefinitions.Slots.Select(slot => new BottleSlotViewModel(slot)));
         InventoryOwnershipItems = new ObservableCollection<InventoryOwnershipItemViewModel>(
             InventoryDefinitions.OwnershipItems.Select(item => new InventoryOwnershipItemViewModel(item)));
+        foreach (var item in InventoryOwnershipItems)
+        {
+            item.PropertyChanged += InventoryOwnershipItem_PropertyChanged;
+        }
+
         FixedInventoryItems = new ObservableCollection<InventoryFixedSlotViewModel>(
             InventoryDefinitions.FixedSlots.Select(slot => new InventoryFixedSlotViewModel(slot)));
         InventoryRemovalItems = [];
@@ -98,6 +111,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         InventoryOwnershipDiagnostics = [];
         InventoryRemovalDiagnostics = [];
         InventoryCheckboxTestingDiagnostics = [];
+        BottleEditorDiagnostics = [];
         CollectiblesDiagnostics = [];
 
         EquipmentSlots = new ObservableCollection<EquipmentSlotViewModel>(
@@ -138,6 +152,22 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         _refreshTimer.Tick += RefreshTimer_Tick;
     }
 
+    private void InventoryOwnershipItem_PropertyChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (_suppressInventoryVariantSafeguard ||
+            _enforcingInventoryVariantSafeguard ||
+            e.PropertyName != nameof(InventoryOwnershipItemViewModel.IsOwnedDesired) ||
+            sender is not InventoryOwnershipItemViewModel item ||
+            !IsClawshotVariant(item) ||
+            !item.IsOwnedDesired)
+        {
+            return;
+        }
+
+        _lastEnabledClawshotVariantId = item.Definition.Id;
+        EnforceClawshotVariantSafeguard(item, "desired-state-change");
+    }
+
     public event PropertyChangedEventHandler? PropertyChanged;
 
     private static string InventoryLogPath =>
@@ -151,6 +181,9 @@ public partial class MainWindow : Window, INotifyPropertyChanged
 
     private static string InventoryCheckboxTestingLogPath =>
         Path.Combine(AppContext.BaseDirectory, "logs", "inventory-checkbox-testing.log");
+
+    private static string BottleEditorLogPath =>
+        Path.Combine(AppContext.BaseDirectory, "logs", "bottle-editor.log");
 
     private static string EquipmentLogPath =>
         Path.Combine(AppContext.BaseDirectory, "logs", "equipment.log");
@@ -212,6 +245,8 @@ public partial class MainWindow : Window, INotifyPropertyChanged
 
     public ObservableCollection<InventorySlotViewModel> InventorySlots { get; }
 
+    public ObservableCollection<BottleSlotViewModel> BottleSlots { get; }
+
     public ObservableCollection<InventoryOwnershipItemViewModel> InventoryOwnershipItems { get; }
 
     public ObservableCollection<InventoryFixedSlotViewModel> FixedInventoryItems { get; }
@@ -227,6 +262,8 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     public ObservableCollection<string> InventoryRemovalDiagnostics { get; }
 
     public ObservableCollection<string> InventoryCheckboxTestingDiagnostics { get; }
+
+    public ObservableCollection<string> BottleEditorDiagnostics { get; }
 
     public ObservableCollection<string> CollectiblesDiagnostics { get; }
 
@@ -751,16 +788,18 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     {
         if (!EnableExperimentalInventoryCheckboxWrites)
         {
-            SetStatus("Enable experimental inventory checkbox writes before applying checkbox tests.", StatusKind.Warning);
+            SetStatus("Enable the fixed-slot inventory editor before applying fixed-slot changes.", StatusKind.Warning);
             return;
         }
+
+        EnforceClawshotVariantSafeguard(GetPreferredClawshotVariantForApply(), "apply-backstop");
 
         var changedItems = InventoryOwnershipItems
             .Where(item => item.IsDirty && item.CanExperimentalCheckboxWrite)
             .ToList();
         if (changedItems.Count == 0)
         {
-            SetStatus("No supported experimental inventory checkbox changes to apply.", StatusKind.Neutral);
+            SetStatus("No supported fixed-slot inventory changes to apply.", StatusKind.Neutral);
             return;
         }
 
@@ -774,8 +813,139 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         }
 
         SetStatus(
-            $"Applied {completed} of {changedItems.Count} experimental inventory checkbox test(s).",
+            $"Applied {completed} of {changedItems.Count} fixed-slot inventory change(s).",
             completed == changedItems.Count ? StatusKind.Connected : StatusKind.Warning);
+    }
+
+    private InventoryOwnershipItemViewModel? GetPreferredClawshotVariantForApply()
+    {
+        if (_lastEnabledClawshotVariantId is not null)
+        {
+            var lastEnabled = InventoryOwnershipItems.FirstOrDefault(
+                item => item.Definition.Id == _lastEnabledClawshotVariantId);
+            if (lastEnabled is not null)
+            {
+                return lastEnabled;
+            }
+        }
+
+        var clawshot = GetInventoryOwnershipItem(ClawshotInventoryItemId);
+        var doubleClawshots = GetInventoryOwnershipItem(DoubleClawshotsInventoryItemId);
+        if (doubleClawshots?.IsOwnedDesired == true && doubleClawshots.IsDirty)
+        {
+            return doubleClawshots;
+        }
+
+        if (clawshot?.IsOwnedDesired == true && clawshot.IsDirty)
+        {
+            return clawshot;
+        }
+
+        return doubleClawshots?.IsOwnedDesired == true
+            ? doubleClawshots
+            : clawshot;
+    }
+
+    private bool EnforceClawshotVariantSafeguard(
+        InventoryOwnershipItemViewModel? preferredItem,
+        string reason)
+    {
+        if (_suppressInventoryVariantSafeguard || _enforcingInventoryVariantSafeguard)
+        {
+            return false;
+        }
+
+        var clawshot = GetInventoryOwnershipItem(ClawshotInventoryItemId);
+        var doubleClawshots = GetInventoryOwnershipItem(DoubleClawshotsInventoryItemId);
+        if (clawshot is null ||
+            doubleClawshots is null ||
+            !clawshot.IsOwnedDesired ||
+            !doubleClawshots.IsOwnedDesired)
+        {
+            return false;
+        }
+
+        var preferred = preferredItem is not null && IsClawshotVariant(preferredItem)
+            ? preferredItem
+            : GetPreferredClawshotVariantForApply();
+        preferred ??= doubleClawshots;
+        var disabled = ReferenceEquals(preferred, clawshot)
+            ? doubleClawshots
+            : clawshot;
+
+        _enforcingInventoryVariantSafeguard = true;
+        try
+        {
+            disabled.IsOwnedDesired = false;
+        }
+        finally
+        {
+            _enforcingInventoryVariantSafeguard = false;
+        }
+
+        preferred.ExperimentalStatus = $"Kept by Clawshot safeguard; {disabled.Name} disabled.";
+        disabled.ExperimentalStatus = $"Disabled by Clawshot safeguard; {preferred.Name} kept.";
+        AppendInventoryCheckboxSafeguardDiagnostic(reason, preferred, disabled);
+        SetStatus(
+            $"Clawshot safeguard kept {preferred.Name} and disabled {disabled.Name}.",
+            StatusKind.Warning);
+        return true;
+    }
+
+    private InventoryOwnershipItemViewModel? GetInventoryOwnershipItem(string id)
+    {
+        return InventoryOwnershipItems.FirstOrDefault(item => item.Definition.Id == id);
+    }
+
+    private static bool IsClawshotVariant(InventoryOwnershipItemViewModel item)
+    {
+        return item.Definition.Id is ClawshotInventoryItemId or DoubleClawshotsInventoryItemId;
+    }
+
+    private async void ApplyBottleSlot_Click(object sender, RoutedEventArgs e)
+    {
+        if ((sender as FrameworkElement)?.Tag is BottleSlotViewModel slot)
+        {
+            await WriteBottleSlotWithDiagnosticsAsync(
+                slot,
+                slot.SelectedContent.ItemId,
+                "apply",
+                $"Bottle slot {slot.BottleSlotNumber} set to {slot.SelectedContent.Name}.");
+        }
+    }
+
+    private async void ClearBottleSlot_Click(object sender, RoutedEventArgs e)
+    {
+        if ((sender as FrameworkElement)?.Tag is BottleSlotViewModel slot)
+        {
+            await WriteBottleSlotWithDiagnosticsAsync(
+                slot,
+                InventoryDefinitions.EmptyItemId,
+                "clear",
+                $"Bottle slot {slot.BottleSlotNumber} set to Nothing / No Bottle.");
+        }
+    }
+
+    private async void RestoreBottleSlot_Click(object sender, RoutedEventArgs e)
+    {
+        if ((sender as FrameworkElement)?.Tag is BottleSlotViewModel slot)
+        {
+            if (!slot.PreviousValue.HasValue)
+            {
+                SetStatus($"Bottle slot {slot.BottleSlotNumber} has no previous value captured this session.", StatusKind.Neutral);
+                return;
+            }
+
+            var previousValue = slot.PreviousValue.Value;
+            if (await WriteBottleSlotWithDiagnosticsAsync(
+                    slot,
+                    previousValue,
+                    "restore",
+                    $"Bottle slot {slot.BottleSlotNumber} restored to {BottleDefinitions.GetBottleContentName(previousValue)}."))
+            {
+                slot.ClearPrevious();
+            }
+        }
     }
 
     private void ExportInventoryMapping_Click(object sender, RoutedEventArgs e)
@@ -1576,6 +1746,11 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             item.SetCurrentItem(rawBytes[item.SlotIndex]);
         }
 
+        foreach (var bottleSlot in BottleSlots)
+        {
+            bottleSlot.SetCurrentValue(rawBytes[bottleSlot.InventorySlotIndex]);
+        }
+
         foreach (var item in InventoryMappingItems)
         {
             item.SetCurrentItem(rawBytes[item.SlotIndex]);
@@ -1619,36 +1794,45 @@ public partial class MainWindow : Window, INotifyPropertyChanged
 
     private bool RefreshInventoryOwnership(IReadOnlyList<byte> rawBytes, bool preserveDirty)
     {
-        foreach (var item in InventoryOwnershipItems)
+        var previousSuppressInventoryVariantSafeguard = _suppressInventoryVariantSafeguard;
+        _suppressInventoryVariantSafeguard = true;
+        try
         {
-            if (!item.Definition.CanWrite)
+            foreach (var item in InventoryOwnershipItems)
             {
-                item.SetDetectedFromVisibleSlots(rawBytes, preserveDirty);
-                continue;
+                if (!item.Definition.CanWrite)
+                {
+                    item.SetDetectedFromVisibleSlots(rawBytes, preserveDirty);
+                    continue;
+                }
+
+                if (_memory is null || !_playerBaseAddress.HasValue)
+                {
+                    item.MarkNotRead();
+                    continue;
+                }
+
+                if (!InventoryMemoryService.TryReadOwnershipFlag(
+                        _memory,
+                        _playerBaseAddress.Value,
+                        item.Definition,
+                        out var isOwned,
+                        out var backingValue,
+                        out _))
+                {
+                    MarkMemoryUnavailable();
+                    return false;
+                }
+
+                item.SetDetectedFlag(isOwned, backingValue, preserveDirty);
             }
 
-            if (_memory is null || !_playerBaseAddress.HasValue)
-            {
-                item.MarkNotRead();
-                continue;
-            }
-
-            if (!InventoryMemoryService.TryReadOwnershipFlag(
-                    _memory,
-                    _playerBaseAddress.Value,
-                    item.Definition,
-                    out var isOwned,
-                    out var backingValue,
-                    out _))
-            {
-                MarkMemoryUnavailable();
-                return false;
-            }
-
-            item.SetDetectedFlag(isOwned, backingValue, preserveDirty);
+            return true;
         }
-
-        return true;
+        finally
+        {
+            _suppressInventoryVariantSafeguard = previousSuppressInventoryVariantSafeguard;
+        }
     }
 
     private void UpdateInventoryRemovalItems(IReadOnlyList<byte> rawBytes)
@@ -1791,6 +1975,11 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         foreach (var item in FixedInventoryItems)
         {
             item.CanEdit = false;
+        }
+
+        foreach (var bottleSlot in BottleSlots)
+        {
+            bottleSlot.CanEdit = HasPlayerData;
         }
 
         foreach (var item in InventoryOwnershipItems)
@@ -2285,6 +2474,149 @@ public partial class MainWindow : Window, INotifyPropertyChanged
                 action,
                 item.KnownMappingSource,
                 slotIndex,
+                absoluteAddress,
+                oldValue,
+                desiredValue,
+                immediateReadback,
+                delayed250Readback,
+                delayed1000Readback,
+                diagnosticStatus);
+        }
+    }
+
+    private async Task<bool> WriteBottleSlotWithDiagnosticsAsync(
+        BottleSlotViewModel slot,
+        byte desiredValue,
+        string action,
+        string successMessage)
+    {
+        var memory = _memory;
+        if (memory is null || !_playerBaseAddress.HasValue)
+        {
+            SetStatus("Not attached. Attach to Cemu and rescan before editing bottle slots.", StatusKind.Neutral);
+            return false;
+        }
+
+        var absoluteAddress = _playerBaseAddress.Value + slot.OffsetValue;
+        byte? oldValue = null;
+        byte? immediateReadback = null;
+        byte? delayed250Readback = null;
+        byte? delayed1000Readback = null;
+        var diagnosticStatus = "started";
+
+        try
+        {
+            if (!InventoryMemoryService.TryReadSlot(
+                    memory,
+                    _playerBaseAddress.Value,
+                    slot.InventorySlotIndex,
+                    out var oldItemId,
+                    out var oldReadError))
+            {
+                diagnosticStatus = $"old-read-failed: {oldReadError}";
+                slot.Status = oldReadError;
+                slot.LastWriteResult = oldReadError;
+                slot.LastVerificationResult = "Old value could not be read.";
+                SetStatus(oldReadError, StatusKind.Warning);
+                return false;
+            }
+
+            oldValue = oldItemId;
+            if (action is not "restore")
+            {
+                slot.CapturePrevious(oldItemId);
+            }
+
+            if (!InventoryMemoryService.TryWriteSlot(
+                    memory,
+                    _playerBaseAddress.Value,
+                    slot.InventorySlotIndex,
+                    desiredValue,
+                    out var writeError))
+            {
+                diagnosticStatus = $"write-call-failed: {writeError}";
+                slot.Status = $"Write failed: {writeError}";
+                slot.LastWriteResult = slot.Status;
+                slot.LastVerificationResult = "Write call failed.";
+                SetStatus(slot.Status, StatusKind.Warning);
+                return false;
+            }
+
+            slot.LastWriteResult = $"Wrote {FormatEquipmentByte(desiredValue)}.";
+
+            if (!InventoryMemoryService.TryReadSlot(
+                    memory,
+                    _playerBaseAddress.Value,
+                    slot.InventorySlotIndex,
+                    out var immediateValue,
+                    out var immediateReadError))
+            {
+                diagnosticStatus = $"immediate-read-failed: {immediateReadError}";
+                slot.Status = immediateReadError;
+                slot.LastVerificationResult = "Immediate readback failed.";
+                SetStatus(immediateReadError, StatusKind.Warning);
+                return false;
+            }
+
+            immediateReadback = immediateValue;
+            if (immediateReadback.Value != desiredValue)
+            {
+                diagnosticStatus = "immediate-mismatch";
+                slot.Status = $"Write failed: expected {desiredValue} but read {immediateReadback.Value}.";
+                slot.LastVerificationResult = slot.Status;
+                SetStatus(slot.Status, StatusKind.Warning);
+                RefreshInventorySlots(showStatus: false);
+                return false;
+            }
+
+            await Task.Delay(250);
+            if (InventoryMemoryService.TryReadSlot(
+                    memory,
+                    _playerBaseAddress.Value,
+                    slot.InventorySlotIndex,
+                    out var delayed250Value,
+                    out _))
+            {
+                delayed250Readback = delayed250Value;
+            }
+
+            await Task.Delay(750);
+            if (InventoryMemoryService.TryReadSlot(
+                    memory,
+                    _playerBaseAddress.Value,
+                    slot.InventorySlotIndex,
+                    out var delayed1000Value,
+                    out _))
+            {
+                delayed1000Readback = delayed1000Value;
+            }
+
+            var reverted =
+                delayed250Readback.HasValue && delayed250Readback.Value != desiredValue ||
+                delayed1000Readback.HasValue && delayed1000Readback.Value != desiredValue;
+            if (reverted)
+            {
+                diagnosticStatus = "reverted-by-game";
+                slot.Status = "Reverted by game.";
+                slot.LastVerificationResult = "Immediate readback matched, but delayed verification changed.";
+                SetStatus($"Bottle slot {slot.BottleSlotNumber}: Reverted by game.", StatusKind.Warning);
+            }
+            else
+            {
+                diagnosticStatus = "verified";
+                slot.Status = "Write verified.";
+                slot.LastVerificationResult = "Immediate, 250ms, and 1000ms readbacks matched.";
+                SetStatus(successMessage, StatusKind.Connected);
+            }
+
+            RefreshInventorySlots(showStatus: false);
+            return !reverted;
+        }
+        finally
+        {
+            AppendBottleEditorDiagnostic(
+                slot,
+                action,
                 absoluteAddress,
                 oldValue,
                 desiredValue,
@@ -2821,6 +3153,19 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         AppendInventoryCheckboxTestingLogEntry(entry);
     }
 
+    private void AppendInventoryCheckboxSafeguardDiagnostic(
+        string reason,
+        InventoryOwnershipItemViewModel preferred,
+        InventoryOwnershipItemViewModel disabled)
+    {
+        var entry =
+            $"{DateTimeOffset.Now:O} kind=inventory-checkbox-safeguard reason={reason} " +
+            $"preferred=\"{preferred.Name}\" disabled=\"{disabled.Name}\" " +
+            "message=\"Use only one Clawshot variant. Enabling both can hide or displace another progression item such as the Dominion Rod.\"";
+
+        AppendInventoryCheckboxTestingLogEntry(entry);
+    }
+
     private void AppendInventoryCheckboxTestingLogEntry(string entry)
     {
         InventoryCheckboxTestingDiagnostics.Insert(0, entry);
@@ -2842,6 +3187,51 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         catch (Exception ex)
         {
             InventoryCheckboxTestingDiagnostics.Insert(0, $"{DateTimeOffset.Now:O} inventory-checkbox-testing-log-write-failed: {ex.Message}");
+        }
+    }
+
+    private void AppendBottleEditorDiagnostic(
+        BottleSlotViewModel slot,
+        string action,
+        ulong absoluteAddress,
+        byte? oldValue,
+        byte writtenValue,
+        byte? immediateReadback,
+        byte? delayed250Readback,
+        byte? delayed1000Readback,
+        string diagnosticStatus)
+    {
+        var entry =
+            $"{DateTimeOffset.Now:O} kind=bottle-editor action={action} " +
+            $"slot={slot.BottleSlotNumber} offset={slot.Offset} address=0x{absoluteAddress:X} " +
+            $"previous={FormatEquipmentByte(oldValue)} new={FormatEquipmentByte(writtenValue)} " +
+            $"immediate={FormatEquipmentByte(immediateReadback)} read250ms={FormatEquipmentByte(delayed250Readback)} " +
+            $"read1000ms={FormatEquipmentByte(delayed1000Readback)} status={diagnosticStatus}";
+
+        AppendBottleEditorLogEntry(entry);
+    }
+
+    private void AppendBottleEditorLogEntry(string entry)
+    {
+        BottleEditorDiagnostics.Insert(0, entry);
+        while (BottleEditorDiagnostics.Count > 100)
+        {
+            BottleEditorDiagnostics.RemoveAt(BottleEditorDiagnostics.Count - 1);
+        }
+
+        try
+        {
+            var logDirectory = Path.GetDirectoryName(BottleEditorLogPath);
+            if (!string.IsNullOrWhiteSpace(logDirectory))
+            {
+                Directory.CreateDirectory(logDirectory);
+            }
+
+            File.AppendAllText(BottleEditorLogPath, entry + Environment.NewLine);
+        }
+        catch (Exception ex)
+        {
+            BottleEditorDiagnostics.Insert(0, $"{DateTimeOffset.Now:O} bottle-editor-log-write-failed: {ex.Message}");
         }
     }
 
@@ -4465,6 +4855,11 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             slot.MarkNotRead();
         }
 
+        foreach (var bottleSlot in BottleSlots)
+        {
+            bottleSlot.MarkNotRead();
+        }
+
         foreach (var item in InventoryOwnershipItems)
         {
             item.MarkNotRead();
@@ -4525,6 +4920,11 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         foreach (var slot in InventorySlots)
         {
             slot.MarkNotRead();
+        }
+
+        foreach (var bottleSlot in BottleSlots)
+        {
+            bottleSlot.MarkNotRead();
         }
 
         foreach (var item in InventoryOwnershipItems)
