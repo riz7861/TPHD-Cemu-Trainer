@@ -869,6 +869,80 @@
             </Border>
         </DataTemplate>
 
+        <DataTemplate x:Key="HiddenSkillsMultiCaptureCandidateTemplate">
+            <Border BorderBrush="{DynamicResource BorderBrush}"
+                    BorderThickness="0,0,0,1"
+                    Padding="0,4">
+                <Border.Style>
+                    <Style TargetType="Border">
+                        <Setter Property="Background" Value="Transparent" />
+                        <Style.Triggers>
+                            <DataTrigger Binding="{Binding IsMonotonic}" Value="True">
+                                <Setter Property="Background" Value="{DynamicResource ChangedRowBackgroundBrush}" />
+                            </DataTrigger>
+                            <DataTrigger Binding="{Binding OnlyIncreases}" Value="True">
+                                <Setter Property="Background" Value="{DynamicResource ChangedBitBackgroundBrush}" />
+                            </DataTrigger>
+                            <DataTrigger Binding="{Binding ProgressionMatch}" Value="True">
+                                <Setter Property="Background" Value="{DynamicResource StrongCandidateBackgroundBrush}" />
+                            </DataTrigger>
+                        </Style.Triggers>
+                    </Style>
+                </Border.Style>
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="48" />
+                        <ColumnDefinition Width="74" />
+                        <ColumnDefinition Width="94" />
+                        <ColumnDefinition Width="54" />
+                        <ColumnDefinition Width="*" MinWidth="250" />
+                        <ColumnDefinition Width="118" />
+                        <ColumnDefinition Width="64" />
+                        <ColumnDefinition Width="*" MinWidth="210" />
+                        <ColumnDefinition Width="*" MinWidth="190" />
+                    </Grid.ColumnDefinitions>
+
+                    <TextBlock Text="{Binding Rank}"
+                               FontWeight="SemiBold"
+                               VerticalAlignment="Center" />
+                    <TextBlock Grid.Column="1"
+                               Text="{Binding Offset}"
+                               FontFamily="Consolas"
+                               VerticalAlignment="Center" />
+                    <TextBlock Grid.Column="2"
+                               Text="{Binding Kind}"
+                               VerticalAlignment="Center" />
+                    <TextBlock Grid.Column="3"
+                               Text="{Binding Bit}"
+                               FontFamily="Consolas"
+                               VerticalAlignment="Center" />
+                    <TextBlock Grid.Column="4"
+                               Text="{Binding Values}"
+                               FontFamily="Consolas"
+                               TextTrimming="CharacterEllipsis"
+                               VerticalAlignment="Center" />
+                    <TextBlock Grid.Column="5"
+                               Text="{Binding SkillCounts}"
+                               FontFamily="Consolas"
+                               VerticalAlignment="Center" />
+                    <TextBlock Grid.Column="6"
+                               Text="{Binding Score}"
+                               FontWeight="SemiBold"
+                               VerticalAlignment="Center" />
+                    <TextBlock Grid.Column="7"
+                               Text="{Binding Flags}"
+                               TextTrimming="CharacterEllipsis"
+                               VerticalAlignment="Center"
+                               Margin="6,0" />
+                    <TextBlock Grid.Column="8"
+                               Text="{Binding Notes}"
+                               TextTrimming="CharacterEllipsis"
+                               VerticalAlignment="Center"
+                               Margin="6,0" />
+                </Grid>
+            </Border>
+        </DataTemplate>
+
         <DataTemplate x:Key="GoldenBugResearchRowTemplate">
             <Border BorderBrush="{DynamicResource BorderBrush}"
                     BorderThickness="0,0,0,1"
@@ -3044,6 +3118,113 @@
                                     <ItemsControl ItemsSource="{Binding HiddenSkillsCandidateGroups}"
                                                   ItemTemplate="{StaticResource HiddenSkillsCandidateGroupTemplate}" />
                                 </ScrollViewer>
+
+                                <GroupBox Header="Hidden Skills Multi-Capture Analyzer" Margin="0,8,0,0">
+                                    <StackPanel>
+                                        <TextBlock TextWrapping="Wrap"
+                                                   Foreground="{DynamicResource SecondaryTextBrush}"
+                                                   Margin="0,0,0,8"
+                                                   Text="Offline analysis for progression saves. Load six Hidden Skills captures with known learned-skill counts, then rank offsets and bits that progress monotonically or only ever increase." />
+
+                                        <Grid Margin="0,0,0,8">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="84" />
+                                                <ColumnDefinition Width="82" />
+                                                <ColumnDefinition Width="*" />
+                                                <ColumnDefinition Width="Auto" />
+                                            </Grid.ColumnDefinitions>
+                                            <Grid.RowDefinitions>
+                                                <RowDefinition Height="Auto" />
+                                                <RowDefinition Height="Auto" />
+                                                <RowDefinition Height="Auto" />
+                                                <RowDefinition Height="Auto" />
+                                                <RowDefinition Height="Auto" />
+                                                <RowDefinition Height="Auto" />
+                                                <RowDefinition Height="Auto" />
+                                            </Grid.RowDefinitions>
+
+                                            <TextBlock Text="Capture" FontWeight="SemiBold" Margin="0,0,8,4" />
+                                            <TextBlock Grid.Column="1" Text="Skill count" FontWeight="SemiBold" Margin="0,0,8,4" />
+                                            <TextBlock Grid.Column="2" Text="Loaded file" FontWeight="SemiBold" Margin="0,0,8,4" />
+
+                                            <TextBlock Grid.Row="1" Text="A" VerticalAlignment="Center" Margin="0,0,8,5" />
+                                            <TextBox Grid.Row="1" Grid.Column="1" x:Name="HiddenSkillsMultiCaptureACountText" Text="1" FontFamily="Consolas" Margin="0,0,8,5" />
+                                            <TextBox Grid.Row="1" Grid.Column="2" x:Name="HiddenSkillsMultiCaptureAFileText" Text="Not loaded" IsReadOnly="True" Background="{DynamicResource ReadOnlyBackgroundBrush}" Margin="0,0,8,5" />
+                                            <Button Grid.Row="1" Grid.Column="3" Content="Load" Tag="0" Click="HiddenSkillsMultiLoadCapture_Click" Margin="0,0,0,5" />
+
+                                            <TextBlock Grid.Row="2" Text="B" VerticalAlignment="Center" Margin="0,0,8,5" />
+                                            <TextBox Grid.Row="2" Grid.Column="1" x:Name="HiddenSkillsMultiCaptureBCountText" Text="2" FontFamily="Consolas" Margin="0,0,8,5" />
+                                            <TextBox Grid.Row="2" Grid.Column="2" x:Name="HiddenSkillsMultiCaptureBFileText" Text="Not loaded" IsReadOnly="True" Background="{DynamicResource ReadOnlyBackgroundBrush}" Margin="0,0,8,5" />
+                                            <Button Grid.Row="2" Grid.Column="3" Content="Load" Tag="1" Click="HiddenSkillsMultiLoadCapture_Click" Margin="0,0,0,5" />
+
+                                            <TextBlock Grid.Row="3" Text="C" VerticalAlignment="Center" Margin="0,0,8,5" />
+                                            <TextBox Grid.Row="3" Grid.Column="1" x:Name="HiddenSkillsMultiCaptureCCountText" Text="3" FontFamily="Consolas" Margin="0,0,8,5" />
+                                            <TextBox Grid.Row="3" Grid.Column="2" x:Name="HiddenSkillsMultiCaptureCFileText" Text="Not loaded" IsReadOnly="True" Background="{DynamicResource ReadOnlyBackgroundBrush}" Margin="0,0,8,5" />
+                                            <Button Grid.Row="3" Grid.Column="3" Content="Load" Tag="2" Click="HiddenSkillsMultiLoadCapture_Click" Margin="0,0,0,5" />
+
+                                            <TextBlock Grid.Row="4" Text="D" VerticalAlignment="Center" Margin="0,0,8,5" />
+                                            <TextBox Grid.Row="4" Grid.Column="1" x:Name="HiddenSkillsMultiCaptureDCountText" Text="5" FontFamily="Consolas" Margin="0,0,8,5" />
+                                            <TextBox Grid.Row="4" Grid.Column="2" x:Name="HiddenSkillsMultiCaptureDFileText" Text="Not loaded" IsReadOnly="True" Background="{DynamicResource ReadOnlyBackgroundBrush}" Margin="0,0,8,5" />
+                                            <Button Grid.Row="4" Grid.Column="3" Content="Load" Tag="3" Click="HiddenSkillsMultiLoadCapture_Click" Margin="0,0,0,5" />
+
+                                            <TextBlock Grid.Row="5" Text="E" VerticalAlignment="Center" Margin="0,0,8,5" />
+                                            <TextBox Grid.Row="5" Grid.Column="1" x:Name="HiddenSkillsMultiCaptureECountText" Text="6" FontFamily="Consolas" Margin="0,0,8,5" />
+                                            <TextBox Grid.Row="5" Grid.Column="2" x:Name="HiddenSkillsMultiCaptureEFileText" Text="Not loaded" IsReadOnly="True" Background="{DynamicResource ReadOnlyBackgroundBrush}" Margin="0,0,8,5" />
+                                            <Button Grid.Row="5" Grid.Column="3" Content="Load" Tag="4" Click="HiddenSkillsMultiLoadCapture_Click" Margin="0,0,0,5" />
+
+                                            <TextBlock Grid.Row="6" Text="F" VerticalAlignment="Center" Margin="0,0,8,0" />
+                                            <TextBox Grid.Row="6" Grid.Column="1" x:Name="HiddenSkillsMultiCaptureFCountText" Text="7" FontFamily="Consolas" Margin="0,0,8,0" />
+                                            <TextBox Grid.Row="6" Grid.Column="2" x:Name="HiddenSkillsMultiCaptureFFileText" Text="Not loaded" IsReadOnly="True" Background="{DynamicResource ReadOnlyBackgroundBrush}" Margin="0,0,8,0" />
+                                            <Button Grid.Row="6" Grid.Column="3" Content="Load" Tag="5" Click="HiddenSkillsMultiLoadCapture_Click" />
+                                        </Grid>
+
+                                        <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
+                                            <Button Content="Analyze Multi-Capture Ranking"
+                                                    Click="HiddenSkillsMultiAnalyze_Click" />
+                                            <Button Content="Export Ranking"
+                                                    Click="HiddenSkillsMultiExportRanking_Click"
+                                                    Margin="6,0,0,0" />
+                                        </StackPanel>
+
+                                        <TextBox x:Name="HiddenSkillsMultiCaptureStatusText"
+                                                 Text="Load captures A-F, then analyze. Expected counts default to 1, 2, 3, 5, 6, 7."
+                                                 IsReadOnly="True"
+                                                 TextWrapping="Wrap"
+                                                 Background="{DynamicResource ReadOnlyBackgroundBrush}"
+                                                 Margin="0,0,0,8" />
+
+                                        <Grid Margin="0,0,0,4">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="48" />
+                                                <ColumnDefinition Width="74" />
+                                                <ColumnDefinition Width="94" />
+                                                <ColumnDefinition Width="54" />
+                                                <ColumnDefinition Width="*" MinWidth="250" />
+                                                <ColumnDefinition Width="118" />
+                                                <ColumnDefinition Width="64" />
+                                                <ColumnDefinition Width="*" MinWidth="210" />
+                                                <ColumnDefinition Width="*" MinWidth="190" />
+                                            </Grid.ColumnDefinitions>
+                                            <TextBlock Text="Rank" FontWeight="SemiBold" />
+                                            <TextBlock Grid.Column="1" Text="Offset" FontWeight="SemiBold" />
+                                            <TextBlock Grid.Column="2" Text="Kind" FontWeight="SemiBold" />
+                                            <TextBlock Grid.Column="3" Text="Bit" FontWeight="SemiBold" />
+                                            <TextBlock Grid.Column="4" Text="Values A-F" FontWeight="SemiBold" />
+                                            <TextBlock Grid.Column="5" Text="Counts" FontWeight="SemiBold" />
+                                            <TextBlock Grid.Column="6" Text="Score" FontWeight="SemiBold" />
+                                            <TextBlock Grid.Column="7" Text="Flags" FontWeight="SemiBold" Margin="6,0" />
+                                            <TextBlock Grid.Column="8" Text="Notes" FontWeight="SemiBold" Margin="6,0" />
+                                        </Grid>
+
+                                        <ScrollViewer Height="210"
+                                                      VerticalScrollBarVisibility="Auto"
+                                                      HorizontalScrollBarVisibility="Auto"
+                                                      Background="{DynamicResource ReadOnlyBackgroundBrush}">
+                                            <ItemsControl ItemsSource="{Binding HiddenSkillsMultiCaptureCandidates}"
+                                                          ItemTemplate="{StaticResource HiddenSkillsMultiCaptureCandidateTemplate}" />
+                                        </ScrollViewer>
+                                    </StackPanel>
+                                </GroupBox>
 
                                 <GroupBox Header="Hidden Skills Bit Tester / Experimental" Margin="0,8,0,0">
                                     <StackPanel>

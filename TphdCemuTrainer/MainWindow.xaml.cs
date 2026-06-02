@@ -61,8 +61,10 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     private DateTimeOffset? _hiddenSkillsBeforeCapturedAt;
     private DateTimeOffset? _hiddenSkillsAfterCapturedAt;
     private HiddenSkillsResearchExport? _lastHiddenSkillsResearchExport;
+    private HiddenSkillsMultiCaptureExport? _lastHiddenSkillsMultiCaptureExport;
     private List<HiddenSkillsResearchRowViewModel> _hiddenSkillsAllResearchRows = [];
     private readonly Dictionary<uint, bool> _hiddenSkillsPinnedOffsets = [];
+    private readonly HiddenSkillsLoadedCapture?[] _hiddenSkillsMultiCaptures = new HiddenSkillsLoadedCapture?[6];
     private byte[]? _goldenBugsBitfieldRestoreSnapshotBytes;
     private DateTimeOffset? _goldenBugsBitfieldRestoreSnapshotCapturedAt;
     private byte[]? _goldenBugsEditorRestoreSnapshotBytes;
@@ -148,6 +150,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         GoldenBugsEditorDiagnostics = [];
         HiddenSkillsResearchRows = [];
         HiddenSkillsCandidateGroups = [];
+        HiddenSkillsMultiCaptureCandidates = [];
 
         EquipmentSlots = new ObservableCollection<EquipmentSlotViewModel>(
             EquipmentDefinitions.Slots.Select(slot => new EquipmentSlotViewModel(slot)));
@@ -335,6 +338,8 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     public ObservableCollection<HiddenSkillsResearchRowViewModel> HiddenSkillsResearchRows { get; }
 
     public ObservableCollection<HiddenSkillsCandidateGroupViewModel> HiddenSkillsCandidateGroups { get; }
+
+    public ObservableCollection<HiddenSkillsMultiCaptureCandidateViewModel> HiddenSkillsMultiCaptureCandidates { get; }
 
     public ObservableCollection<EquipmentSlotViewModel> EquipmentSlots { get; }
 
@@ -1120,6 +1125,112 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         {
             HiddenSkillsResearchStatusText.Text = $"Hidden Skills candidate group export failed: {ex.Message}";
             SetStatus("Hidden Skills candidate group export failed.", StatusKind.Warning);
+        }
+    }
+
+    private void HiddenSkillsMultiLoadCapture_Click(object sender, RoutedEventArgs e)
+    {
+        if ((sender as FrameworkElement)?.Tag is not string slotText ||
+            !int.TryParse(slotText, NumberStyles.Integer, CultureInfo.InvariantCulture, out var slotIndex) ||
+            slotIndex is < 0 or > 5)
+        {
+            return;
+        }
+
+        var slotName = GetHiddenSkillsMultiCaptureSlotName(slotIndex);
+        if (!TryLoadHiddenSkillsCaptureForMultiAnalyzer(slotName, out var capture, out var bytes, out var filePath))
+        {
+            return;
+        }
+
+        _hiddenSkillsMultiCaptures[slotIndex] = new HiddenSkillsLoadedCapture(
+            slotName,
+            capture,
+            bytes,
+            filePath);
+        GetHiddenSkillsMultiCaptureFileTextBox(slotIndex).Text =
+            $"{Path.GetFileName(filePath)} | {capture.LabelOrDefault} | 0x{capture.StartOffset:X}/0x{capture.Length:X}";
+        HiddenSkillsMultiCaptureCandidates.Clear();
+        _lastHiddenSkillsMultiCaptureExport = null;
+        HiddenSkillsMultiCaptureStatusText.Text =
+            $"Loaded Capture {slotName}: {capture.LabelOrDefault} ({capture.Timestamp.ToLocalTime():g}).";
+        AppendHiddenSkillsResearchLog(
+            $"action=multi-load slot={slotName} file=\"{filePath}\" label=\"{capture.Label}\" start=0x{capture.StartOffset:X} length=0x{capture.Length:X}");
+        SetStatus($"Hidden Skills Capture {slotName} loaded.", StatusKind.Connected);
+    }
+
+    private void HiddenSkillsMultiAnalyze_Click(object sender, RoutedEventArgs e)
+    {
+        if (_hiddenSkillsMultiCaptures.Any(capture => capture is null))
+        {
+            HiddenSkillsMultiCaptureStatusText.Text = "Load captures A-F before analyzing.";
+            SetStatus("Load all six Hidden Skills captures before analyzing.", StatusKind.Neutral);
+            return;
+        }
+
+        if (!TryReadHiddenSkillsMultiSkillCounts(out var skillCounts))
+        {
+            return;
+        }
+
+        var captures = _hiddenSkillsMultiCaptures
+            .OfType<HiddenSkillsLoadedCapture>()
+            .ToArray();
+        var firstCapture = captures[0];
+        if (captures.Any(capture =>
+                capture.Document.StartOffset != firstCapture.Document.StartOffset ||
+                capture.Bytes.Length != firstCapture.Bytes.Length))
+        {
+            HiddenSkillsMultiCaptureStatusText.Text =
+                "All multi-capture analyzer files must use the same playerbase-relative start offset and length.";
+            SetStatus("Hidden Skills multi-capture ranges do not match.", StatusKind.Warning);
+            return;
+        }
+
+        var candidates = CreateHiddenSkillsMultiCaptureCandidates(captures, skillCounts);
+        HiddenSkillsMultiCaptureCandidates.Clear();
+        foreach (var candidate in candidates)
+        {
+            HiddenSkillsMultiCaptureCandidates.Add(candidate);
+        }
+
+        _lastHiddenSkillsMultiCaptureExport = CreateHiddenSkillsMultiCaptureExport(captures, skillCounts);
+        var progressionMatches = HiddenSkillsMultiCaptureCandidates.Count(candidate => candidate.ProgressionMatch);
+        HiddenSkillsMultiCaptureStatusText.Text =
+            $"Analyzed {captures.Length} captures over 0x{firstCapture.Bytes.Length:X} byte(s). Ranked {HiddenSkillsMultiCaptureCandidates.Count} candidate row(s); {progressionMatches} progression match(es).";
+        AppendHiddenSkillsResearchLog(
+            $"action=multi-analyze start=0x{firstCapture.Document.StartOffset:X} length=0x{firstCapture.Bytes.Length:X} " +
+            $"counts=\"{string.Join("->", skillCounts)}\" candidates={HiddenSkillsMultiCaptureCandidates.Count} progression-matches={progressionMatches}");
+        SetStatus("Hidden Skills multi-capture ranking generated.", StatusKind.Connected);
+    }
+
+    private void HiddenSkillsMultiExportRanking_Click(object sender, RoutedEventArgs e)
+    {
+        if (_lastHiddenSkillsMultiCaptureExport is null)
+        {
+            HiddenSkillsMultiCaptureStatusText.Text = "Analyze multi-capture ranking before exporting.";
+            SetStatus("Analyze Hidden Skills multi-capture ranking before exporting.", StatusKind.Neutral);
+            return;
+        }
+
+        try
+        {
+            Directory.CreateDirectory(ResearchSnapshotStore.ExportDirectory);
+            var jsonPath = Path.Combine(ResearchSnapshotStore.ExportDirectory, "hidden-skills-multi-capture-ranking.json");
+            var csvPath = Path.Combine(ResearchSnapshotStore.ExportDirectory, "hidden-skills-multi-capture-ranking.csv");
+            File.WriteAllText(jsonPath, JsonSerializer.Serialize(_lastHiddenSkillsMultiCaptureExport, ExportJsonOptions));
+            File.WriteAllLines(csvPath, CreateHiddenSkillsMultiCaptureCsvLines(_lastHiddenSkillsMultiCaptureExport.Candidates));
+
+            HiddenSkillsMultiCaptureStatusText.Text =
+                $"Exported Hidden Skills multi-capture ranking: {Path.GetFileName(jsonPath)} and {Path.GetFileName(csvPath)}.";
+            AppendHiddenSkillsResearchLog(
+                $"action=multi-export json=\"{jsonPath}\" csv=\"{csvPath}\" rows={_lastHiddenSkillsMultiCaptureExport.Candidates.Count}");
+            SetStatus("Hidden Skills multi-capture ranking exported.", StatusKind.Connected);
+        }
+        catch (Exception ex)
+        {
+            HiddenSkillsMultiCaptureStatusText.Text = $"Hidden Skills multi-capture export failed: {ex.Message}";
+            SetStatus("Hidden Skills multi-capture export failed.", StatusKind.Warning);
         }
     }
 
@@ -5789,8 +5900,30 @@ public partial class MainWindow : Window, INotifyPropertyChanged
                     Csv(row.ChangedBits),
                     Csv(row.CandidateScore.ToString(CultureInfo.InvariantCulture)),
                     Csv(row.Highlights),
-                    Csv(row.Pinned.ToString()));
+                Csv(row.Pinned.ToString()));
             }
+        }
+    }
+
+    private static IEnumerable<string> CreateHiddenSkillsMultiCaptureCsvLines(IEnumerable<HiddenSkillsMultiCaptureExportRow> rows)
+    {
+        yield return "Rank,Offset,Kind,Bit,Values A-F,Known Skill Counts,Score,Monotonic,Only Increases,Progression Match,Flags,Notes";
+        foreach (var row in rows)
+        {
+            yield return string.Join(
+                ",",
+                Csv(row.Rank.ToString(CultureInfo.InvariantCulture)),
+                Csv(row.Offset),
+                Csv(row.Kind),
+                Csv(row.Bit),
+                Csv(row.Values),
+                Csv(row.SkillCounts),
+                Csv(row.Score.ToString(CultureInfo.InvariantCulture)),
+                Csv(row.IsMonotonic.ToString(CultureInfo.InvariantCulture)),
+                Csv(row.OnlyIncreases.ToString(CultureInfo.InvariantCulture)),
+                Csv(row.ProgressionMatch.ToString(CultureInfo.InvariantCulture)),
+                Csv(row.Flags),
+                Csv(row.Notes));
         }
     }
 
@@ -6217,6 +6350,296 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         }
     }
 
+    private bool TryLoadHiddenSkillsCaptureForMultiAnalyzer(
+        string slotName,
+        out HiddenSkillsCaptureDocument capture,
+        out byte[] bytes,
+        out string filePath)
+    {
+        capture = new HiddenSkillsCaptureDocument(DateTimeOffset.MinValue, 0, 0, [], string.Empty);
+        bytes = [];
+        filePath = string.Empty;
+
+        var dialog = new OpenFileDialog
+        {
+            Title = $"Load Hidden Skills Capture {slotName}",
+            Filter = "Hidden Skills captures (*.json)|*.json|All files (*.*)|*.*",
+            FileName = "hidden-skills-*.json"
+        };
+
+        if (Directory.Exists(HiddenSkillsCaptureDirectory))
+        {
+            dialog.InitialDirectory = HiddenSkillsCaptureDirectory;
+        }
+
+        if (dialog.ShowDialog(this) != true)
+        {
+            return false;
+        }
+
+        try
+        {
+            var loaded = JsonSerializer.Deserialize<HiddenSkillsCaptureDocument>(
+                File.ReadAllText(dialog.FileName),
+                ExportJsonOptions);
+            if (loaded is null)
+            {
+                HiddenSkillsMultiCaptureStatusText.Text = "Selected Hidden Skills capture could not be read.";
+                SetStatus("Hidden Skills multi-capture load failed.", StatusKind.Warning);
+                return false;
+            }
+
+            if (!TryParseHiddenSkillsCaptureBytes(loaded, out var parsedBytes, out var parseError))
+            {
+                HiddenSkillsMultiCaptureStatusText.Text = parseError;
+                SetStatus("Hidden Skills multi-capture load failed.", StatusKind.Warning);
+                return false;
+            }
+
+            capture = loaded;
+            bytes = parsedBytes;
+            filePath = dialog.FileName;
+            return true;
+        }
+        catch (Exception ex)
+        {
+            HiddenSkillsMultiCaptureStatusText.Text = $"Hidden Skills multi-capture load failed: {ex.Message}";
+            SetStatus("Hidden Skills multi-capture load failed.", StatusKind.Warning);
+            return false;
+        }
+    }
+
+    private bool TryReadHiddenSkillsMultiSkillCounts(out int[] skillCounts)
+    {
+        skillCounts = new int[6];
+        for (var index = 0; index < skillCounts.Length; index++)
+        {
+            var textBox = GetHiddenSkillsMultiCaptureCountTextBox(index);
+            if (!int.TryParse(textBox.Text.Trim(), NumberStyles.Integer, CultureInfo.InvariantCulture, out var count) ||
+                count < 0)
+            {
+                HiddenSkillsMultiCaptureStatusText.Text =
+                    $"Capture {GetHiddenSkillsMultiCaptureSlotName(index)} skill count must be a non-negative whole number.";
+                SetStatus("Invalid Hidden Skills multi-capture skill count.", StatusKind.Warning);
+                return false;
+            }
+
+            skillCounts[index] = count;
+        }
+
+        return true;
+    }
+
+    private TextBox GetHiddenSkillsMultiCaptureCountTextBox(int slotIndex)
+    {
+        return slotIndex switch
+        {
+            0 => HiddenSkillsMultiCaptureACountText,
+            1 => HiddenSkillsMultiCaptureBCountText,
+            2 => HiddenSkillsMultiCaptureCCountText,
+            3 => HiddenSkillsMultiCaptureDCountText,
+            4 => HiddenSkillsMultiCaptureECountText,
+            _ => HiddenSkillsMultiCaptureFCountText
+        };
+    }
+
+    private TextBox GetHiddenSkillsMultiCaptureFileTextBox(int slotIndex)
+    {
+        return slotIndex switch
+        {
+            0 => HiddenSkillsMultiCaptureAFileText,
+            1 => HiddenSkillsMultiCaptureBFileText,
+            2 => HiddenSkillsMultiCaptureCFileText,
+            3 => HiddenSkillsMultiCaptureDFileText,
+            4 => HiddenSkillsMultiCaptureEFileText,
+            _ => HiddenSkillsMultiCaptureFFileText
+        };
+    }
+
+    private static string GetHiddenSkillsMultiCaptureSlotName(int slotIndex)
+    {
+        return ((char)('A' + slotIndex)).ToString();
+    }
+
+    private static IReadOnlyList<HiddenSkillsMultiCaptureCandidateViewModel> CreateHiddenSkillsMultiCaptureCandidates(
+        IReadOnlyList<HiddenSkillsLoadedCapture> captures,
+        IReadOnlyList<int> skillCounts)
+    {
+        var candidates = new List<HiddenSkillsMultiCaptureCandidateAnalysis>();
+        var startOffset = captures[0].Document.StartOffset;
+
+        for (var index = 0; index < captures[0].Bytes.Length; index++)
+        {
+            var offset = startOffset + (uint)index;
+            var values = captures.Select(capture => capture.Bytes[index]).ToArray();
+            if (!HasChanged(values.Select(value => (int)value)))
+            {
+                continue;
+            }
+
+            AddHiddenSkillsValueFieldCandidate(candidates, offset, values, skillCounts);
+            AddHiddenSkillsBitfieldCandidate(candidates, offset, values, skillCounts);
+            AddHiddenSkillsBitCandidates(candidates, offset, values, skillCounts);
+        }
+
+        return candidates
+            .OrderByDescending(candidate => candidate.Score)
+            .ThenByDescending(candidate => candidate.ProgressionMatch)
+            .ThenByDescending(candidate => candidate.OnlyIncreases)
+            .ThenBy(candidate => candidate.OffsetValue)
+            .ThenBy(candidate => candidate.Kind, StringComparer.Ordinal)
+            .ThenBy(candidate => candidate.Bit)
+            .Select((candidate, index) => new HiddenSkillsMultiCaptureCandidateViewModel(
+                index + 1,
+                candidate.OffsetValue,
+                candidate.Kind,
+                candidate.Bit,
+                candidate.Values,
+                FormatIntSequence(skillCounts),
+                candidate.Score,
+                candidate.IsMonotonic,
+                candidate.OnlyIncreases,
+                candidate.ProgressionMatch,
+                candidate.Notes))
+            .ToList();
+    }
+
+    private static void AddHiddenSkillsValueFieldCandidate(
+        ICollection<HiddenSkillsMultiCaptureCandidateAnalysis> candidates,
+        uint offset,
+        byte[] values,
+        IReadOnlyList<int> skillCounts)
+    {
+        var numericValues = values.Select(value => (int)value).ToArray();
+        var isMonotonic = IsMonotonicNonDecreasing(numericValues);
+        var progressionMatch = SequenceMatches(numericValues, skillCounts);
+        if (!isMonotonic && !progressionMatch)
+        {
+            return;
+        }
+
+        var score =
+            10 +
+            (isMonotonic ? 12 : 0) +
+            (progressionMatch ? 80 : 0) +
+            CountIncreasingSteps(numericValues) * 3;
+        var notes = progressionMatch
+            ? "Raw byte value exactly follows the known learned-skill count progression."
+            : "Raw byte value changes monotonically across loaded captures.";
+
+        candidates.Add(new HiddenSkillsMultiCaptureCandidateAnalysis(
+            offset,
+            "Value field",
+            "-",
+            FormatByteSequence(values),
+            score,
+            isMonotonic,
+            false,
+            progressionMatch,
+            notes));
+    }
+
+    private static void AddHiddenSkillsBitfieldCandidate(
+        ICollection<HiddenSkillsMultiCaptureCandidateAnalysis> candidates,
+        uint offset,
+        byte[] values,
+        IReadOnlyList<int> skillCounts)
+    {
+        var bitCounts = values.Select(value => CountSetBits(value)).ToArray();
+        var onlyIncreases = BitsOnlyIncrease(values);
+        var bitCountMonotonic = IsMonotonicNonDecreasing(bitCounts);
+        var progressionMatch = SequenceMatches(bitCounts, skillCounts);
+        if (!onlyIncreases && !progressionMatch)
+        {
+            return;
+        }
+
+        var score =
+            16 +
+            (onlyIncreases ? 28 : 0) +
+            (bitCountMonotonic ? 10 : 0) +
+            (progressionMatch ? 90 : 0) +
+            CountIncreasingSteps(bitCounts) * 4;
+        var notes = progressionMatch
+            ? "Set-bit count exactly follows the known learned-skill count progression."
+            : $"Bits only increase across captures. Set-bit counts: {FormatIntSequence(bitCounts)}.";
+
+        candidates.Add(new HiddenSkillsMultiCaptureCandidateAnalysis(
+            offset,
+            "Bitfield",
+            "byte",
+            $"{FormatByteSequence(values)} | bits {FormatIntSequence(bitCounts)}",
+            score,
+            bitCountMonotonic,
+            onlyIncreases,
+            progressionMatch,
+            notes));
+    }
+
+    private static void AddHiddenSkillsBitCandidates(
+        ICollection<HiddenSkillsMultiCaptureCandidateAnalysis> candidates,
+        uint offset,
+        byte[] values,
+        IReadOnlyList<int> skillCounts)
+    {
+        for (var bit = 0; bit < 8; bit++)
+        {
+            var states = values.Select(value => IsBitSet(value, bit) ? 1 : 0).ToArray();
+            if (!HasChanged(states) || !IsMonotonicNonDecreasing(states))
+            {
+                continue;
+            }
+
+            var transitionCount = CountIncreasingSteps(states);
+            var score =
+                8 +
+                transitionCount * 8 +
+                (states[^1] == 1 ? 8 : 0) +
+                (skillCounts.Zip(states, (count, state) => count > 0 && state == 1).Count(match => match) > 0 ? 2 : 0);
+            candidates.Add(new HiddenSkillsMultiCaptureCandidateAnalysis(
+                offset,
+                "Bit",
+                bit.ToString(CultureInfo.InvariantCulture),
+                FormatIntSequence(states),
+                score,
+                true,
+                true,
+                false,
+                "Individual bit turns on and never clears across loaded captures."));
+        }
+    }
+
+    private HiddenSkillsMultiCaptureExport CreateHiddenSkillsMultiCaptureExport(
+        IReadOnlyList<HiddenSkillsLoadedCapture> captures,
+        IReadOnlyList<int> skillCounts)
+    {
+        return new HiddenSkillsMultiCaptureExport(
+            DateTimeOffset.Now,
+            captures[0].Document.StartOffset,
+            captures[0].Bytes.Length,
+            skillCounts.ToList(),
+            captures.Select(capture => new HiddenSkillsMultiCaptureExportCapture(
+                capture.SlotName,
+                capture.Document.LabelOrDefault,
+                capture.Document.Timestamp,
+                capture.Document.StartOffset,
+                capture.Document.Length,
+                capture.FilePath)).ToList(),
+            HiddenSkillsMultiCaptureCandidates.Select(candidate => new HiddenSkillsMultiCaptureExportRow(
+                candidate.Rank,
+                candidate.Offset,
+                candidate.Kind,
+                candidate.Bit,
+                candidate.Values,
+                candidate.SkillCounts,
+                candidate.Score,
+                candidate.IsMonotonic,
+                candidate.OnlyIncreases,
+                candidate.ProgressionMatch,
+                candidate.Flags,
+                candidate.Notes)).ToList());
+    }
+
     private void AppendGoldenBugsBitfieldTestingDiagnostic(
         string action,
         GoldenBugBitViewModel bit,
@@ -6459,9 +6882,92 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         return string.Join(" ", bytes.Select(value => $"0x{value:X2}"));
     }
 
+    private static string FormatByteSequence(IEnumerable<byte> values)
+    {
+        return string.Join(" -> ", values.Select(value => $"{value} / 0x{value:X2}"));
+    }
+
+    private static string FormatIntSequence(IEnumerable<int> values)
+    {
+        return string.Join(" -> ", values.Select(value => value.ToString(CultureInfo.InvariantCulture)));
+    }
+
     private static string FormatNullableByteArray(byte[]? bytes)
     {
         return bytes is null ? "n/a" : FormatByteArray(bytes);
+    }
+
+    private static bool HasChanged(IEnumerable<int> values)
+    {
+        int? firstValue = null;
+        foreach (var value in values)
+        {
+            firstValue ??= value;
+            if (value != firstValue.Value)
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private static bool IsMonotonicNonDecreasing(IReadOnlyList<int> values)
+    {
+        for (var index = 1; index < values.Count; index++)
+        {
+            if (values[index] < values[index - 1])
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    private static int CountIncreasingSteps(IReadOnlyList<int> values)
+    {
+        var count = 0;
+        for (var index = 1; index < values.Count; index++)
+        {
+            if (values[index] > values[index - 1])
+            {
+                count++;
+            }
+        }
+
+        return count;
+    }
+
+    private static bool SequenceMatches(IReadOnlyList<int> values, IReadOnlyList<int> expectedValues)
+    {
+        if (values.Count != expectedValues.Count)
+        {
+            return false;
+        }
+
+        for (var index = 0; index < values.Count; index++)
+        {
+            if (values[index] != expectedValues[index])
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    private static bool BitsOnlyIncrease(IReadOnlyList<byte> values)
+    {
+        for (var index = 1; index < values.Count; index++)
+        {
+            if ((values[index - 1] & ~values[index]) != 0)
+            {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     private static byte[] GetBigEndianBytes(uint value)
@@ -7321,6 +7827,53 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         int CandidateScore,
         string Highlights,
         bool Pinned);
+
+    private sealed record HiddenSkillsLoadedCapture(
+        string SlotName,
+        HiddenSkillsCaptureDocument Document,
+        byte[] Bytes,
+        string FilePath);
+
+    private sealed record HiddenSkillsMultiCaptureCandidateAnalysis(
+        uint OffsetValue,
+        string Kind,
+        string Bit,
+        string Values,
+        int Score,
+        bool IsMonotonic,
+        bool OnlyIncreases,
+        bool ProgressionMatch,
+        string Notes);
+
+    private sealed record HiddenSkillsMultiCaptureExport(
+        DateTimeOffset Timestamp,
+        uint StartOffset,
+        int Length,
+        IReadOnlyList<int> SkillCounts,
+        IReadOnlyList<HiddenSkillsMultiCaptureExportCapture> Captures,
+        IReadOnlyList<HiddenSkillsMultiCaptureExportRow> Candidates);
+
+    private sealed record HiddenSkillsMultiCaptureExportCapture(
+        string SlotName,
+        string Label,
+        DateTimeOffset Timestamp,
+        uint StartOffset,
+        int Length,
+        string FilePath);
+
+    private sealed record HiddenSkillsMultiCaptureExportRow(
+        int Rank,
+        string Offset,
+        string Kind,
+        string Bit,
+        string Values,
+        string SkillCounts,
+        int Score,
+        bool IsMonotonic,
+        bool OnlyIncreases,
+        bool ProgressionMatch,
+        string Flags,
+        string Notes);
 
     private sealed record GoldenBugsBitfieldReport(
         DateTimeOffset Timestamp,

@@ -58,6 +58,8 @@ The research tool writes:
 - `logs/research/hidden-skills-report.csv`
 - `logs/research/hidden-skills-candidate-groups.json`
 - `logs/research/hidden-skills-candidate-groups.csv`
+- `logs/research/hidden-skills-multi-capture-ranking.json`
+- `logs/research/hidden-skills-multi-capture-ranking.csv`
 - `logs/hidden-skills-bit-testing.log`
 
 Capture files include:
@@ -108,6 +110,33 @@ Candidate groups can be exported to:
 
 - `logs/research/hidden-skills-candidate-groups.json`
 - `logs/research/hidden-skills-candidate-groups.csv`
+
+## Multi-Capture Analyzer
+
+The **Hidden Skills Multi-Capture Analyzer** is an offline workflow for comparing multiple saved captures from different progression saves.
+
+It supports six loaded capture slots:
+
+- Capture A: known skill count `1`
+- Capture B: known skill count `2`
+- Capture C: known skill count `3`
+- Capture D: known skill count `5`
+- Capture E: known skill count `6`
+- Capture F: known skill count `7`
+
+The skill-count fields are editable, but the default sequence is intended for the current temple/progression save set where a four-skill capture is unavailable.
+
+The analyzer ranks:
+
+- Offsets whose raw byte values change monotonically.
+- Individual bits that only ever increase from clear to set.
+- Candidate byte value fields where the raw byte follows the known skill-count sequence.
+- Candidate byte-level bitfields where the set-bit count follows the known skill-count sequence.
+
+Rows where the raw byte value or set-bit count progresses `1 -> 2 -> 3 -> 5 -> 6 -> 7` are highlighted as strong candidates. Ranking exports are written to:
+
+- `logs/research/hidden-skills-multi-capture-ranking.json`
+- `logs/research/hidden-skills-multi-capture-ranking.csv`
 
 ## Bit Tester
 

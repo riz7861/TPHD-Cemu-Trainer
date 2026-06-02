@@ -287,6 +287,8 @@ The comparison table shows offset, before byte, after byte, before binary, after
 
 The Hidden Skills research table can filter to likely candidates: single-bit changes, persisted changes, and rows with candidate score `>= 6`. You can pin offsets as manual Hidden Skill candidates; pinned offsets are included in the filtered view and candidate grouping. Nearby candidate offsets are grouped automatically using a 4-byte proximity window, then exported with **Export Candidate Groups** to `logs/research/hidden-skills-candidate-groups.json` and `logs/research/hidden-skills-candidate-groups.csv`.
 
+The **Hidden Skills Multi-Capture Analyzer** can load six saved Hidden Skills captures offline. It defaults the known learned-skill counts to `1 -> 2 -> 3 -> 5 -> 6 -> 7`, then ranks offsets that change monotonically, bits that only ever increase, byte value fields, and byte-level bitfields. Rows where the raw value or set-bit count follows `1 -> 2 -> 3 -> 5 -> 6 -> 7` are highlighted as strong research candidates. Ranking exports are written to `logs/research/hidden-skills-multi-capture-ranking.json` and `logs/research/hidden-skills-multi-capture-ranking.csv`.
+
 The **Hidden Skills Bit Tester / Experimental** section can test one candidate bit at a time. It supports offset/bit presets such as `0x218 bit0`, `0x219 bit0`, `0x214 bit1`, and `0x238 bit0`, preserves all other bits in the byte, and verifies immediate, 250ms, and 1000ms readbacks. Bit-test activity is logged to `logs/hidden-skills-bit-testing.log`.
 
 No Hidden Skills editing is implemented yet. Details are tracked in `docs/research/HiddenSkillsResearch.md`.
