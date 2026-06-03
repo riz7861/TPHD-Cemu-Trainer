@@ -943,6 +943,108 @@
             </Border>
         </DataTemplate>
 
+        <DataTemplate x:Key="HiddenSkillsRegionAnalysisRowTemplate">
+            <Border BorderBrush="{DynamicResource BorderBrush}"
+                    BorderThickness="0,0,0,1"
+                    Padding="0,4">
+                <Border.Style>
+                    <Style TargetType="Border">
+                        <Setter Property="Background" Value="Transparent" />
+                        <Style.Triggers>
+                            <DataTrigger Binding="{Binding IsSparseRegion}" Value="True">
+                                <Setter Property="Background" Value="{DynamicResource ChangedRowBackgroundBrush}" />
+                            </DataTrigger>
+                            <DataTrigger Binding="{Binding IsSingleBitRegion}" Value="True">
+                                <Setter Property="Background" Value="{DynamicResource StrongCandidateBackgroundBrush}" />
+                            </DataTrigger>
+                        </Style.Triggers>
+                    </Style>
+                </Border.Style>
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="48" />
+                        <ColumnDefinition Width="132" />
+                        <ColumnDefinition Width="96" />
+                        <ColumnDefinition Width="92" />
+                        <ColumnDefinition Width="86" />
+                        <ColumnDefinition Width="98" />
+                        <ColumnDefinition Width="92" />
+                        <ColumnDefinition Width="*" MinWidth="180" />
+                    </Grid.ColumnDefinitions>
+
+                    <TextBlock Text="{Binding Rank}" FontWeight="SemiBold" VerticalAlignment="Center" />
+                    <TextBlock Grid.Column="1" Text="{Binding Region}" FontFamily="Consolas" VerticalAlignment="Center" />
+                    <TextBlock Grid.Column="2" Text="{Binding ChangedBytes}" VerticalAlignment="Center" />
+                    <TextBlock Grid.Column="3" Text="{Binding ChangedBits}" VerticalAlignment="Center" />
+                    <TextBlock Grid.Column="4" Text="{Binding DensityPercent}" VerticalAlignment="Center" />
+                    <TextBlock Grid.Column="5" Text="{Binding LargestChange}" VerticalAlignment="Center" />
+                    <TextBlock Grid.Column="6" Text="{Binding CandidateScore}" FontWeight="SemiBold" VerticalAlignment="Center" />
+                    <TextBlock Grid.Column="7" Text="{Binding HighlightLabel}" TextTrimming="CharacterEllipsis" VerticalAlignment="Center" Margin="6,0" />
+                </Grid>
+            </Border>
+        </DataTemplate>
+
+        <DataTemplate x:Key="HiddenSkillsLiveWatchRowTemplate">
+            <Border BorderBrush="{DynamicResource BorderBrush}"
+                    BorderThickness="0,0,0,1"
+                    Padding="0,4">
+                <Border.Style>
+                    <Style TargetType="Border">
+                        <Setter Property="Background" Value="Transparent" />
+                        <Style.Triggers>
+                            <DataTrigger Binding="{Binding IsMonotonicChange}" Value="True">
+                                <Setter Property="Background" Value="{DynamicResource ChangedRowBackgroundBrush}" />
+                            </DataTrigger>
+                            <DataTrigger Binding="{Binding IsSingleBitChange}" Value="True">
+                                <Setter Property="Background" Value="{DynamicResource ChangedBitBackgroundBrush}" />
+                            </DataTrigger>
+                            <DataTrigger Binding="{Binding IsRepeatedChange}" Value="True">
+                                <Setter Property="Background" Value="{DynamicResource StrongCandidateBackgroundBrush}" />
+                            </DataTrigger>
+                        </Style.Triggers>
+                    </Style>
+                </Border.Style>
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="92" />
+                        <ColumnDefinition Width="74" />
+                        <ColumnDefinition Width="92" />
+                        <ColumnDefinition Width="92" />
+                        <ColumnDefinition Width="92" />
+                        <ColumnDefinition Width="92" />
+                        <ColumnDefinition Width="118" />
+                        <ColumnDefinition Width="70" />
+                        <ColumnDefinition Width="*" MinWidth="170" />
+                    </Grid.ColumnDefinitions>
+
+                    <TextBlock Text="{Binding TimestampText}" FontFamily="Consolas" VerticalAlignment="Center" />
+                    <TextBlock Grid.Column="1" Text="{Binding Offset}" FontFamily="Consolas" VerticalAlignment="Center" />
+                    <TextBlock Grid.Column="2" Text="{Binding BeforeByte}" FontFamily="Consolas" VerticalAlignment="Center" />
+                    <TextBlock Grid.Column="3" Text="{Binding AfterByte}" FontFamily="Consolas" VerticalAlignment="Center" />
+                    <TextBlock Grid.Column="4" Text="{Binding BeforeBinary}" FontFamily="Consolas" VerticalAlignment="Center" />
+                    <TextBlock Grid.Column="5" Text="{Binding AfterBinary}" FontFamily="Consolas" VerticalAlignment="Center" />
+                    <TextBlock Grid.Column="6" Text="{Binding ChangedBits}" FontFamily="Consolas" VerticalAlignment="Center" />
+                    <TextBlock Grid.Column="7" Text="{Binding ChangeCount}" FontWeight="SemiBold" VerticalAlignment="Center" />
+                    <TextBlock Grid.Column="8" Text="{Binding HighlightLabel}" TextTrimming="CharacterEllipsis" VerticalAlignment="Center" Margin="6,0" />
+                </Grid>
+            </Border>
+        </DataTemplate>
+
+        <DataTemplate x:Key="HiddenSkillsEventMarkerTemplate">
+            <Border BorderBrush="{DynamicResource BorderBrush}"
+                    BorderThickness="0,0,0,1"
+                    Padding="0,3">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="92" />
+                        <ColumnDefinition Width="*" />
+                    </Grid.ColumnDefinitions>
+                    <TextBlock Text="{Binding TimestampText}" FontFamily="Consolas" VerticalAlignment="Center" />
+                    <TextBlock Grid.Column="1" Text="{Binding Label}" TextTrimming="CharacterEllipsis" VerticalAlignment="Center" Margin="6,0" />
+                </Grid>
+            </Border>
+        </DataTemplate>
+
         <DataTemplate x:Key="GoldenBugResearchRowTemplate">
             <Border BorderBrush="{DynamicResource BorderBrush}"
                     BorderThickness="0,0,0,1"
@@ -3222,6 +3324,230 @@
                                                       Background="{DynamicResource ReadOnlyBackgroundBrush}">
                                             <ItemsControl ItemsSource="{Binding HiddenSkillsMultiCaptureCandidates}"
                                                           ItemTemplate="{StaticResource HiddenSkillsMultiCaptureCandidateTemplate}" />
+                                        </ScrollViewer>
+                                    </StackPanel>
+                                </GroupBox>
+
+                                <GroupBox Header="Hidden Skills Region Comparison" Margin="0,8,0,0">
+                                    <StackPanel>
+                                        <TextBlock TextWrapping="Wrap"
+                                                   Foreground="{DynamicResource SecondaryTextBrush}"
+                                                   Margin="0,0,0,8"
+                                                   Text="Compares two persisted captures over a broad range and ranks sparse changed regions. Use this when the Hidden Skills field may be outside the default 0x200-0x300 research window." />
+
+                                        <Grid Margin="0,0,0,8">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="80" />
+                                                <ColumnDefinition Width="*" />
+                                                <ColumnDefinition Width="Auto" />
+                                            </Grid.ColumnDefinitions>
+                                            <Grid.RowDefinitions>
+                                                <RowDefinition Height="Auto" />
+                                                <RowDefinition Height="Auto" />
+                                            </Grid.RowDefinitions>
+
+                                            <TextBlock Text="Capture A" VerticalAlignment="Center" Margin="0,0,8,5" />
+                                            <TextBox Grid.Column="1"
+                                                     x:Name="HiddenSkillsRegionCaptureAFileText"
+                                                     Text="Not loaded"
+                                                     IsReadOnly="True"
+                                                     Background="{DynamicResource ReadOnlyBackgroundBrush}"
+                                                     Margin="0,0,8,5" />
+                                            <Button Grid.Column="2"
+                                                    Content="Load Capture A"
+                                                    Click="HiddenSkillsRegionLoadCaptureA_Click"
+                                                    Margin="0,0,0,5" />
+
+                                            <TextBlock Grid.Row="1" Text="Capture B" VerticalAlignment="Center" Margin="0,0,8,0" />
+                                            <TextBox Grid.Row="1"
+                                                     Grid.Column="1"
+                                                     x:Name="HiddenSkillsRegionCaptureBFileText"
+                                                     Text="Not loaded"
+                                                     IsReadOnly="True"
+                                                     Background="{DynamicResource ReadOnlyBackgroundBrush}"
+                                                     Margin="0,0,8,0" />
+                                            <Button Grid.Row="1"
+                                                    Grid.Column="2"
+                                                    Content="Load Capture B"
+                                                    Click="HiddenSkillsRegionLoadCaptureB_Click" />
+                                        </Grid>
+
+                                        <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
+                                            <TextBlock Text="Start"
+                                                       VerticalAlignment="Center"
+                                                       Margin="0,0,6,0" />
+                                            <TextBox x:Name="HiddenSkillsRegionStartOffsetText"
+                                                     Text="0x000"
+                                                     Width="88"
+                                                     FontFamily="Consolas"
+                                                     Margin="0,0,10,0" />
+                                            <TextBlock Text="Length"
+                                                       VerticalAlignment="Center"
+                                                       Margin="0,0,6,0" />
+                                            <TextBox x:Name="HiddenSkillsRegionLengthText"
+                                                     Text="0x400"
+                                                     Width="88"
+                                                     FontFamily="Consolas"
+                                                     Margin="0,0,10,0" />
+                                            <Button Content="0x000-0x400"
+                                                    Tag="0x000|0x400"
+                                                    Click="HiddenSkillsRegionPreset_Click" />
+                                            <Button Content="0x000-0x800"
+                                                    Tag="0x000|0x800"
+                                                    Click="HiddenSkillsRegionPreset_Click"
+                                                    Margin="6,0,0,0" />
+                                            <Button Content="0x000-0x1000"
+                                                    Tag="0x000|0x1000"
+                                                    Click="HiddenSkillsRegionPreset_Click"
+                                                    Margin="6,0,0,0" />
+                                            <Button Content="Analyze Regions"
+                                                    Click="HiddenSkillsRegionAnalyze_Click"
+                                                    Margin="12,0,0,0" />
+                                            <Button Content="Export Region Analysis"
+                                                    Click="HiddenSkillsRegionExport_Click"
+                                                    Margin="6,0,0,0" />
+                                        </StackPanel>
+
+                                        <TextBox x:Name="HiddenSkillsRegionStatusText"
+                                                 Text="Load two captures, choose a range, then analyze sparse changed regions."
+                                                 IsReadOnly="True"
+                                                 TextWrapping="Wrap"
+                                                 Background="{DynamicResource ReadOnlyBackgroundBrush}"
+                                                 Margin="0,0,0,8" />
+
+                                        <Grid Margin="0,0,0,4">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="48" />
+                                                <ColumnDefinition Width="132" />
+                                                <ColumnDefinition Width="96" />
+                                                <ColumnDefinition Width="92" />
+                                                <ColumnDefinition Width="86" />
+                                                <ColumnDefinition Width="98" />
+                                                <ColumnDefinition Width="92" />
+                                                <ColumnDefinition Width="*" MinWidth="180" />
+                                            </Grid.ColumnDefinitions>
+                                            <TextBlock Text="Rank" FontWeight="SemiBold" />
+                                            <TextBlock Grid.Column="1" Text="Region" FontWeight="SemiBold" />
+                                            <TextBlock Grid.Column="2" Text="Changed bytes" FontWeight="SemiBold" />
+                                            <TextBlock Grid.Column="3" Text="Changed bits" FontWeight="SemiBold" />
+                                            <TextBlock Grid.Column="4" Text="Density" FontWeight="SemiBold" />
+                                            <TextBlock Grid.Column="5" Text="Largest" FontWeight="SemiBold" />
+                                            <TextBlock Grid.Column="6" Text="Score" FontWeight="SemiBold" />
+                                            <TextBlock Grid.Column="7" Text="Highlights" FontWeight="SemiBold" Margin="6,0" />
+                                        </Grid>
+
+                                        <ScrollViewer Height="190"
+                                                      VerticalScrollBarVisibility="Auto"
+                                                      HorizontalScrollBarVisibility="Auto"
+                                                      Background="{DynamicResource ReadOnlyBackgroundBrush}">
+                                            <ItemsControl ItemsSource="{Binding HiddenSkillsRegionAnalysisRows}"
+                                                          ItemTemplate="{StaticResource HiddenSkillsRegionAnalysisRowTemplate}" />
+                                        </ScrollViewer>
+                                    </StackPanel>
+                                </GroupBox>
+
+                                <GroupBox Header="Hidden Skills Live Memory Watch" Margin="0,8,0,0">
+                                    <StackPanel>
+                                        <TextBlock TextWrapping="Wrap"
+                                                   Foreground="{DynamicResource SecondaryTextBrush}"
+                                                   Margin="0,0,0,8"
+                                                   Text="Watches a playerbase-relative range every 250ms while you interact with Howling Stones, Golden Wolves, Hero's Shade lessons, tutorials, and menu updates. This feature reads memory only." />
+
+                                        <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
+                                            <TextBlock Text="Start"
+                                                       VerticalAlignment="Center"
+                                                       Margin="0,0,6,0" />
+                                            <TextBox x:Name="HiddenSkillsLiveWatchStartOffsetText"
+                                                     Text="0x000"
+                                                     Width="88"
+                                                     FontFamily="Consolas"
+                                                     Margin="0,0,10,0" />
+                                            <TextBlock Text="Length"
+                                                       VerticalAlignment="Center"
+                                                       Margin="0,0,6,0" />
+                                            <TextBox x:Name="HiddenSkillsLiveWatchLengthText"
+                                                     Text="0x1000"
+                                                     Width="88"
+                                                     FontFamily="Consolas"
+                                                     Margin="0,0,10,0" />
+                                            <Button Content="Start Watch"
+                                                    Click="HiddenSkillsLiveWatchStart_Click" />
+                                            <Button Content="Stop Watch"
+                                                    Click="HiddenSkillsLiveWatchStop_Click"
+                                                    Margin="6,0,0,0" />
+                                            <Button Content="Clear"
+                                                    Click="HiddenSkillsLiveWatchClear_Click"
+                                                    Margin="6,0,0,0" />
+                                            <Button Content="Export Watch"
+                                                    Click="HiddenSkillsLiveWatchExport_Click"
+                                                    Margin="6,0,0,0" />
+                                        </StackPanel>
+
+                                        <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
+                                            <TextBlock Text="Event"
+                                                       VerticalAlignment="Center"
+                                                       Margin="0,0,6,0" />
+                                            <ComboBox x:Name="HiddenSkillsEventLabelBox"
+                                                      IsEditable="True"
+                                                      Width="260"
+                                                      Text="Howling Stone Activated"
+                                                      Margin="0,0,8,0">
+                                                <ComboBoxItem Content="Howling Stone Activated" />
+                                                <ComboBoxItem Content="Wolf Appeared" />
+                                                <ComboBoxItem Content="Lesson Started" />
+                                                <ComboBoxItem Content="Lesson Completed" />
+                                                <ComboBoxItem Content="Skill Appeared In Menu" />
+                                            </ComboBox>
+                                            <Button Content="Mark Event"
+                                                    Click="HiddenSkillsMarkEvent_Click" />
+                                        </StackPanel>
+
+                                        <TextBox x:Name="HiddenSkillsLiveWatchStatusText"
+                                                 Text="Ready. Attach to Cemu and rescan before starting live watch."
+                                                 IsReadOnly="True"
+                                                 TextWrapping="Wrap"
+                                                 Background="{DynamicResource ReadOnlyBackgroundBrush}"
+                                                 Margin="0,0,0,8" />
+
+                                        <Grid Margin="0,0,0,4">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="92" />
+                                                <ColumnDefinition Width="74" />
+                                                <ColumnDefinition Width="92" />
+                                                <ColumnDefinition Width="92" />
+                                                <ColumnDefinition Width="92" />
+                                                <ColumnDefinition Width="92" />
+                                                <ColumnDefinition Width="118" />
+                                                <ColumnDefinition Width="70" />
+                                                <ColumnDefinition Width="*" MinWidth="170" />
+                                            </Grid.ColumnDefinitions>
+                                            <TextBlock Text="Time" FontWeight="SemiBold" />
+                                            <TextBlock Grid.Column="1" Text="Offset" FontWeight="SemiBold" />
+                                            <TextBlock Grid.Column="2" Text="Before" FontWeight="SemiBold" />
+                                            <TextBlock Grid.Column="3" Text="After" FontWeight="SemiBold" />
+                                            <TextBlock Grid.Column="4" Text="Before bin" FontWeight="SemiBold" />
+                                            <TextBlock Grid.Column="5" Text="After bin" FontWeight="SemiBold" />
+                                            <TextBlock Grid.Column="6" Text="Changed bits" FontWeight="SemiBold" />
+                                            <TextBlock Grid.Column="7" Text="Count" FontWeight="SemiBold" />
+                                            <TextBlock Grid.Column="8" Text="Highlights" FontWeight="SemiBold" Margin="6,0" />
+                                        </Grid>
+
+                                        <ScrollViewer Height="210"
+                                                      VerticalScrollBarVisibility="Auto"
+                                                      HorizontalScrollBarVisibility="Auto"
+                                                      Background="{DynamicResource ReadOnlyBackgroundBrush}">
+                                            <ItemsControl ItemsSource="{Binding HiddenSkillsLiveWatchRows}"
+                                                          ItemTemplate="{StaticResource HiddenSkillsLiveWatchRowTemplate}" />
+                                        </ScrollViewer>
+
+                                        <TextBlock Text="Event Markers"
+                                                   FontWeight="SemiBold"
+                                                   Margin="0,8,0,4" />
+                                        <ScrollViewer Height="76"
+                                                      VerticalScrollBarVisibility="Auto"
+                                                      Background="{DynamicResource ReadOnlyBackgroundBrush}">
+                                            <ItemsControl ItemsSource="{Binding HiddenSkillsEventMarkers}"
+                                                          ItemTemplate="{StaticResource HiddenSkillsEventMarkerTemplate}" />
                                         </ScrollViewer>
                                     </StackPanel>
                                 </GroupBox>

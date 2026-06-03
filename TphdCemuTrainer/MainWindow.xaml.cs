@@ -20,6 +20,7 @@ namespace TphdCemuTrainer;
 public partial class MainWindow : Window, INotifyPropertyChanged
 {
     private readonly DispatcherTimer _refreshTimer;
+    private readonly DispatcherTimer _hiddenSkillsLiveWatchTimer;
     private readonly Dictionary<CheatId, TrainerValueViewModel> _values;
     private readonly Dictionary<string, CapacitySelectorViewModel> _capacities;
     private ProcessMemory? _memory;
@@ -62,9 +63,21 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     private DateTimeOffset? _hiddenSkillsAfterCapturedAt;
     private HiddenSkillsResearchExport? _lastHiddenSkillsResearchExport;
     private HiddenSkillsMultiCaptureExport? _lastHiddenSkillsMultiCaptureExport;
+    private HiddenSkillsRegionAnalysisExport? _lastHiddenSkillsRegionAnalysisExport;
     private List<HiddenSkillsResearchRowViewModel> _hiddenSkillsAllResearchRows = [];
     private readonly Dictionary<uint, bool> _hiddenSkillsPinnedOffsets = [];
     private readonly HiddenSkillsLoadedCapture?[] _hiddenSkillsMultiCaptures = new HiddenSkillsLoadedCapture?[6];
+    private HiddenSkillsCaptureDocument? _hiddenSkillsRegionCaptureA;
+    private HiddenSkillsCaptureDocument? _hiddenSkillsRegionCaptureB;
+    private byte[]? _hiddenSkillsRegionCaptureABytes;
+    private byte[]? _hiddenSkillsRegionCaptureBBytes;
+    private string _hiddenSkillsRegionCaptureAPath = string.Empty;
+    private string _hiddenSkillsRegionCaptureBPath = string.Empty;
+    private byte[]? _hiddenSkillsLiveWatchPreviousBytes;
+    private uint _hiddenSkillsLiveWatchStartOffset;
+    private int _hiddenSkillsLiveWatchLength;
+    private DateTimeOffset? _hiddenSkillsLiveWatchStartedAt;
+    private readonly Dictionary<uint, int> _hiddenSkillsLiveWatchChangeCounts = [];
     private byte[]? _goldenBugsBitfieldRestoreSnapshotBytes;
     private DateTimeOffset? _goldenBugsBitfieldRestoreSnapshotCapturedAt;
     private byte[]? _goldenBugsEditorRestoreSnapshotBytes;
@@ -151,6 +164,9 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         HiddenSkillsResearchRows = [];
         HiddenSkillsCandidateGroups = [];
         HiddenSkillsMultiCaptureCandidates = [];
+        HiddenSkillsRegionAnalysisRows = [];
+        HiddenSkillsLiveWatchRows = [];
+        HiddenSkillsEventMarkers = [];
 
         EquipmentSlots = new ObservableCollection<EquipmentSlotViewModel>(
             EquipmentDefinitions.Slots.Select(slot => new EquipmentSlotViewModel(slot)));
@@ -188,6 +204,12 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             Interval = TimeSpan.FromMilliseconds(500)
         };
         _refreshTimer.Tick += RefreshTimer_Tick;
+
+        _hiddenSkillsLiveWatchTimer = new DispatcherTimer
+        {
+            Interval = TimeSpan.FromMilliseconds(250)
+        };
+        _hiddenSkillsLiveWatchTimer.Tick += HiddenSkillsLiveWatchTimer_Tick;
     }
 
     private void InventoryOwnershipItem_PropertyChanged(object? sender, PropertyChangedEventArgs e)
@@ -243,6 +265,9 @@ public partial class MainWindow : Window, INotifyPropertyChanged
 
     private static string HiddenSkillsBitTestingLogPath =>
         Path.Combine(AppContext.BaseDirectory, "logs", "hidden-skills-bit-testing.log");
+
+    private static string HiddenSkillsLiveWatchLogPath =>
+        Path.Combine(AppContext.BaseDirectory, "logs", "hidden-skills-live-watch.log");
 
     private static string HiddenSkillsCaptureDirectory =>
         Path.Combine(ResearchSnapshotStore.ExportDirectory, "hidden-skills-captures");
@@ -340,6 +365,12 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     public ObservableCollection<HiddenSkillsCandidateGroupViewModel> HiddenSkillsCandidateGroups { get; }
 
     public ObservableCollection<HiddenSkillsMultiCaptureCandidateViewModel> HiddenSkillsMultiCaptureCandidates { get; }
+
+    public ObservableCollection<HiddenSkillsRegionAnalysisRowViewModel> HiddenSkillsRegionAnalysisRows { get; }
+
+    public ObservableCollection<HiddenSkillsLiveWatchRowViewModel> HiddenSkillsLiveWatchRows { get; }
+
+    public ObservableCollection<HiddenSkillsEventMarkerViewModel> HiddenSkillsEventMarkers { get; }
 
     public ObservableCollection<EquipmentSlotViewModel> EquipmentSlots { get; }
 
@@ -1232,6 +1263,234 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             HiddenSkillsMultiCaptureStatusText.Text = $"Hidden Skills multi-capture export failed: {ex.Message}";
             SetStatus("Hidden Skills multi-capture export failed.", StatusKind.Warning);
         }
+    }
+
+    private void HiddenSkillsRegionLoadCaptureA_Click(object sender, RoutedEventArgs e)
+    {
+        if (!TryLoadHiddenSkillsCaptureForRegionAnalyzer("A", out var capture, out var bytes, out var filePath))
+        {
+            return;
+        }
+
+        _hiddenSkillsRegionCaptureA = capture;
+        _hiddenSkillsRegionCaptureABytes = bytes;
+        _hiddenSkillsRegionCaptureAPath = filePath;
+        HiddenSkillsRegionCaptureAFileText.Text =
+            $"{Path.GetFileName(filePath)} | {capture.LabelOrDefault} | 0x{capture.StartOffset:X}/0x{capture.Length:X}";
+        HiddenSkillsRegionAnalysisRows.Clear();
+        _lastHiddenSkillsRegionAnalysisExport = null;
+        HiddenSkillsRegionStatusText.Text = $"Loaded Region Capture A: {capture.LabelOrDefault}.";
+        AppendHiddenSkillsResearchLog(
+            $"action=region-load-a file=\"{filePath}\" label=\"{capture.Label}\" start=0x{capture.StartOffset:X} length=0x{capture.Length:X}");
+        SetStatus("Hidden Skills Region Capture A loaded.", StatusKind.Connected);
+    }
+
+    private void HiddenSkillsRegionLoadCaptureB_Click(object sender, RoutedEventArgs e)
+    {
+        if (!TryLoadHiddenSkillsCaptureForRegionAnalyzer("B", out var capture, out var bytes, out var filePath))
+        {
+            return;
+        }
+
+        _hiddenSkillsRegionCaptureB = capture;
+        _hiddenSkillsRegionCaptureBBytes = bytes;
+        _hiddenSkillsRegionCaptureBPath = filePath;
+        HiddenSkillsRegionCaptureBFileText.Text =
+            $"{Path.GetFileName(filePath)} | {capture.LabelOrDefault} | 0x{capture.StartOffset:X}/0x{capture.Length:X}";
+        HiddenSkillsRegionAnalysisRows.Clear();
+        _lastHiddenSkillsRegionAnalysisExport = null;
+        HiddenSkillsRegionStatusText.Text = $"Loaded Region Capture B: {capture.LabelOrDefault}.";
+        AppendHiddenSkillsResearchLog(
+            $"action=region-load-b file=\"{filePath}\" label=\"{capture.Label}\" start=0x{capture.StartOffset:X} length=0x{capture.Length:X}");
+        SetStatus("Hidden Skills Region Capture B loaded.", StatusKind.Connected);
+    }
+
+    private void HiddenSkillsRegionPreset_Click(object sender, RoutedEventArgs e)
+    {
+        if ((sender as FrameworkElement)?.Tag is not string preset)
+        {
+            return;
+        }
+
+        var parts = preset.Split('|');
+        if (parts.Length != 2)
+        {
+            return;
+        }
+
+        HiddenSkillsRegionStartOffsetText.Text = parts[0];
+        HiddenSkillsRegionLengthText.Text = parts[1];
+        HiddenSkillsRegionStatusText.Text = $"Loaded region preset {parts[0]} length {parts[1]}.";
+    }
+
+    private void HiddenSkillsRegionAnalyze_Click(object sender, RoutedEventArgs e)
+    {
+        if (_hiddenSkillsRegionCaptureA is null ||
+            _hiddenSkillsRegionCaptureB is null ||
+            _hiddenSkillsRegionCaptureABytes is null ||
+            _hiddenSkillsRegionCaptureBBytes is null)
+        {
+            HiddenSkillsRegionStatusText.Text = "Load Region Capture A and Capture B before analyzing.";
+            SetStatus("Load Hidden Skills region captures first.", StatusKind.Neutral);
+            return;
+        }
+
+        if (!TryParseResearchOffset(HiddenSkillsRegionStartOffsetText.Text, out var startOffset, out var offsetError))
+        {
+            HiddenSkillsRegionStatusText.Text = offsetError;
+            SetStatus("Invalid Hidden Skills region start offset.", StatusKind.Warning);
+            return;
+        }
+
+        if (!TryParseResearchLength(HiddenSkillsRegionLengthText.Text, out var length, out var lengthError))
+        {
+            HiddenSkillsRegionStatusText.Text = lengthError;
+            SetStatus("Invalid Hidden Skills region length.", StatusKind.Warning);
+            return;
+        }
+
+        var captureAInRange = TryExtractHiddenSkillsCaptureRange(
+            _hiddenSkillsRegionCaptureA,
+            _hiddenSkillsRegionCaptureABytes,
+            startOffset,
+            length,
+            out var captureARange,
+            out var captureAError);
+        var captureBInRange = TryExtractHiddenSkillsCaptureRange(
+            _hiddenSkillsRegionCaptureB,
+            _hiddenSkillsRegionCaptureBBytes,
+            startOffset,
+            length,
+            out var captureBRange,
+            out var captureBError);
+        if (!captureAInRange || !captureBInRange)
+        {
+            HiddenSkillsRegionStatusText.Text = string.IsNullOrWhiteSpace(captureAError) ? captureBError : captureAError;
+            SetStatus("Selected Hidden Skills region is outside a loaded capture.", StatusKind.Warning);
+            return;
+        }
+
+        var rows = CreateHiddenSkillsRegionAnalysisRows(startOffset, captureARange, captureBRange);
+        HiddenSkillsRegionAnalysisRows.Clear();
+        foreach (var row in rows)
+        {
+            HiddenSkillsRegionAnalysisRows.Add(row);
+        }
+
+        _lastHiddenSkillsRegionAnalysisExport = CreateHiddenSkillsRegionAnalysisExport(startOffset, length);
+        HiddenSkillsRegionStatusText.Text =
+            $"Analyzed 0x{length:X} byte(s). Ranked {HiddenSkillsRegionAnalysisRows.Count} changed region(s).";
+        AppendHiddenSkillsResearchLog(
+            $"action=region-analyze start=0x{startOffset:X} length=0x{length:X} regions={HiddenSkillsRegionAnalysisRows.Count}");
+        SetStatus("Hidden Skills region comparison completed.", StatusKind.Connected);
+    }
+
+    private void HiddenSkillsRegionExport_Click(object sender, RoutedEventArgs e)
+    {
+        if (_lastHiddenSkillsRegionAnalysisExport is null)
+        {
+            HiddenSkillsRegionStatusText.Text = "Analyze regions before exporting.";
+            SetStatus("Analyze Hidden Skills regions before exporting.", StatusKind.Neutral);
+            return;
+        }
+
+        try
+        {
+            Directory.CreateDirectory(ResearchSnapshotStore.ExportDirectory);
+            var jsonPath = Path.Combine(ResearchSnapshotStore.ExportDirectory, "hidden-skills-region-analysis.json");
+            var csvPath = Path.Combine(ResearchSnapshotStore.ExportDirectory, "hidden-skills-region-analysis.csv");
+            File.WriteAllText(jsonPath, JsonSerializer.Serialize(_lastHiddenSkillsRegionAnalysisExport, ExportJsonOptions));
+            File.WriteAllLines(csvPath, CreateHiddenSkillsRegionAnalysisCsvLines(_lastHiddenSkillsRegionAnalysisExport.Rows));
+            HiddenSkillsRegionStatusText.Text =
+                $"Exported Hidden Skills region analysis: {Path.GetFileName(jsonPath)} and {Path.GetFileName(csvPath)}.";
+            AppendHiddenSkillsResearchLog(
+                $"action=region-export json=\"{jsonPath}\" csv=\"{csvPath}\" rows={_lastHiddenSkillsRegionAnalysisExport.Rows.Count}");
+            SetStatus("Hidden Skills region analysis exported.", StatusKind.Connected);
+        }
+        catch (Exception ex)
+        {
+            HiddenSkillsRegionStatusText.Text = $"Hidden Skills region export failed: {ex.Message}";
+            SetStatus("Hidden Skills region export failed.", StatusKind.Warning);
+        }
+    }
+
+    private void HiddenSkillsLiveWatchStart_Click(object sender, RoutedEventArgs e)
+    {
+        if (_hiddenSkillsLiveWatchTimer.IsEnabled)
+        {
+            HiddenSkillsLiveWatchStatusText.Text = "Live watch is already running.";
+            return;
+        }
+
+        if (!TryReadHiddenSkillsLiveWatchRange(out var startOffset, out var bytes))
+        {
+            return;
+        }
+
+        _hiddenSkillsLiveWatchStartOffset = startOffset;
+        _hiddenSkillsLiveWatchLength = bytes.Length;
+        _hiddenSkillsLiveWatchPreviousBytes = bytes;
+        _hiddenSkillsLiveWatchStartedAt = DateTimeOffset.Now;
+        _hiddenSkillsLiveWatchChangeCounts.Clear();
+        _hiddenSkillsLiveWatchTimer.Start();
+        HiddenSkillsLiveWatchStatusText.Text =
+            $"Watching _playerbase+0x{startOffset:X} length 0x{bytes.Length:X} every 250ms. Baseline captured.";
+        AppendHiddenSkillsLiveWatchLog(
+            $"action=start start=0x{startOffset:X} length=0x{bytes.Length:X} bytes=\"{FormatByteArray(bytes)}\"");
+        SetStatus("Hidden Skills live watch started.", StatusKind.Working);
+    }
+
+    private void HiddenSkillsLiveWatchStop_Click(object sender, RoutedEventArgs e)
+    {
+        StopHiddenSkillsLiveWatch("Stopped Hidden Skills live watch.");
+    }
+
+    private void HiddenSkillsLiveWatchClear_Click(object sender, RoutedEventArgs e)
+    {
+        HiddenSkillsLiveWatchRows.Clear();
+        HiddenSkillsEventMarkers.Clear();
+        _hiddenSkillsLiveWatchChangeCounts.Clear();
+        HiddenSkillsLiveWatchStatusText.Text = "Cleared Hidden Skills live watch rows and event markers.";
+        AppendHiddenSkillsLiveWatchLog("action=clear");
+        SetStatus("Hidden Skills live watch cleared.", StatusKind.Neutral);
+    }
+
+    private void HiddenSkillsLiveWatchExport_Click(object sender, RoutedEventArgs e)
+    {
+        try
+        {
+            Directory.CreateDirectory(ResearchSnapshotStore.ExportDirectory);
+            var export = CreateHiddenSkillsLiveWatchExport();
+            var jsonPath = Path.Combine(ResearchSnapshotStore.ExportDirectory, "hidden-skills-live-watch.json");
+            var csvPath = Path.Combine(ResearchSnapshotStore.ExportDirectory, "hidden-skills-live-watch.csv");
+            File.WriteAllText(jsonPath, JsonSerializer.Serialize(export, ExportJsonOptions));
+            File.WriteAllLines(csvPath, CreateHiddenSkillsLiveWatchCsvLines(export));
+            HiddenSkillsLiveWatchStatusText.Text =
+                $"Exported Hidden Skills live watch: {Path.GetFileName(jsonPath)} and {Path.GetFileName(csvPath)}.";
+            AppendHiddenSkillsLiveWatchLog(
+                $"action=export json=\"{jsonPath}\" csv=\"{csvPath}\" changes={export.Rows.Count} events={export.Events.Count}");
+            SetStatus("Hidden Skills live watch exported.", StatusKind.Connected);
+        }
+        catch (Exception ex)
+        {
+            HiddenSkillsLiveWatchStatusText.Text = $"Hidden Skills live watch export failed: {ex.Message}";
+            SetStatus("Hidden Skills live watch export failed.", StatusKind.Warning);
+        }
+    }
+
+    private void HiddenSkillsMarkEvent_Click(object sender, RoutedEventArgs e)
+    {
+        var label = HiddenSkillsEventLabelBox.Text.Trim();
+        if (string.IsNullOrWhiteSpace(label))
+        {
+            label = "Hidden Skills event";
+        }
+
+        var marker = new HiddenSkillsEventMarkerViewModel(DateTimeOffset.Now, label);
+        HiddenSkillsEventMarkers.Insert(0, marker);
+        HiddenSkillsLiveWatchStatusText.Text = $"Marked event: {label}.";
+        AppendHiddenSkillsLiveWatchLog($"action=event label=\"{label}\"");
+        SetStatus("Hidden Skills event marker added.", StatusKind.Neutral);
     }
 
     private void HiddenSkillsBitPreset_Click(object sender, RoutedEventArgs e)
@@ -5927,6 +6186,71 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         }
     }
 
+    private static IEnumerable<string> CreateHiddenSkillsRegionAnalysisCsvLines(IEnumerable<HiddenSkillsRegionAnalysisExportRow> rows)
+    {
+        yield return "Rank,Region,Changed Bytes,Changed Bits,Density %,Largest Change,Candidate Score,Single Bit Region,Highlights";
+        foreach (var row in rows)
+        {
+            yield return string.Join(
+                ",",
+                Csv(row.Rank.ToString(CultureInfo.InvariantCulture)),
+                Csv(row.Region),
+                Csv(row.ChangedBytes.ToString(CultureInfo.InvariantCulture)),
+                Csv(row.ChangedBits.ToString(CultureInfo.InvariantCulture)),
+                Csv(row.Density.ToString("0.0", CultureInfo.InvariantCulture)),
+                Csv(row.LargestChange.ToString(CultureInfo.InvariantCulture)),
+                Csv(row.CandidateScore.ToString(CultureInfo.InvariantCulture)),
+                Csv(row.SingleBitRegion.ToString(CultureInfo.InvariantCulture)),
+                Csv(row.Highlights));
+        }
+    }
+
+    private static IEnumerable<string> CreateHiddenSkillsLiveWatchCsvLines(HiddenSkillsLiveWatchExport export)
+    {
+        yield return "Type,Timestamp,Label,Offset,Before,After,Binary Before,Binary After,Changed Bits,Changed Bit Count,Change Count,Single Bit,Repeated,Monotonic,Highlights";
+        foreach (var marker in export.Events.OrderBy(marker => marker.Timestamp))
+        {
+            yield return string.Join(
+                ",",
+                Csv("Event"),
+                Csv(marker.Timestamp.ToString("O", CultureInfo.InvariantCulture)),
+                Csv(marker.Label),
+                Csv(string.Empty),
+                Csv(string.Empty),
+                Csv(string.Empty),
+                Csv(string.Empty),
+                Csv(string.Empty),
+                Csv(string.Empty),
+                Csv(string.Empty),
+                Csv(string.Empty),
+                Csv(string.Empty),
+                Csv(string.Empty),
+                Csv(string.Empty),
+                Csv(string.Empty));
+        }
+
+        foreach (var row in export.Rows.OrderBy(row => row.Timestamp))
+        {
+            yield return string.Join(
+                ",",
+                Csv("Change"),
+                Csv(row.Timestamp.ToString("O", CultureInfo.InvariantCulture)),
+                Csv(string.Empty),
+                Csv(row.Offset),
+                Csv(row.BeforeValue.ToString(CultureInfo.InvariantCulture)),
+                Csv(row.AfterValue.ToString(CultureInfo.InvariantCulture)),
+                Csv(row.BeforeBinary),
+                Csv(row.AfterBinary),
+                Csv(row.ChangedBits),
+                Csv(row.ChangedBitCount.ToString(CultureInfo.InvariantCulture)),
+                Csv(row.ChangeCount.ToString(CultureInfo.InvariantCulture)),
+                Csv(row.SingleBitChange.ToString(CultureInfo.InvariantCulture)),
+                Csv(row.RepeatedChange.ToString(CultureInfo.InvariantCulture)),
+                Csv(row.MonotonicChange.ToString(CultureInfo.InvariantCulture)),
+                Csv(row.Highlights));
+        }
+    }
+
     private GoldenBugsBitfieldReport CreateGoldenBugsBitfieldReport()
     {
         return new GoldenBugsBitfieldReport(
@@ -6188,6 +6512,26 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         catch (Exception ex)
         {
             HiddenSkillsBitStatusText.Text = $"Hidden Skills bit testing log write failed: {ex.Message}";
+        }
+    }
+
+    private void AppendHiddenSkillsLiveWatchLog(string details)
+    {
+        var entry = $"{DateTimeOffset.Now:O} {details}";
+
+        try
+        {
+            var logDirectory = Path.GetDirectoryName(HiddenSkillsLiveWatchLogPath);
+            if (!string.IsNullOrWhiteSpace(logDirectory))
+            {
+                Directory.CreateDirectory(logDirectory);
+            }
+
+            File.AppendAllText(HiddenSkillsLiveWatchLogPath, entry + Environment.NewLine);
+        }
+        catch (Exception ex)
+        {
+            HiddenSkillsLiveWatchStatusText.Text = $"Hidden Skills live watch log write failed: {ex.Message}";
         }
     }
 
@@ -6638,6 +6982,394 @@ public partial class MainWindow : Window, INotifyPropertyChanged
                 candidate.ProgressionMatch,
                 candidate.Flags,
                 candidate.Notes)).ToList());
+    }
+
+    private bool TryLoadHiddenSkillsCaptureForRegionAnalyzer(
+        string slotName,
+        out HiddenSkillsCaptureDocument capture,
+        out byte[] bytes,
+        out string filePath)
+    {
+        capture = new HiddenSkillsCaptureDocument(DateTimeOffset.MinValue, 0, 0, [], string.Empty);
+        bytes = [];
+        filePath = string.Empty;
+
+        if (TryLoadHiddenSkillsCaptureFromDialog(
+                $"Load Hidden Skills Region Capture {slotName}",
+                out capture,
+                out bytes,
+                out filePath,
+                out var error))
+        {
+            return true;
+        }
+
+        if (!string.IsNullOrWhiteSpace(error))
+        {
+            HiddenSkillsRegionStatusText.Text = error;
+            SetStatus("Hidden Skills region capture load failed.", StatusKind.Warning);
+        }
+
+        return false;
+    }
+
+    private bool TryLoadHiddenSkillsCaptureFromDialog(
+        string title,
+        out HiddenSkillsCaptureDocument capture,
+        out byte[] bytes,
+        out string filePath,
+        out string error)
+    {
+        capture = new HiddenSkillsCaptureDocument(DateTimeOffset.MinValue, 0, 0, [], string.Empty);
+        bytes = [];
+        filePath = string.Empty;
+        error = string.Empty;
+
+        var dialog = new OpenFileDialog
+        {
+            Title = title,
+            Filter = "Hidden Skills captures (*.json)|*.json|All files (*.*)|*.*",
+            FileName = "hidden-skills-*.json"
+        };
+
+        if (Directory.Exists(HiddenSkillsCaptureDirectory))
+        {
+            dialog.InitialDirectory = HiddenSkillsCaptureDirectory;
+        }
+
+        if (dialog.ShowDialog(this) != true)
+        {
+            return false;
+        }
+
+        try
+        {
+            var loaded = JsonSerializer.Deserialize<HiddenSkillsCaptureDocument>(
+                File.ReadAllText(dialog.FileName),
+                ExportJsonOptions);
+            if (loaded is null)
+            {
+                error = "Selected Hidden Skills capture could not be read.";
+                return false;
+            }
+
+            if (!TryParseHiddenSkillsCaptureBytes(loaded, out var parsedBytes, out var parseError))
+            {
+                error = parseError;
+                return false;
+            }
+
+            capture = loaded;
+            bytes = parsedBytes;
+            filePath = dialog.FileName;
+            return true;
+        }
+        catch (Exception ex)
+        {
+            error = $"Hidden Skills capture load failed: {ex.Message}";
+            return false;
+        }
+    }
+
+    private static bool TryExtractHiddenSkillsCaptureRange(
+        HiddenSkillsCaptureDocument capture,
+        byte[] captureBytes,
+        uint startOffset,
+        int length,
+        out byte[] rangeBytes,
+        out string error)
+    {
+        rangeBytes = [];
+        error = string.Empty;
+
+        var captureStart = capture.StartOffset;
+        var captureEndExclusive = (ulong)capture.StartOffset + (ulong)captureBytes.Length;
+        var requestedEndExclusive = (ulong)startOffset + (uint)length;
+        if (startOffset < captureStart || requestedEndExclusive > captureEndExclusive)
+        {
+            error =
+                $"Selected range _playerbase+0x{startOffset:X}/0x{length:X} is outside capture {capture.LabelOrDefault} (0x{capture.StartOffset:X}/0x{captureBytes.Length:X}).";
+            return false;
+        }
+
+        rangeBytes = new byte[length];
+        Array.Copy(captureBytes, startOffset - captureStart, rangeBytes, 0, length);
+        return true;
+    }
+
+    private static IReadOnlyList<HiddenSkillsRegionAnalysisRowViewModel> CreateHiddenSkillsRegionAnalysisRows(
+        uint startOffset,
+        byte[] captureABytes,
+        byte[] captureBBytes)
+    {
+        var changes = new List<HiddenSkillsRegionChangedByte>();
+        for (var index = 0; index < captureABytes.Length; index++)
+        {
+            var beforeValue = captureABytes[index];
+            var afterValue = captureBBytes[index];
+            if (beforeValue == afterValue)
+            {
+                continue;
+            }
+
+            changes.Add(new HiddenSkillsRegionChangedByte(
+                startOffset + (uint)index,
+                beforeValue,
+                afterValue,
+                CountSetBits((uint)(beforeValue ^ afterValue)),
+                Math.Abs(afterValue - beforeValue)));
+        }
+
+        if (changes.Count == 0)
+        {
+            return [];
+        }
+
+        var candidates = new List<HiddenSkillsRegionAnalysisCandidate>();
+        var group = new List<HiddenSkillsRegionChangedByte>();
+        foreach (var change in changes)
+        {
+            if (group.Count > 0 && change.OffsetValue - group[^1].OffsetValue > 16)
+            {
+                candidates.Add(CreateHiddenSkillsRegionAnalysisCandidate(group, startOffset, captureABytes.Length));
+                group.Clear();
+            }
+
+            group.Add(change);
+        }
+
+        if (group.Count > 0)
+        {
+            candidates.Add(CreateHiddenSkillsRegionAnalysisCandidate(group, startOffset, captureABytes.Length));
+        }
+
+        return candidates
+            .OrderBy(candidate => candidate.Density)
+            .ThenByDescending(candidate => candidate.CandidateScore)
+            .ThenByDescending(candidate => candidate.IsSingleBitRegion)
+            .ThenBy(candidate => candidate.RegionStartValue)
+            .Select((candidate, index) => new HiddenSkillsRegionAnalysisRowViewModel(
+                index + 1,
+                candidate.RegionStartValue,
+                candidate.RegionEndValue,
+                candidate.ChangedBytes,
+                candidate.ChangedBits,
+                candidate.Density,
+                candidate.LargestChange,
+                candidate.CandidateScore))
+            .ToList();
+    }
+
+    private static HiddenSkillsRegionAnalysisCandidate CreateHiddenSkillsRegionAnalysisCandidate(
+        IReadOnlyList<HiddenSkillsRegionChangedByte> changes,
+        uint selectedStartOffset,
+        int selectedLength)
+    {
+        var selectedEndOffset = selectedStartOffset + (uint)selectedLength - 1;
+        var regionStart = changes[0].OffsetValue;
+        var regionEnd = Math.Min(selectedEndOffset, Math.Max(changes[^1].OffsetValue, regionStart + 0xF));
+        var regionLength = Math.Max(1, (int)(regionEnd - regionStart + 1));
+        var changedBytes = changes.Count;
+        var changedBits = changes.Sum(change => change.ChangedBitCount);
+        var density = changedBytes * 100.0 / regionLength;
+        var largestChange = changes.Max(change => change.AbsoluteDelta);
+        var isSingleBit = changedBytes == 1 && changedBits == 1;
+        var score =
+            (int)Math.Round(Math.Max(0, 100 - density), MidpointRounding.AwayFromZero) +
+            (isSingleBit ? 80 : 0) +
+            (changedBytes <= 3 ? 35 : 0) +
+            (changedBits <= 3 ? 25 : 0) +
+            (largestChange == 1 ? 10 : 0);
+
+        return new HiddenSkillsRegionAnalysisCandidate(
+            regionStart,
+            regionEnd,
+            changedBytes,
+            changedBits,
+            density,
+            largestChange,
+            score,
+            isSingleBit);
+    }
+
+    private HiddenSkillsRegionAnalysisExport CreateHiddenSkillsRegionAnalysisExport(uint startOffset, int length)
+    {
+        return new HiddenSkillsRegionAnalysisExport(
+            DateTimeOffset.Now,
+            startOffset,
+            length,
+            _hiddenSkillsRegionCaptureA is null
+                ? null
+                : new HiddenSkillsRegionAnalysisCaptureExport(
+                    "A",
+                    _hiddenSkillsRegionCaptureA.LabelOrDefault,
+                    _hiddenSkillsRegionCaptureA.Timestamp,
+                    _hiddenSkillsRegionCaptureA.StartOffset,
+                    _hiddenSkillsRegionCaptureA.Length,
+                    _hiddenSkillsRegionCaptureAPath),
+            _hiddenSkillsRegionCaptureB is null
+                ? null
+                : new HiddenSkillsRegionAnalysisCaptureExport(
+                    "B",
+                    _hiddenSkillsRegionCaptureB.LabelOrDefault,
+                    _hiddenSkillsRegionCaptureB.Timestamp,
+                    _hiddenSkillsRegionCaptureB.StartOffset,
+                    _hiddenSkillsRegionCaptureB.Length,
+                    _hiddenSkillsRegionCaptureBPath),
+            HiddenSkillsRegionAnalysisRows.Select(row => new HiddenSkillsRegionAnalysisExportRow(
+                row.Rank,
+                row.Region,
+                row.ChangedBytes,
+                row.ChangedBits,
+                row.Density,
+                row.LargestChange,
+                row.CandidateScore,
+                row.IsSingleBitRegion,
+                row.HighlightLabel)).ToList());
+    }
+
+    private bool TryReadHiddenSkillsLiveWatchRange(out uint startOffset, out byte[] bytes)
+    {
+        bytes = [];
+        if (!TryParseResearchOffset(HiddenSkillsLiveWatchStartOffsetText.Text, out startOffset, out var offsetError))
+        {
+            HiddenSkillsLiveWatchStatusText.Text = offsetError;
+            SetStatus("Invalid Hidden Skills live watch start offset.", StatusKind.Warning);
+            return false;
+        }
+
+        if (!TryParseResearchLength(HiddenSkillsLiveWatchLengthText.Text, out var length, out var lengthError))
+        {
+            HiddenSkillsLiveWatchStatusText.Text = lengthError;
+            SetStatus("Invalid Hidden Skills live watch length.", StatusKind.Warning);
+            return false;
+        }
+
+        return TryReadHiddenSkillsLiveWatchBytes(startOffset, length, out bytes);
+    }
+
+    private bool TryReadHiddenSkillsLiveWatchBytes(uint startOffset, int length, out byte[] bytes)
+    {
+        bytes = [];
+        var memory = _memory;
+        if (memory is null || !_playerBaseAddress.HasValue)
+        {
+            HiddenSkillsLiveWatchStatusText.Text = "Not attached. Attach to Cemu and rescan before starting live watch.";
+            SetStatus("Attach to Cemu before starting Hidden Skills live watch.", StatusKind.Neutral);
+            return false;
+        }
+
+        var absoluteAddress = _playerBaseAddress.Value + startOffset;
+        if (!memory.TryReadBytes(absoluteAddress, length, out var readBytes, out var bytesRead) || bytesRead != length)
+        {
+            HiddenSkillsLiveWatchStatusText.Text =
+                $"Could not read live watch range _playerbase+0x{startOffset:X}/0x{length:X}.";
+            SetStatus("Hidden Skills live watch read failed.", StatusKind.Warning);
+            return false;
+        }
+
+        bytes = readBytes;
+        return true;
+    }
+
+    private void HiddenSkillsLiveWatchTimer_Tick(object? sender, EventArgs e)
+    {
+        if (_hiddenSkillsLiveWatchPreviousBytes is null)
+        {
+            StopHiddenSkillsLiveWatch("Live watch stopped because no baseline is available.");
+            return;
+        }
+
+        if (!TryReadHiddenSkillsLiveWatchBytes(
+                _hiddenSkillsLiveWatchStartOffset,
+                _hiddenSkillsLiveWatchLength,
+                out var currentBytes))
+        {
+            StopHiddenSkillsLiveWatch("Live watch stopped because the range could not be read.");
+            return;
+        }
+
+        var timestamp = DateTimeOffset.Now;
+        var changeCount = 0;
+        for (var index = 0; index < currentBytes.Length; index++)
+        {
+            var beforeValue = _hiddenSkillsLiveWatchPreviousBytes[index];
+            var afterValue = currentBytes[index];
+            if (beforeValue == afterValue)
+            {
+                continue;
+            }
+
+            var offset = _hiddenSkillsLiveWatchStartOffset + (uint)index;
+            _hiddenSkillsLiveWatchChangeCounts[offset] =
+                _hiddenSkillsLiveWatchChangeCounts.TryGetValue(offset, out var previousCount)
+                    ? previousCount + 1
+                    : 1;
+            var row = new HiddenSkillsLiveWatchRowViewModel(
+                timestamp,
+                offset,
+                beforeValue,
+                afterValue,
+                _hiddenSkillsLiveWatchChangeCounts[offset]);
+            HiddenSkillsLiveWatchRows.Insert(0, row);
+            while (HiddenSkillsLiveWatchRows.Count > 500)
+            {
+                HiddenSkillsLiveWatchRows.RemoveAt(HiddenSkillsLiveWatchRows.Count - 1);
+            }
+
+            AppendHiddenSkillsLiveWatchLog(
+                $"action=change offset=0x{offset:X} before={FormatCandidateLogByte(beforeValue)} after={FormatCandidateLogByte(afterValue)} " +
+                $"before-binary={row.BeforeBinary} after-binary={row.AfterBinary} changed-bits=\"{row.ChangedBits}\" count={row.ChangeCount}");
+            changeCount++;
+        }
+
+        _hiddenSkillsLiveWatchPreviousBytes = currentBytes;
+        if (changeCount > 0)
+        {
+            HiddenSkillsLiveWatchStatusText.Text =
+                $"Live watch running. Recorded {changeCount} change(s) at {timestamp.ToLocalTime():HH:mm:ss.fff}.";
+        }
+    }
+
+    private void StopHiddenSkillsLiveWatch(string message)
+    {
+        if (_hiddenSkillsLiveWatchTimer.IsEnabled)
+        {
+            _hiddenSkillsLiveWatchTimer.Stop();
+            AppendHiddenSkillsLiveWatchLog($"action=stop message=\"{message}\"");
+        }
+
+        HiddenSkillsLiveWatchStatusText.Text = message;
+        if (_memory is not null && _playerBaseAddress.HasValue)
+        {
+            SetStatus(message, StatusKind.Neutral);
+        }
+    }
+
+    private HiddenSkillsLiveWatchExport CreateHiddenSkillsLiveWatchExport()
+    {
+        return new HiddenSkillsLiveWatchExport(
+            DateTimeOffset.Now,
+            _hiddenSkillsLiveWatchStartedAt,
+            _hiddenSkillsLiveWatchStartOffset,
+            _hiddenSkillsLiveWatchLength,
+            HiddenSkillsLiveWatchRows.Select(row => new HiddenSkillsLiveWatchExportRow(
+                row.Timestamp,
+                row.Offset,
+                row.BeforeValue,
+                row.AfterValue,
+                row.BeforeBinary,
+                row.AfterBinary,
+                row.ChangedBits,
+                row.ChangedBitCount,
+                row.ChangeCount,
+                row.IsSingleBitChange,
+                row.IsRepeatedChange,
+                row.IsMonotonicChange,
+                row.HighlightLabel)).ToList(),
+            HiddenSkillsEventMarkers.Select(marker => new HiddenSkillsEventMarkerExport(
+                marker.Timestamp,
+                marker.Label)).ToList());
     }
 
     private void AppendGoldenBugsBitfieldTestingDiagnostic(
@@ -7531,6 +8263,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     private void Detach(bool clearStatus)
     {
         _refreshTimer.Stop();
+        StopHiddenSkillsLiveWatch("Stopped Hidden Skills live watch because the trainer detached.");
         _memory?.Dispose();
         _memory = null;
         _playerBaseAddress = null;
@@ -7707,6 +8440,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
 
     protected override void OnClosed(EventArgs e)
     {
+        _hiddenSkillsLiveWatchTimer.Stop();
         Detach(clearStatus: false);
         base.OnClosed(e);
     }
@@ -7874,6 +8608,77 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         bool ProgressionMatch,
         string Flags,
         string Notes);
+
+    private sealed record HiddenSkillsRegionChangedByte(
+        uint OffsetValue,
+        byte BeforeValue,
+        byte AfterValue,
+        int ChangedBitCount,
+        int AbsoluteDelta);
+
+    private sealed record HiddenSkillsRegionAnalysisCandidate(
+        uint RegionStartValue,
+        uint RegionEndValue,
+        int ChangedBytes,
+        int ChangedBits,
+        double Density,
+        int LargestChange,
+        int CandidateScore,
+        bool IsSingleBitRegion);
+
+    private sealed record HiddenSkillsRegionAnalysisExport(
+        DateTimeOffset Timestamp,
+        uint StartOffset,
+        int Length,
+        HiddenSkillsRegionAnalysisCaptureExport? CaptureA,
+        HiddenSkillsRegionAnalysisCaptureExport? CaptureB,
+        IReadOnlyList<HiddenSkillsRegionAnalysisExportRow> Rows);
+
+    private sealed record HiddenSkillsRegionAnalysisCaptureExport(
+        string SlotName,
+        string Label,
+        DateTimeOffset Timestamp,
+        uint StartOffset,
+        int Length,
+        string FilePath);
+
+    private sealed record HiddenSkillsRegionAnalysisExportRow(
+        int Rank,
+        string Region,
+        int ChangedBytes,
+        int ChangedBits,
+        double Density,
+        int LargestChange,
+        int CandidateScore,
+        bool SingleBitRegion,
+        string Highlights);
+
+    private sealed record HiddenSkillsLiveWatchExport(
+        DateTimeOffset Timestamp,
+        DateTimeOffset? StartedAt,
+        uint StartOffset,
+        int Length,
+        IReadOnlyList<HiddenSkillsLiveWatchExportRow> Rows,
+        IReadOnlyList<HiddenSkillsEventMarkerExport> Events);
+
+    private sealed record HiddenSkillsLiveWatchExportRow(
+        DateTimeOffset Timestamp,
+        string Offset,
+        byte BeforeValue,
+        byte AfterValue,
+        string BeforeBinary,
+        string AfterBinary,
+        string ChangedBits,
+        int ChangedBitCount,
+        int ChangeCount,
+        bool SingleBitChange,
+        bool RepeatedChange,
+        bool MonotonicChange,
+        string Highlights);
+
+    private sealed record HiddenSkillsEventMarkerExport(
+        DateTimeOffset Timestamp,
+        string Label);
 
     private sealed record GoldenBugsBitfieldReport(
         DateTimeOffset Timestamp,

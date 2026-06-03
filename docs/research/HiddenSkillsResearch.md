@@ -13,6 +13,13 @@ Before and After captures are persisted immediately so the trainer and Cemu can 
 
 No Hidden Skills editing is implemented.
 
+Current findings:
+
+- Candidate bit testing has been performed, but no Hidden Skill ownership bit is confirmed.
+- Hidden Skills likely involve multiple progression states, such as wolf/howling interactions, Hero's Shade lesson state, tutorial completion, and final menu visibility.
+- The default `0x200-0x300` research area remains useful, but the authoritative state may be elsewhere in player data.
+- Live Memory Watch was added for direct observation while triggering Howling Stones, Golden Wolves, Hero's Shade lessons, and menu updates.
+
 ## Known Skills
 
 - Ending Blow
@@ -60,7 +67,12 @@ The research tool writes:
 - `logs/research/hidden-skills-candidate-groups.csv`
 - `logs/research/hidden-skills-multi-capture-ranking.json`
 - `logs/research/hidden-skills-multi-capture-ranking.csv`
+- `logs/research/hidden-skills-region-analysis.json`
+- `logs/research/hidden-skills-region-analysis.csv`
+- `logs/research/hidden-skills-live-watch.json`
+- `logs/research/hidden-skills-live-watch.csv`
 - `logs/hidden-skills-bit-testing.log`
+- `logs/hidden-skills-live-watch.log`
 
 Capture files include:
 
@@ -137,6 +149,80 @@ Rows where the raw byte value or set-bit count progresses `1 -> 2 -> 3 -> 5 -> 6
 
 - `logs/research/hidden-skills-multi-capture-ranking.json`
 - `logs/research/hidden-skills-multi-capture-ranking.csv`
+
+## Region Comparison Analyzer
+
+The **Hidden Skills Region Comparison** section compares two persisted captures over a larger playerbase-relative range and ranks sparse changed regions.
+
+Inputs:
+
+- Capture A
+- Capture B
+- Start offset
+- Length
+
+Presets:
+
+- `0x000` length `0x400`
+- `0x000` length `0x800`
+- `0x000` length `0x1000`
+
+The analyzer groups nearby changed bytes into candidate regions, then reports:
+
+- Region
+- Changed bytes
+- Changed bits
+- Density percentage
+- Largest byte delta
+- Candidate score
+
+Sparse regions and single-bit regions are highlighted. Exports are written to:
+
+- `logs/research/hidden-skills-region-analysis.json`
+- `logs/research/hidden-skills-region-analysis.csv`
+
+## Live Memory Watch
+
+The **Hidden Skills Live Memory Watch** section reads a live playerbase-relative range every `250ms`.
+
+Defaults:
+
+- Start: `_playerbase+0x000`
+- Length: `0x1000`
+
+Use it while interacting with:
+
+- Howling Stones
+- Golden Wolves
+- Hero's Shade
+- Hidden Skill tutorials
+- Skill completion and menu appearance
+
+The watch displays:
+
+- Timestamp
+- Offset
+- Before byte
+- After byte
+- Binary before/after
+- Changed bits
+
+Rows highlight single-bit changes, repeated changes at the same offset, and monotonic byte changes. Activity is logged to `logs/hidden-skills-live-watch.log`.
+
+## Event Tracking
+
+The live watch includes event markers. Use **Mark Event** to timestamp moments such as:
+
+- Howling Stone Activated
+- Wolf Appeared
+- Lesson Started
+- Lesson Completed
+- Skill Appeared In Menu
+
+Event markers are included in live watch JSON and CSV exports:
+
+- `logs/research/hidden-skills-live-watch.json`
+- `logs/research/hidden-skills-live-watch.csv`
 
 ## Bit Tester
 
