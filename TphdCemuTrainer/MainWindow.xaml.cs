@@ -56,6 +56,13 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     private DateTimeOffset? _goldenBugsBeforeCapturedAt;
     private DateTimeOffset? _goldenBugsAfterCapturedAt;
     private GoldenBugsResearchExport? _lastGoldenBugsResearchExport;
+    private byte[]? _bombSlotsBeforeSnapshotBytes;
+    private byte[]? _bombSlotsAfterSnapshotBytes;
+    private uint _bombSlotsBeforeSnapshotStart;
+    private uint _bombSlotsAfterSnapshotStart;
+    private DateTimeOffset? _bombSlotsBeforeCapturedAt;
+    private DateTimeOffset? _bombSlotsAfterCapturedAt;
+    private BombSlotResearchExport? _lastBombSlotResearchExport;
     private byte[]? _hiddenSkillsBeforeSnapshotBytes;
     private byte[]? _hiddenSkillsAfterSnapshotBytes;
     private uint _hiddenSkillsBeforeSnapshotStart;
@@ -154,6 +161,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         BottleEditorDiagnostics = [];
         CollectiblesDiagnostics = [];
         GoldenBugsResearchRows = [];
+        BombSlotResearchRows = [];
         GoldenBugsCandidateList = new ObservableCollection<string>(
             GoldenBugCandidateNames.Select((name, index) => $"{index + 1}. {name}"));
         GoldenBugsBitRows = new ObservableCollection<GoldenBugBitViewModel>(
@@ -274,6 +282,9 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     private static string CollectiblesLogPath =>
         Path.Combine(AppContext.BaseDirectory, "logs", "collectibles.log");
 
+    private static string BombSlotResearchLogPath =>
+        Path.Combine(AppContext.BaseDirectory, "logs", "bomb-slot-research.log");
+
     private static string GoldenBugsResearchLogPath =>
         Path.Combine(AppContext.BaseDirectory, "logs", "golden-bugs-research.log");
 
@@ -373,6 +384,8 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     public ObservableCollection<string> BottleEditorDiagnostics { get; }
 
     public ObservableCollection<string> CollectiblesDiagnostics { get; }
+
+    public ObservableCollection<BombSlotResearchRowViewModel> BombSlotResearchRows { get; }
 
     public ObservableCollection<GoldenBugResearchRowViewModel> GoldenBugsResearchRows { get; }
 
@@ -889,6 +902,180 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         {
             GoldenBugsResearchStatusText.Text = $"Export failed: {ex.Message}";
             SetStatus("Golden Bugs research export failed.", StatusKind.Warning);
+        }
+    }
+
+    private void BombSlotsCaptureBefore_Click(object sender, RoutedEventArgs e)
+    {
+        if (!TryReadBombSlotResearchRange(out var startOffset, out var bytes, out _))
+        {
+            return;
+        }
+
+        _bombSlotsBeforeSnapshotStart = startOffset;
+        _bombSlotsBeforeSnapshotBytes = bytes;
+        _bombSlotsBeforeCapturedAt = DateTimeOffset.Now;
+        BombSlotResearchRows.Clear();
+        _lastBombSlotResearchExport = null;
+        TryWriteBombSlotSnapshotExport(
+            "bomb-slots-before.json",
+            "Before",
+            startOffset,
+            bytes,
+            _bombSlotsBeforeCapturedAt);
+
+        BombSlotResearchStatusText.Text =
+            $"Captured Before at _playerbase+0x{startOffset:X}, length 0x{bytes.Length:X}. Saved bomb-slots-before.json.";
+        AppendBombSlotResearchLog(
+            $"action=capture-before start=0x{startOffset:X} length=0x{bytes.Length:X} bytes=\"{FormatByteArray(bytes)}\"");
+        SetStatus("Bomb Slot Before snapshot captured.", StatusKind.Connected);
+    }
+
+    private void BombSlotsCaptureAfter_Click(object sender, RoutedEventArgs e)
+    {
+        if (!TryReadBombSlotResearchRange(out var startOffset, out var bytes, out _))
+        {
+            return;
+        }
+
+        _bombSlotsAfterSnapshotStart = startOffset;
+        _bombSlotsAfterSnapshotBytes = bytes;
+        _bombSlotsAfterCapturedAt = DateTimeOffset.Now;
+        _lastBombSlotResearchExport = null;
+        TryWriteBombSlotSnapshotExport(
+            "bomb-slots-after.json",
+            "After",
+            startOffset,
+            bytes,
+            _bombSlotsAfterCapturedAt);
+
+        BombSlotResearchStatusText.Text =
+            $"Captured After at _playerbase+0x{startOffset:X}, length 0x{bytes.Length:X}. Saved bomb-slots-after.json.";
+        AppendBombSlotResearchLog(
+            $"action=capture-after start=0x{startOffset:X} length=0x{bytes.Length:X} bytes=\"{FormatByteArray(bytes)}\"");
+        SetStatus("Bomb Slot After snapshot captured.", StatusKind.Connected);
+    }
+
+    private void BombSlotsCompare_Click(object sender, RoutedEventArgs e)
+    {
+        if (_bombSlotsBeforeSnapshotBytes is null || _bombSlotsAfterSnapshotBytes is null)
+        {
+            BombSlotResearchStatusText.Text = "Capture Before and After snapshots before comparing bomb slot research data.";
+            SetStatus("Capture Bomb Slot Before and After snapshots first.", StatusKind.Neutral);
+            return;
+        }
+
+        if (_bombSlotsBeforeSnapshotStart != _bombSlotsAfterSnapshotStart ||
+            _bombSlotsBeforeSnapshotBytes.Length != _bombSlotsAfterSnapshotBytes.Length)
+        {
+            BombSlotResearchStatusText.Text = "Before and After ranges must use the same start and length.";
+            SetStatus("Bomb Slot research ranges do not match.", StatusKind.Warning);
+            return;
+        }
+
+        BombSlotResearchRows.Clear();
+        var changedByteCount = 0;
+        var changedBitCount = 0;
+        for (var index = 0; index < _bombSlotsBeforeSnapshotBytes.Length; index++)
+        {
+            var offset = _bombSlotsBeforeSnapshotStart + (uint)index;
+            var beforeValue = _bombSlotsBeforeSnapshotBytes[index];
+            var afterValue = _bombSlotsAfterSnapshotBytes[index];
+            var row = new BombSlotResearchRowViewModel(
+                offset,
+                beforeValue,
+                afterValue,
+                GetBombSlotCandidateReference(offset));
+            BombSlotResearchRows.Add(row);
+
+            if (row.IsChanged)
+            {
+                changedByteCount++;
+                changedBitCount += row.ChangedBitCount;
+            }
+        }
+
+        _lastBombSlotResearchExport = CreateBombSlotResearchExport(changedByteCount, changedBitCount);
+        BombSlotResearchStatusText.Text =
+            $"Compared bomb slot snapshots. Changed bytes: {changedByteCount}. Changed bits: {changedBitCount}.";
+        var changes = string.Join(
+            "; ",
+            BombSlotResearchRows
+                .Where(row => row.IsChanged)
+                .Select(row =>
+                    $"{row.Offset}:{row.BeforeValue}(0x{row.BeforeValue:X2})->{row.AfterValue}(0x{row.AfterValue:X2}) {row.ChangedBits} ref=\"{row.CandidateSlotReference}\""));
+        AppendBombSlotResearchLog(
+            $"action=compare start=0x{_bombSlotsBeforeSnapshotStart:X} length=0x{_bombSlotsBeforeSnapshotBytes.Length:X} changed-bytes={changedByteCount} changed-bits={changedBitCount} changes=\"{changes}\"");
+        SetStatus("Bomb Slot research snapshots compared.", StatusKind.Connected);
+    }
+
+    private void BombSlotsExportJson_Click(object sender, RoutedEventArgs e)
+    {
+        if (_lastBombSlotResearchExport is null)
+        {
+            BombSlotResearchStatusText.Text = "Compare bomb slot snapshots before exporting JSON.";
+            SetStatus("Compare Bomb Slot snapshots before exporting.", StatusKind.Neutral);
+            return;
+        }
+
+        try
+        {
+            Directory.CreateDirectory(ResearchSnapshotStore.ExportDirectory);
+            if (_bombSlotsBeforeSnapshotBytes is not null)
+            {
+                TryWriteBombSlotSnapshotExport(
+                    "bomb-slots-before.json",
+                    "Before",
+                    _bombSlotsBeforeSnapshotStart,
+                    _bombSlotsBeforeSnapshotBytes,
+                    _bombSlotsBeforeCapturedAt);
+            }
+
+            if (_bombSlotsAfterSnapshotBytes is not null)
+            {
+                TryWriteBombSlotSnapshotExport(
+                    "bomb-slots-after.json",
+                    "After",
+                    _bombSlotsAfterSnapshotStart,
+                    _bombSlotsAfterSnapshotBytes,
+                    _bombSlotsAfterCapturedAt);
+            }
+
+            var reportPath = Path.Combine(ResearchSnapshotStore.ExportDirectory, "bomb-slots-report.json");
+            File.WriteAllText(reportPath, JsonSerializer.Serialize(_lastBombSlotResearchExport, ExportJsonOptions));
+            BombSlotResearchStatusText.Text = "Exported Bomb Slot JSON files to logs/research.";
+            AppendBombSlotResearchLog($"action=export-json report=\"{reportPath}\" rows={_lastBombSlotResearchExport.Rows.Count}");
+            SetStatus("Bomb Slot JSON exported.", StatusKind.Connected);
+        }
+        catch (Exception ex)
+        {
+            BombSlotResearchStatusText.Text = $"Bomb Slot JSON export failed: {ex.Message}";
+            SetStatus("Bomb Slot JSON export failed.", StatusKind.Warning);
+        }
+    }
+
+    private void BombSlotsExportCsv_Click(object sender, RoutedEventArgs e)
+    {
+        if (_lastBombSlotResearchExport is null)
+        {
+            BombSlotResearchStatusText.Text = "Compare bomb slot snapshots before exporting CSV.";
+            SetStatus("Compare Bomb Slot snapshots before exporting.", StatusKind.Neutral);
+            return;
+        }
+
+        try
+        {
+            Directory.CreateDirectory(ResearchSnapshotStore.ExportDirectory);
+            var csvPath = Path.Combine(ResearchSnapshotStore.ExportDirectory, "bomb-slots-report.csv");
+            File.WriteAllLines(csvPath, CreateBombSlotResearchCsvLines(_lastBombSlotResearchExport.Rows));
+            BombSlotResearchStatusText.Text = "Exported Bomb Slot CSV report to logs/research.";
+            AppendBombSlotResearchLog($"action=export-csv csv=\"{csvPath}\" rows={_lastBombSlotResearchExport.Rows.Count}");
+            SetStatus("Bomb Slot CSV exported.", StatusKind.Connected);
+        }
+        catch (Exception ex)
+        {
+            BombSlotResearchStatusText.Text = $"Bomb Slot CSV export failed: {ex.Message}";
+            SetStatus("Bomb Slot CSV export failed.", StatusKind.Warning);
         }
     }
 
@@ -5200,6 +5387,42 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         return true;
     }
 
+    private bool TryReadBombSlotResearchRange(out uint startOffset, out byte[] bytes, out ulong absoluteAddress)
+    {
+        startOffset = 0;
+        bytes = [];
+        absoluteAddress = 0;
+
+        if (_memory is null || !_playerBaseAddress.HasValue)
+        {
+            BombSlotResearchStatusText.Text = "Not attached. Attach to Cemu and rescan before using Bomb Slot research.";
+            SetStatus("Not attached. Attach to Cemu and rescan before using Bomb Slot research.", StatusKind.Neutral);
+            return false;
+        }
+
+        if (!TryParseResearchOffset(BombSlotResearchStartOffsetText.Text, out startOffset, out var offsetError))
+        {
+            BombSlotResearchStatusText.Text = offsetError;
+            return false;
+        }
+
+        if (!TryParseResearchLength(BombSlotResearchLengthText.Text, out var length, out var lengthError))
+        {
+            BombSlotResearchStatusText.Text = lengthError;
+            return false;
+        }
+
+        absoluteAddress = _playerBaseAddress.Value + startOffset;
+        if (!_memory.TryReadBytes(absoluteAddress, length, out bytes, out var bytesRead) || bytesRead != length)
+        {
+            BombSlotResearchStatusText.Text = $"Could not read 0x{length:X} byte(s) at _playerbase+0x{startOffset:X}.";
+            SetStatus("Could not read Bomb Slot research range.", StatusKind.Warning);
+            return false;
+        }
+
+        return true;
+    }
+
     private bool TryReadHiddenSkillsResearchRange(out uint startOffset, out byte[] bytes, out ulong absoluteAddress)
     {
         startOffset = 0;
@@ -6333,6 +6556,47 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         }
     }
 
+    private BombSlotResearchExport CreateBombSlotResearchExport(int changedByteCount, int changedBitCount)
+    {
+        return new BombSlotResearchExport(
+            DateTimeOffset.Now,
+            _bombSlotsBeforeSnapshotStart,
+            _bombSlotsBeforeSnapshotBytes?.Length ?? 0,
+            _bombSlotsBeforeCapturedAt,
+            _bombSlotsAfterCapturedAt,
+            changedByteCount,
+            changedBitCount,
+            BombSlotResearchRows.Select(row => new BombSlotResearchExportRow(
+                row.Offset,
+                row.BeforeValue,
+                row.AfterValue,
+                row.BeforeBinary,
+                row.AfterBinary,
+                row.ChangedBits,
+                row.ChangedBitCount,
+                row.IsChanged,
+                row.CandidateSlotReference)).ToList());
+    }
+
+    private static IEnumerable<string> CreateBombSlotResearchCsvLines(IEnumerable<BombSlotResearchExportRow> rows)
+    {
+        yield return "Offset,Before Byte,After Byte,Before Binary,After Binary,Changed Bits,Changed Bit Count,Changed,Candidate Slot Reference";
+        foreach (var row in rows)
+        {
+            yield return string.Join(
+                ",",
+                Csv(row.Offset),
+                Csv(row.BeforeValue.ToString(CultureInfo.InvariantCulture)),
+                Csv(row.AfterValue.ToString(CultureInfo.InvariantCulture)),
+                Csv(row.BeforeBinary),
+                Csv(row.AfterBinary),
+                Csv(row.ChangedBits),
+                Csv(row.ChangedBitCount.ToString(CultureInfo.InvariantCulture)),
+                Csv(row.Changed.ToString(CultureInfo.InvariantCulture)),
+                Csv(row.CandidateSlotReference));
+        }
+    }
+
     private void ClearHiddenSkillsResearchResults()
     {
         _hiddenSkillsAllResearchRows = [];
@@ -6819,6 +7083,26 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         }
     }
 
+    private void AppendBombSlotResearchLog(string details)
+    {
+        var entry = $"{DateTimeOffset.Now:O} {details}";
+
+        try
+        {
+            var logDirectory = Path.GetDirectoryName(BombSlotResearchLogPath);
+            if (!string.IsNullOrWhiteSpace(logDirectory))
+            {
+                Directory.CreateDirectory(logDirectory);
+            }
+
+            File.AppendAllText(BombSlotResearchLogPath, entry + Environment.NewLine);
+        }
+        catch (Exception ex)
+        {
+            BombSlotResearchStatusText.Text = $"Bomb Slot research log write failed: {ex.Message}";
+        }
+    }
+
     private void AppendGoldenBugsResearchLog(string details)
     {
         var entry = $"{DateTimeOffset.Now:O} {details}";
@@ -6896,6 +7180,33 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         catch (Exception ex)
         {
             HiddenSkillsLiveWatchStatusText.Text = $"Hidden Skills live watch log write failed: {ex.Message}";
+        }
+    }
+
+    private void TryWriteBombSlotSnapshotExport(
+        string fileName,
+        string label,
+        uint startOffset,
+        byte[] bytes,
+        DateTimeOffset? capturedAt)
+    {
+        try
+        {
+            Directory.CreateDirectory(ResearchSnapshotStore.ExportDirectory);
+            var snapshot = new BombSlotCaptureDocument(
+                capturedAt ?? DateTimeOffset.Now,
+                startOffset,
+                bytes.Length,
+                bytes.Select(value => $"0x{value:X2}").ToList(),
+                label);
+            var path = Path.Combine(ResearchSnapshotStore.ExportDirectory, fileName);
+            File.WriteAllText(path, JsonSerializer.Serialize(snapshot, ExportJsonOptions));
+        }
+        catch (Exception ex)
+        {
+            BombSlotResearchStatusText.Text =
+                $"{BombSlotResearchStatusText.Text} Snapshot export failed: {ex.Message}";
+            AppendBombSlotResearchLog($"action=snapshot-export-failed file=\"{fileName}\" error=\"{ex.Message}\"");
         }
     }
 
@@ -8519,6 +8830,91 @@ public partial class MainWindow : Window, INotifyPropertyChanged
 
         TotalHeartPiecesText.Text = "Not mapped in CT";
         CollectiblesHeartContainersText.Text = HeartContainersText.Text;
+        UpdateBombSlotDiagnostics();
+    }
+
+    private void UpdateBombSlotDiagnostics()
+    {
+        UpdateBombSlotDiagnosticDisplay(
+            BombSlot1.CurrentNumericValue,
+            BombSlot1RawValueText,
+            BombSlot1DetectedTypeText,
+            BombSlot1DecimalText,
+            BombSlot1HexText,
+            BombSlot1BinaryText);
+        UpdateBombSlotDiagnosticDisplay(
+            BombSlot2.CurrentNumericValue,
+            BombSlot2RawValueText,
+            BombSlot2DetectedTypeText,
+            BombSlot2DecimalText,
+            BombSlot2HexText,
+            BombSlot2BinaryText);
+        UpdateBombSlotDiagnosticDisplay(
+            BombSlot3.CurrentNumericValue,
+            BombSlot3RawValueText,
+            BombSlot3DetectedTypeText,
+            BombSlot3DecimalText,
+            BombSlot3HexText,
+            BombSlot3BinaryText);
+    }
+
+    private static void UpdateBombSlotDiagnosticDisplay(
+        int? value,
+        TextBox rawText,
+        TextBox detectedTypeText,
+        TextBox decimalText,
+        TextBox hexText,
+        TextBox binaryText)
+    {
+        if (!value.HasValue || value.Value is < byte.MinValue or > byte.MaxValue)
+        {
+            rawText.Text = "Not read";
+            detectedTypeText.Text = "Unknown";
+            decimalText.Text = "-";
+            hexText.Text = "-";
+            binaryText.Text = "-";
+            return;
+        }
+
+        var byteValue = (byte)value.Value;
+        rawText.Text = FormatBombSlotByte(byteValue);
+        detectedTypeText.Text = DecodeBombSlotType(byteValue);
+        decimalText.Text = byteValue.ToString(CultureInfo.InvariantCulture);
+        hexText.Text = $"0x{byteValue:X2}";
+        binaryText.Text = Convert.ToString(byteValue, 2).PadLeft(8, '0');
+    }
+
+    private static string FormatBombSlotByte(byte value)
+    {
+        return $"{value} / 0x{value:X2}";
+    }
+
+    private static string DecodeBombSlotType(byte value)
+    {
+        // Research-only provisional decode: these values are known TPHD item IDs from the CT dropdown,
+        // not confirmed authoritative bomb-slot content fields.
+        return value switch
+        {
+            112 => "Bombs",
+            113 => "Water Bombs",
+            114 => "Bomblings",
+            _ => "Unknown"
+        };
+    }
+
+    private static string GetBombSlotCandidateReference(uint offset)
+    {
+        return offset switch
+        {
+            0x267 => "Visible Bomb Slot 1 candidate",
+            0x268 => "Visible Bomb Slot 2 candidate",
+            0x269 => "Visible Bomb Slot 3 candidate",
+            0x2A9 => "CT-backed Bomb Slot 1 count",
+            0x2AA => "CT-backed Bomb Slot 2 count",
+            0x2AB => "CT-backed Bomb Slot 3 count",
+            0x2B5 => "CT-backed shared bomb capacity",
+            _ => "-"
+        };
     }
 
     private void UpdateGoldenBugsResearchCurrentDisplay(uint rawValue, bool preserveDirty = true)
@@ -9150,6 +9546,34 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         int BitIndex,
         int CandidateBugIndex,
         string CandidateBugName);
+
+    private sealed record BombSlotCaptureDocument(
+        DateTimeOffset Timestamp,
+        uint StartOffset,
+        int Length,
+        IReadOnlyList<string> RawBytes,
+        string Label);
+
+    private sealed record BombSlotResearchExport(
+        DateTimeOffset Timestamp,
+        uint StartOffset,
+        int Length,
+        DateTimeOffset? BeforeCapturedAt,
+        DateTimeOffset? AfterCapturedAt,
+        int ChangedByteCount,
+        int ChangedBitCount,
+        IReadOnlyList<BombSlotResearchExportRow> Rows);
+
+    private sealed record BombSlotResearchExportRow(
+        string Offset,
+        byte BeforeValue,
+        byte AfterValue,
+        string BeforeBinary,
+        string AfterBinary,
+        string ChangedBits,
+        int ChangedBitCount,
+        bool Changed,
+        string CandidateSlotReference);
 
     private sealed record HiddenSkillsCaptureDocument(
         DateTimeOffset Timestamp,

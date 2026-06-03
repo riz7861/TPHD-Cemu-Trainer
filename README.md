@@ -18,7 +18,7 @@ The UI is organized as a tabbed trainer/save-editor hybrid so new systems can be
 - **General**: health, max health, heart container summary, lantern oil, wallet, rupees, Poe Souls, Golden Bugs count
 - **Inventory**: ownership-first item detection, fixed-slot experimental grant/remove for mapped visible slots, Bottle Editor v1, read-only current slot view, mapping research, unsafe removal testing, and unsafe raw CT writes for research
 - **Equipment**: ownership flag editor with read-only current equipped armor/sword/shield diagnostics
-- **Ammo & Upgrades**: wallet, quiver, bomb bag, and seed capacity-aware edits
+- **Ammo & Upgrades**: wallet, quiver, bomb slot count/capacity diagnostics, Bomb Slot Research, and seed capacity-aware edits
 - **Collectibles**: verified Poe Souls editing, full Golden Bugs ownership editor, Golden Bugs research tools, and health/heart summaries
 - **Story Flags**: reserved progression flags
 - **Hidden Skills**: confirmed ownership editor plus advanced research tools
@@ -34,12 +34,12 @@ The top bar includes a **Dark Mode** toggle. The app defaults to Light mode and 
 - Rupees
 - Lantern oil
 - Arrows
-- Bomb slots 1-3
+- Bomb slot count bytes 1-3
 - Seeds
 - Poe souls at `_playerbase+0x2C8`, clamped to 0-60 with readback diagnostics
 - Wallet capacity
 - Quiver capacity
-- Bomb bag capacity
+- Shared bomb slot capacity
 - Golden Bugs ownership editor for all 24 bugs at `_playerbase+0x2A1` through `_playerbase+0x2A3`
 - Read-only inventory slot detection at `_playerbase+0x258` through `_playerbase+0x26F`
 - Experimental bottle slot editing at `_playerbase+0x263` through `_playerbase+0x266`
@@ -56,12 +56,27 @@ Capacity-limited values are clamped before every write. The **Max** button means
 
 - Wallet: 500, 1000, 2000, 9999
 - Quiver: 30, 60, 100
-- Bomb Bags: 30, 60
+- Bomb Slots: 30, 60
 - Seed Bag: 50
 
-The CT exposes one bomb bag capacity byte, so all three bomb slots currently share that CT-backed capacity selector. The seed bag capacity is fixed because the CT table does not expose a separate seed capacity offset.
+The CT exposes one shared bomb capacity byte, so all three CT-backed bomb slot count fields currently share that capacity selector. The UI labels these as **Bomb Slot 1-3** because the independent three-bag model is not confirmed. The seed bag capacity is fixed because the CT table does not expose a separate seed capacity offset.
 
 Targets initialize from the current in-memory value after a successful scan. Lock mode writes only clamped values. Current health is also clamped to maximum health.
+
+## Bomb Slot Research
+
+The Ammo & Upgrades tab includes **Bomb Slot Research / Experimental** for investigating TPHD's visible bomb slot contents. Current research focuses on whether the game stores visible bomb slots as content fields for Bombs, Water Bombs, and Bomblings, while count and capacity live elsewhere.
+
+The existing CT-backed bomb count/capacity behavior remains unchanged:
+
+- Bomb Slot 1 count: `_playerbase+0x2A9`
+- Bomb Slot 2 count: `_playerbase+0x2AA`
+- Bomb Slot 3 count: `_playerbase+0x2AB`
+- Shared bomb capacity: `_playerbase+0x2B5`
+
+The research tool is read-only. It captures and compares `_playerbase`-relative byte ranges, defaulting to start `0x250` and length `0x40`, then shows offset, before/after byte values, binary values, changed bits, and candidate slot references. Captures and reports are written to `logs/research/bomb-slots-before.json`, `logs/research/bomb-slots-after.json`, `logs/research/bomb-slots-report.json`, and `logs/research/bomb-slots-report.csv`. Activity is logged to `logs/bomb-slot-research.log`.
+
+See `docs/research/BombSlotsResearch.md` for current notes. No bomb slot type writer or dropdown editor exists yet.
 
 ## Progression Initialization
 

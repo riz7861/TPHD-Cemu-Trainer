@@ -1137,6 +1137,68 @@
             </Border>
         </DataTemplate>
 
+        <DataTemplate x:Key="BombSlotResearchRowTemplate">
+            <Border BorderBrush="{DynamicResource BorderBrush}"
+                    BorderThickness="0,0,0,1"
+                    Padding="0,4">
+                <Border.Style>
+                    <Style TargetType="Border">
+                        <Setter Property="Background" Value="Transparent" />
+                        <Style.Triggers>
+                            <DataTrigger Binding="{Binding IsChanged}" Value="True">
+                                <Setter Property="Background" Value="{DynamicResource ChangedRowBackgroundBrush}" />
+                            </DataTrigger>
+                        </Style.Triggers>
+                    </Style>
+                </Border.Style>
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="74" />
+                        <ColumnDefinition Width="92" />
+                        <ColumnDefinition Width="92" />
+                        <ColumnDefinition Width="92" />
+                        <ColumnDefinition Width="92" />
+                        <ColumnDefinition Width="118" />
+                        <ColumnDefinition Width="70" />
+                        <ColumnDefinition Width="*" MinWidth="220" />
+                    </Grid.ColumnDefinitions>
+
+                    <TextBlock Text="{Binding Offset}"
+                               FontFamily="Consolas"
+                               VerticalAlignment="Center" />
+                    <TextBlock Grid.Column="1"
+                               Text="{Binding BeforeByte}"
+                               FontFamily="Consolas"
+                               VerticalAlignment="Center" />
+                    <TextBlock Grid.Column="2"
+                               Text="{Binding AfterByte}"
+                               FontFamily="Consolas"
+                               VerticalAlignment="Center" />
+                    <TextBlock Grid.Column="3"
+                               Text="{Binding BeforeBinary}"
+                               FontFamily="Consolas"
+                               VerticalAlignment="Center" />
+                    <TextBlock Grid.Column="4"
+                               Text="{Binding AfterBinary}"
+                               FontFamily="Consolas"
+                               VerticalAlignment="Center" />
+                    <TextBlock Grid.Column="5"
+                               Text="{Binding ChangedBits}"
+                               FontFamily="Consolas"
+                               VerticalAlignment="Center" />
+                    <TextBlock Grid.Column="6"
+                               Text="{Binding Changed}"
+                               FontWeight="SemiBold"
+                               VerticalAlignment="Center" />
+                    <TextBlock Grid.Column="7"
+                               Text="{Binding CandidateSlotReference}"
+                               TextTrimming="CharacterEllipsis"
+                               VerticalAlignment="Center"
+                               Margin="6,0" />
+                </Grid>
+            </Border>
+        </DataTemplate>
+
         <DataTemplate x:Key="GoldenBugResearchRowTemplate">
             <Border BorderBrush="{DynamicResource BorderBrush}"
                     BorderThickness="0,0,0,1"
@@ -2149,61 +2211,311 @@
 
             <TabItem Header="Ammo &amp; Upgrades">
                 <ScrollViewer VerticalScrollBarVisibility="Auto">
-                    <UniformGrid Columns="2" Margin="6">
-                        <GroupBox Header="Wallet">
-                            <StackPanel>
-                                <ContentControl Content="{Binding WalletCapacity}"
-                                                ContentTemplate="{StaticResource CapacityTemplate}" />
-                                <ContentControl Content="{Binding Rupees}"
-                                                ContentTemplate="{StaticResource EditableValueTemplate}" />
-                            </StackPanel>
-                        </GroupBox>
+                    <StackPanel Margin="6">
+                        <UniformGrid Columns="2">
+                            <GroupBox Header="Wallet">
+                                <StackPanel>
+                                    <ContentControl Content="{Binding WalletCapacity}"
+                                                    ContentTemplate="{StaticResource CapacityTemplate}" />
+                                    <ContentControl Content="{Binding Rupees}"
+                                                    ContentTemplate="{StaticResource EditableValueTemplate}" />
+                                </StackPanel>
+                            </GroupBox>
 
-                        <GroupBox Header="Quiver">
-                            <StackPanel>
-                                <ContentControl Content="{Binding QuiverCapacity}"
-                                                ContentTemplate="{StaticResource CapacityTemplate}" />
-                                <ContentControl Content="{Binding Arrows}"
-                                                ContentTemplate="{StaticResource EditableValueTemplate}" />
-                            </StackPanel>
-                        </GroupBox>
+                            <GroupBox Header="Quiver">
+                                <StackPanel>
+                                    <ContentControl Content="{Binding QuiverCapacity}"
+                                                    ContentTemplate="{StaticResource CapacityTemplate}" />
+                                    <ContentControl Content="{Binding Arrows}"
+                                                    ContentTemplate="{StaticResource EditableValueTemplate}" />
+                                </StackPanel>
+                            </GroupBox>
 
-                        <GroupBox Header="Bomb Bag 1">
-                            <StackPanel>
-                                <ContentControl Content="{Binding BombBagCapacity}"
-                                                ContentTemplate="{StaticResource CapacityTemplate}" />
-                                <ContentControl Content="{Binding BombSlot1}"
-                                                ContentTemplate="{StaticResource EditableValueTemplate}" />
-                            </StackPanel>
-                        </GroupBox>
+                            <GroupBox Header="Bomb Slot 1">
+                                <StackPanel>
+                                    <TextBlock TextWrapping="Wrap"
+                                               Foreground="{DynamicResource SecondaryTextBrush}"
+                                               Margin="0,0,0,6"
+                                               Text="CT-backed count/capacity values remain editable as diagnostics while bomb slot content research continues." />
+                                    <ContentControl Content="{Binding BombBagCapacity}"
+                                                    ContentTemplate="{StaticResource CapacityTemplate}" />
+                                    <ContentControl Content="{Binding BombSlot1}"
+                                                    ContentTemplate="{StaticResource EditableValueTemplate}" />
+                                    <Grid Margin="0,8,0,0">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="96" />
+                                            <ColumnDefinition Width="120" />
+                                            <ColumnDefinition Width="72" />
+                                            <ColumnDefinition Width="72" />
+                                            <ColumnDefinition Width="90" />
+                                        </Grid.ColumnDefinitions>
+                                        <Grid.RowDefinitions>
+                                            <RowDefinition Height="Auto" />
+                                            <RowDefinition Height="Auto" />
+                                        </Grid.RowDefinitions>
+                                        <TextBlock Text="Raw" FontWeight="SemiBold" />
+                                        <TextBlock Grid.Column="1" Text="Detected" FontWeight="SemiBold" />
+                                        <TextBlock Grid.Column="2" Text="Decimal" FontWeight="SemiBold" />
+                                        <TextBlock Grid.Column="3" Text="Hex" FontWeight="SemiBold" />
+                                        <TextBlock Grid.Column="4" Text="Binary" FontWeight="SemiBold" />
+                                        <TextBox Grid.Row="1"
+                                                 x:Name="BombSlot1RawValueText"
+                                                 Text="Not read"
+                                                 IsReadOnly="True"
+                                                 Background="{DynamicResource ReadOnlyBackgroundBrush}" />
+                                        <TextBox Grid.Row="1"
+                                                 Grid.Column="1"
+                                                 x:Name="BombSlot1DetectedTypeText"
+                                                 Text="Unknown"
+                                                 IsReadOnly="True"
+                                                 Background="{DynamicResource ReadOnlyBackgroundBrush}" />
+                                        <TextBox Grid.Row="1"
+                                                 Grid.Column="2"
+                                                 x:Name="BombSlot1DecimalText"
+                                                 Text="-"
+                                                 IsReadOnly="True"
+                                                 Background="{DynamicResource ReadOnlyBackgroundBrush}" />
+                                        <TextBox Grid.Row="1"
+                                                 Grid.Column="3"
+                                                 x:Name="BombSlot1HexText"
+                                                 Text="-"
+                                                 IsReadOnly="True"
+                                                 Background="{DynamicResource ReadOnlyBackgroundBrush}" />
+                                        <TextBox Grid.Row="1"
+                                                 Grid.Column="4"
+                                                 x:Name="BombSlot1BinaryText"
+                                                 Text="-"
+                                                 IsReadOnly="True"
+                                                 FontFamily="Consolas"
+                                                 Background="{DynamicResource ReadOnlyBackgroundBrush}" />
+                                    </Grid>
+                                </StackPanel>
+                            </GroupBox>
 
-                        <GroupBox Header="Bomb Bag 2">
-                            <StackPanel>
-                                <ContentControl Content="{Binding BombBagCapacity}"
-                                                ContentTemplate="{StaticResource CapacityTemplate}" />
-                                <ContentControl Content="{Binding BombSlot2}"
-                                                ContentTemplate="{StaticResource EditableValueTemplate}" />
-                            </StackPanel>
-                        </GroupBox>
+                            <GroupBox Header="Bomb Slot 2">
+                                <StackPanel>
+                                    <TextBlock TextWrapping="Wrap"
+                                               Foreground="{DynamicResource SecondaryTextBrush}"
+                                               Margin="0,0,0,6"
+                                               Text="CT-backed count/capacity values remain editable as diagnostics while bomb slot content research continues." />
+                                    <ContentControl Content="{Binding BombBagCapacity}"
+                                                    ContentTemplate="{StaticResource CapacityTemplate}" />
+                                    <ContentControl Content="{Binding BombSlot2}"
+                                                    ContentTemplate="{StaticResource EditableValueTemplate}" />
+                                    <Grid Margin="0,8,0,0">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="96" />
+                                            <ColumnDefinition Width="120" />
+                                            <ColumnDefinition Width="72" />
+                                            <ColumnDefinition Width="72" />
+                                            <ColumnDefinition Width="90" />
+                                        </Grid.ColumnDefinitions>
+                                        <Grid.RowDefinitions>
+                                            <RowDefinition Height="Auto" />
+                                            <RowDefinition Height="Auto" />
+                                        </Grid.RowDefinitions>
+                                        <TextBlock Text="Raw" FontWeight="SemiBold" />
+                                        <TextBlock Grid.Column="1" Text="Detected" FontWeight="SemiBold" />
+                                        <TextBlock Grid.Column="2" Text="Decimal" FontWeight="SemiBold" />
+                                        <TextBlock Grid.Column="3" Text="Hex" FontWeight="SemiBold" />
+                                        <TextBlock Grid.Column="4" Text="Binary" FontWeight="SemiBold" />
+                                        <TextBox Grid.Row="1"
+                                                 x:Name="BombSlot2RawValueText"
+                                                 Text="Not read"
+                                                 IsReadOnly="True"
+                                                 Background="{DynamicResource ReadOnlyBackgroundBrush}" />
+                                        <TextBox Grid.Row="1"
+                                                 Grid.Column="1"
+                                                 x:Name="BombSlot2DetectedTypeText"
+                                                 Text="Unknown"
+                                                 IsReadOnly="True"
+                                                 Background="{DynamicResource ReadOnlyBackgroundBrush}" />
+                                        <TextBox Grid.Row="1"
+                                                 Grid.Column="2"
+                                                 x:Name="BombSlot2DecimalText"
+                                                 Text="-"
+                                                 IsReadOnly="True"
+                                                 Background="{DynamicResource ReadOnlyBackgroundBrush}" />
+                                        <TextBox Grid.Row="1"
+                                                 Grid.Column="3"
+                                                 x:Name="BombSlot2HexText"
+                                                 Text="-"
+                                                 IsReadOnly="True"
+                                                 Background="{DynamicResource ReadOnlyBackgroundBrush}" />
+                                        <TextBox Grid.Row="1"
+                                                 Grid.Column="4"
+                                                 x:Name="BombSlot2BinaryText"
+                                                 Text="-"
+                                                 IsReadOnly="True"
+                                                 FontFamily="Consolas"
+                                                 Background="{DynamicResource ReadOnlyBackgroundBrush}" />
+                                    </Grid>
+                                </StackPanel>
+                            </GroupBox>
 
-                        <GroupBox Header="Bomb Bag 3">
-                            <StackPanel>
-                                <ContentControl Content="{Binding BombBagCapacity}"
-                                                ContentTemplate="{StaticResource CapacityTemplate}" />
-                                <ContentControl Content="{Binding BombSlot3}"
-                                                ContentTemplate="{StaticResource EditableValueTemplate}" />
-                            </StackPanel>
-                        </GroupBox>
+                            <GroupBox Header="Bomb Slot 3">
+                                <StackPanel>
+                                    <TextBlock TextWrapping="Wrap"
+                                               Foreground="{DynamicResource SecondaryTextBrush}"
+                                               Margin="0,0,0,6"
+                                               Text="CT-backed count/capacity values remain editable as diagnostics while bomb slot content research continues." />
+                                    <ContentControl Content="{Binding BombBagCapacity}"
+                                                    ContentTemplate="{StaticResource CapacityTemplate}" />
+                                    <ContentControl Content="{Binding BombSlot3}"
+                                                    ContentTemplate="{StaticResource EditableValueTemplate}" />
+                                    <Grid Margin="0,8,0,0">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="96" />
+                                            <ColumnDefinition Width="120" />
+                                            <ColumnDefinition Width="72" />
+                                            <ColumnDefinition Width="72" />
+                                            <ColumnDefinition Width="90" />
+                                        </Grid.ColumnDefinitions>
+                                        <Grid.RowDefinitions>
+                                            <RowDefinition Height="Auto" />
+                                            <RowDefinition Height="Auto" />
+                                        </Grid.RowDefinitions>
+                                        <TextBlock Text="Raw" FontWeight="SemiBold" />
+                                        <TextBlock Grid.Column="1" Text="Detected" FontWeight="SemiBold" />
+                                        <TextBlock Grid.Column="2" Text="Decimal" FontWeight="SemiBold" />
+                                        <TextBlock Grid.Column="3" Text="Hex" FontWeight="SemiBold" />
+                                        <TextBlock Grid.Column="4" Text="Binary" FontWeight="SemiBold" />
+                                        <TextBox Grid.Row="1"
+                                                 x:Name="BombSlot3RawValueText"
+                                                 Text="Not read"
+                                                 IsReadOnly="True"
+                                                 Background="{DynamicResource ReadOnlyBackgroundBrush}" />
+                                        <TextBox Grid.Row="1"
+                                                 Grid.Column="1"
+                                                 x:Name="BombSlot3DetectedTypeText"
+                                                 Text="Unknown"
+                                                 IsReadOnly="True"
+                                                 Background="{DynamicResource ReadOnlyBackgroundBrush}" />
+                                        <TextBox Grid.Row="1"
+                                                 Grid.Column="2"
+                                                 x:Name="BombSlot3DecimalText"
+                                                 Text="-"
+                                                 IsReadOnly="True"
+                                                 Background="{DynamicResource ReadOnlyBackgroundBrush}" />
+                                        <TextBox Grid.Row="1"
+                                                 Grid.Column="3"
+                                                 x:Name="BombSlot3HexText"
+                                                 Text="-"
+                                                 IsReadOnly="True"
+                                                 Background="{DynamicResource ReadOnlyBackgroundBrush}" />
+                                        <TextBox Grid.Row="1"
+                                                 Grid.Column="4"
+                                                 x:Name="BombSlot3BinaryText"
+                                                 Text="-"
+                                                 IsReadOnly="True"
+                                                 FontFamily="Consolas"
+                                                 Background="{DynamicResource ReadOnlyBackgroundBrush}" />
+                                    </Grid>
+                                </StackPanel>
+                            </GroupBox>
 
-                        <GroupBox Header="Seed Bag">
+                            <GroupBox Header="Seed Bag">
+                                <StackPanel>
+                                    <ContentControl Content="{Binding SeedBagCapacity}"
+                                                    ContentTemplate="{StaticResource CapacityTemplate}" />
+                                    <ContentControl Content="{Binding Seeds}"
+                                                    ContentTemplate="{StaticResource EditableValueTemplate}" />
+                                </StackPanel>
+                            </GroupBox>
+                        </UniformGrid>
+
+                        <GroupBox Header="Bomb Slot Research / Experimental">
                             <StackPanel>
-                                <ContentControl Content="{Binding SeedBagCapacity}"
-                                                ContentTemplate="{StaticResource CapacityTemplate}" />
-                                <ContentControl Content="{Binding Seeds}"
-                                                ContentTemplate="{StaticResource EditableValueTemplate}" />
+                                <Border BorderBrush="{DynamicResource WarningBorderBrush}"
+                                        BorderThickness="1"
+                                        Background="{DynamicResource WarningBackgroundBrush}"
+                                        Padding="8"
+                                        Margin="0,0,0,8">
+                                    <TextBlock TextWrapping="Wrap"
+                                               Foreground="{DynamicResource WarningTextBrush}"
+                                               FontWeight="SemiBold"
+                                               Text="Research only. This tool reads memory ranges to investigate visible bomb slot contents. It does not write memory, change bomb counts, or edit bomb slot types." />
+                                </Border>
+
+                                <Grid Margin="0,0,0,8">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="90" />
+                                        <ColumnDefinition Width="90" />
+                                        <ColumnDefinition Width="72" />
+                                        <ColumnDefinition Width="90" />
+                                        <ColumnDefinition Width="*" />
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Text="Start offset"
+                                               VerticalAlignment="Center" />
+                                    <TextBox Grid.Column="1"
+                                             x:Name="BombSlotResearchStartOffsetText"
+                                             Text="0x250"
+                                             FontFamily="Consolas" />
+                                    <TextBlock Grid.Column="2"
+                                               Text="Length"
+                                               VerticalAlignment="Center"
+                                               Margin="12,0,0,0" />
+                                    <TextBox Grid.Column="3"
+                                             x:Name="BombSlotResearchLengthText"
+                                             Text="0x40"
+                                             FontFamily="Consolas" />
+                                    <TextBlock Grid.Column="4"
+                                               Text="Default range covers nearby inventory, slot, and ammo candidate bytes."
+                                               Foreground="{DynamicResource SecondaryTextBrush}"
+                                               TextWrapping="Wrap"
+                                               VerticalAlignment="Center"
+                                               Margin="12,0,0,0" />
+                                </Grid>
+
+                                <WrapPanel Margin="0,0,0,8">
+                                    <Button Content="Capture Before"
+                                            Click="BombSlotsCaptureBefore_Click" />
+                                    <Button Content="Capture After"
+                                            Click="BombSlotsCaptureAfter_Click" />
+                                    <Button Content="Compare"
+                                            Click="BombSlotsCompare_Click" />
+                                    <Button Content="Export JSON"
+                                            Click="BombSlotsExportJson_Click" />
+                                    <Button Content="Export CSV"
+                                            Click="BombSlotsExportCsv_Click" />
+                                </WrapPanel>
+
+                                <TextBox x:Name="BombSlotResearchStatusText"
+                                         Text="Ready. Default range: _playerbase+0x250 length 0x40. Capture before and after an in-game bomb slot change."
+                                         IsReadOnly="True"
+                                         Background="{DynamicResource ReadOnlyBackgroundBrush}"
+                                         Margin="0,0,0,8" />
+
+                                <Grid Margin="0,0,0,4">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="74" />
+                                        <ColumnDefinition Width="92" />
+                                        <ColumnDefinition Width="92" />
+                                        <ColumnDefinition Width="92" />
+                                        <ColumnDefinition Width="92" />
+                                        <ColumnDefinition Width="118" />
+                                        <ColumnDefinition Width="70" />
+                                        <ColumnDefinition Width="*" MinWidth="220" />
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Text="Offset" FontWeight="SemiBold" />
+                                    <TextBlock Grid.Column="1" Text="Before" FontWeight="SemiBold" />
+                                    <TextBlock Grid.Column="2" Text="After" FontWeight="SemiBold" />
+                                    <TextBlock Grid.Column="3" Text="Before bits" FontWeight="SemiBold" />
+                                    <TextBlock Grid.Column="4" Text="After bits" FontWeight="SemiBold" />
+                                    <TextBlock Grid.Column="5" Text="Changed bits" FontWeight="SemiBold" />
+                                    <TextBlock Grid.Column="6" Text="Changed" FontWeight="SemiBold" />
+                                    <TextBlock Grid.Column="7" Text="Candidate slot reference" FontWeight="SemiBold" />
+                                </Grid>
+
+                                <ScrollViewer Height="220"
+                                              VerticalScrollBarVisibility="Auto"
+                                              HorizontalScrollBarVisibility="Auto">
+                                    <ItemsControl ItemsSource="{Binding BombSlotResearchRows}"
+                                                  ItemTemplate="{StaticResource BombSlotResearchRowTemplate}" />
+                                </ScrollViewer>
                             </StackPanel>
                         </GroupBox>
-                    </UniformGrid>
+                    </StackPanel>
                 </ScrollViewer>
             </TabItem>
 
