@@ -2,7 +2,7 @@
 
 ## Status
 
-Hidden Skill ownership/unlock flags are not confirmed yet.
+Hidden Skill menu ownership flags are confirmed and editable.
 
 The trainer includes a read-only **Hidden Skills Research** workflow in the Debug tab. It captures and compares a configurable playerbase-relative memory range, defaulting to:
 
@@ -11,33 +11,67 @@ The trainer includes a read-only **Hidden Skills Research** workflow in the Debu
 
 Before and After captures are persisted immediately so the trainer and Cemu can be closed between save states.
 
-No Hidden Skills editing is implemented.
+The Hidden Skills tab includes a confirmed editor for the seven ownership bits listed below. Research tools remain available for mapping related lesson, wolf, Hero's Shade, and menu refresh state.
 
 Current findings:
 
-- Candidate bit testing has been performed, but no Hidden Skill ownership bit is confirmed.
-- Hidden Skills likely involve multiple progression states, such as wolf/howling interactions, Hero's Shade lesson state, tutorial completion, and final menu visibility.
-- The default `0x200-0x300` research area remains useful, but the authoritative state may be elsewhere in player data.
+- Candidate bit testing confirmed the ownership bitfield at `_playerbase+0x3D5` and `_playerbase+0x3D6`.
+- Hidden Skill bits affect both menu ownership and Hero's Shade/wolf progression.
+- Disabling a learned skill, such as Ending Blow at `0x3D5` bit `2`, can make the wolf/Hero's Shade encounter available again after area reload.
+- `_playerbase+0x238` bit `0` is not Hidden Skill ownership. It appears to be Hero's Shade / lesson active state and is not used by the editor.
+- Hidden Skills still likely involve additional progression states, such as wolf/howling interactions, Hero's Shade lesson state, tutorial completion, and final menu visibility.
 - Live Memory Watch was added for direct observation while triggering Howling Stones, Golden Wolves, Hero's Shade lessons, and menu updates.
 
 ## Known Skills
 
-- Ending Blow
-- Shield Attack
-- Back Slice
-- Helm Splitter
-- Mortal Draw
-- Jump Strike
-- Great Spin
+- Back Slice: `_playerbase+0x3D5` bit `0`
+- Helm Splitter: `_playerbase+0x3D5` bit `1`
+- Ending Blow: `_playerbase+0x3D5` bit `2`
+- Shield Attack: `_playerbase+0x3D5` bit `3`
+- Mortal Draw: `_playerbase+0x3D6` bit `5`
+- Jump Strike: `_playerbase+0x3D6` bit `6`
+- Great Spin: `_playerbase+0x3D6` bit `7`
 
 ## Expected Storage
 
-Current expectation is that Hidden Skills may be stored as either:
+Confirmed ownership storage is a two-byte bitfield:
 
-- A small bitfield, where each learned skill toggles one bit.
-- A nearby group of progression/event flags.
+- `_playerbase+0x3D5`
+- `_playerbase+0x3D6`
 
-No offset, bit, or byte mapping is confirmed yet.
+The editor writes only confirmed bits and preserves unrelated bits in those bytes. It does not write `_playerbase+0x238` or any lesson-state flags.
+
+Related lesson/progression storage is not fully mapped yet.
+
+## Confirmed Editor
+
+The Hidden Skills tab supports:
+
+- Refresh Hidden Skills
+- Apply Hidden Skills Changes
+- Add All Hidden Skills
+- Clear All Hidden Skills
+- Restore Previous Hidden Skills
+
+Write behavior:
+
+- No writes on attach or refresh.
+- Writes occur only when the user clicks an editor button.
+- Only confirmed bits in `0x3D5` and `0x3D6` are changed.
+- Immediate, 250ms, and 1000ms readbacks are verified.
+- Diagnostics are shown in the Debug tab and written to `logs/hidden-skills-editor.log`.
+
+Mapping table:
+
+| Skill | Offset | Bit | Live-test note |
+| --- | --- | --- | --- |
+| Back Slice | `0x3D5` | `0` | Confirmed ownership bit |
+| Helm Splitter | `0x3D5` | `1` | Confirmed ownership bit |
+| Ending Blow | `0x3D5` | `2` | Enabling grants Ending Blow; disabling removes it and can make the wolf/Hero's Shade encounter available again after area reload |
+| Shield Attack | `0x3D5` | `3` | Confirmed ownership bit |
+| Mortal Draw | `0x3D6` | `5` | Confirmed ownership bit |
+| Jump Strike | `0x3D6` | `6` | Confirmed ownership bit |
+| Great Spin | `0x3D6` | `7` | Confirmed ownership bit |
 
 ## Suggested Workflow
 
@@ -71,6 +105,7 @@ The research tool writes:
 - `logs/research/hidden-skills-region-analysis.csv`
 - `logs/research/hidden-skills-live-watch.json`
 - `logs/research/hidden-skills-live-watch.csv`
+- `logs/hidden-skills-editor.log`
 - `logs/hidden-skills-bit-testing.log`
 - `logs/hidden-skills-live-watch.log`
 
@@ -247,4 +282,6 @@ Apply writes only the selected bit and preserves all other bits in the same byte
 
 ## Safety
 
-Hidden Skills snapshot capture and comparison do not write memory. The experimental bit tester writes one selected bit only when Apply is clicked. Use copied saves or save states when testing candidate bits.
+The confirmed editor writes live-tested Hidden Skill ownership bits only when an editor button is clicked. Editing these flags may affect Hero's Shade/wolf encounter availability. Use copied saves first, especially when clearing learned skills.
+
+Hidden Skills snapshot capture, region comparison, multi-capture analysis, and live watch do not write memory. The experimental bit tester writes one selected bit only when Apply is clicked. Use copied saves or save states when testing candidate bits.

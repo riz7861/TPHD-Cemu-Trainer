@@ -21,7 +21,7 @@ The UI is organized as a tabbed trainer/save-editor hybrid so new systems can be
 - **Ammo & Upgrades**: wallet, quiver, bomb bag, and seed capacity-aware edits
 - **Collectibles**: verified Poe Souls editing, full Golden Bugs ownership editor, Golden Bugs research tools, and health/heart summaries
 - **Story Flags**: reserved progression flags
-- **Hidden Skills**: disabled research preview for the seven known skills
+- **Hidden Skills**: confirmed ownership editor plus advanced research tools
 - **Quest Items**: reserved quest item/progression tracking
 - **Debug**: player base, AOB pattern, progression diagnostics, research snapshots, Hidden Skills Research, Ownership Discovery Mode, raw CT-backed values, and future memory tools
 
@@ -256,17 +256,23 @@ Golden Bugs editing controls collection-screen ownership only. It does not edit 
 
 The **Advanced / Golden Bugs Research** section keeps the raw research tools. The before/after compare defaults to `_playerbase+0x2A1` length `0x04` and logs to `logs/golden-bugs-research.log`. The **Golden Bugs Bitfield Tester / Experimental** still displays all 32 bits across `0x2A1-0x2A4` for controlled research, logs to `logs/golden-bugs-bitfield-testing.log`, and exports reports to `logs/research/`. Use that advanced area for `0x2A4` investigation and reward/turn-in research, not normal ownership editing. Details are tracked in `docs/research/GoldenBugsResearch.md`.
 
-## Hidden Skills Research
+## Hidden Skills Editor And Research
 
-Hidden Skills are currently under investigation. The Hidden Skills tab shows a disabled **Hidden Skills (Research)** preview for:
+The Hidden Skills tab includes a confirmed ownership editor for all seven Hidden Skills. The mappings are live-tested:
 
-- Ending Blow
-- Shield Attack
-- Back Slice
-- Helm Splitter
-- Mortal Draw
-- Jump Strike
-- Great Spin
+- `_playerbase+0x3D5` bit `0`: Back Slice
+- `_playerbase+0x3D5` bit `1`: Helm Splitter
+- `_playerbase+0x3D5` bit `2`: Ending Blow
+- `_playerbase+0x3D5` bit `3`: Shield Attack
+- `_playerbase+0x3D6` bit `5`: Mortal Draw
+- `_playerbase+0x3D6` bit `6`: Jump Strike
+- `_playerbase+0x3D6` bit `7`: Great Spin
+
+The editor shows detected state, desired state, dirty state, mapping offset/bit, and last write/verification status. It supports refresh, apply changed skills, add all, clear all, and session-only restore of the previous two-byte state. Writes preserve unrelated bits in `0x3D5` and `0x3D6`, verify immediate/250ms/1000ms readbacks, and log to `logs/hidden-skills-editor.log`.
+
+Hidden Skill bits affect both menu ownership and Hero's Shade/wolf progression. Removing a learned skill may cause the wolf/Hero's Shade encounter to become available again after area reload. Use copied saves first.
+
+Important: `_playerbase+0x238` bit `0` is not Hidden Skill ownership. It appears to be Hero's Shade / lesson active state, and the editor does not write it.
 
 The Debug tab includes **Hidden Skills Research**, a read-only range comparison workflow. It defaults to `_playerbase+0x200` length `0x100`, but the start offset and length are user-configurable. Captures are saved immediately to `logs/research/hidden-skills-captures/` so you can close Cemu or the trainer between Save A and Save B.
 
@@ -291,7 +297,7 @@ The **Hidden Skills Multi-Capture Analyzer** can load six saved Hidden Skills ca
 
 The **Hidden Skills Bit Tester / Experimental** section can test one candidate bit at a time. It supports offset/bit presets such as `0x218 bit0`, `0x219 bit0`, `0x214 bit1`, and `0x238 bit0`, preserves all other bits in the byte, and verifies immediate, 250ms, and 1000ms readbacks. Bit-test activity is logged to `logs/hidden-skills-bit-testing.log`.
 
-No Hidden Skills editing is implemented yet. Details are tracked in `docs/research/HiddenSkillsResearch.md`.
+Details are tracked in `docs/research/HiddenSkillsResearch.md`.
 
 ## Equipment Editor
 
@@ -376,6 +382,7 @@ The app does not parse or execute Cheat Engine scripts at runtime. The relevant 
 - `TphdCemuTrainer/Cheats/CheatCatalog.cs`: CT-derived cheat and capacity definitions
 - `TphdCemuTrainer/Cheats/BottleDefinitions.cs`: experimental bottle slot and confirmed bottle content definitions
 - `TphdCemuTrainer/Cheats/GoldenBugsDefinitions.cs`: confirmed Golden Bugs bit mappings and reference bug names
+- `TphdCemuTrainer/Cheats/HiddenSkillsDefinitions.cs`: confirmed Hidden Skills ownership bit mappings
 - `TphdCemuTrainer/Cheats/InventoryDefinitions.cs`: safe CT inventory item dropdowns, ownership candidates, and managed slot metadata
 - `TphdCemuTrainer/Cheats/InventoryOwnershipDefinition.cs`: inventory ownership/progression candidate metadata
 - `TphdCemuTrainer/Cheats/InventoryFixedSlotDefinition.cs`: known fixed/game-managed inventory slot metadata
@@ -392,7 +399,7 @@ The app does not parse or execute Cheat Engine scripts at runtime. The relevant 
 - The first scan can still be slower than later rescans because no cache has been validated yet.
 - Missing player data is handled as a rescan state, not an application failure.
 - Story flags and quest items are laid out for future expansion but not yet written.
-- Hidden Skills are research-only. The trainer can compare configurable before/after ranges, but no skill ownership mappings are confirmed and no editing is implemented.
+- Hidden Skills ownership is mapped and editable, but related Hero's Shade/wolf lesson progression state is not fully mapped. Clearing learned skills may affect encounter availability after area reload.
 - Inventory ownership editing uses detected/desired/apply where real flags are mapped. Current listed inventory ownership flags are not identified yet.
 - Bottle Editor v1 edits visible bottle-content slots only; bottle ownership and unconfirmed bottled item raw values are still being researched.
 - General inventory ownership/progression editing is not solved yet. Static fixed-slot grant/remove is confirmed only for specific visible-slot item/slot pairs.

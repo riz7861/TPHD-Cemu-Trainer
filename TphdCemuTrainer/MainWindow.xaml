@@ -697,6 +697,98 @@
             </Border>
         </DataTemplate>
 
+        <DataTemplate x:Key="HiddenSkillEditorTemplate">
+            <Border BorderBrush="{DynamicResource BorderBrush}"
+                    BorderThickness="0,0,0,1"
+                    Padding="0,5"
+                    ToolTip="{Binding Evidence}">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" MinWidth="150" />
+                        <ColumnDefinition Width="96" />
+                        <ColumnDefinition Width="76" />
+                        <ColumnDefinition Width="52" />
+                        <ColumnDefinition Width="72" />
+                        <ColumnDefinition Width="52" />
+                        <ColumnDefinition Width="*" MinWidth="160" />
+                        <ColumnDefinition Width="*" MinWidth="180" />
+                    </Grid.ColumnDefinitions>
+
+                    <CheckBox Content="{Binding Name}"
+                              IsChecked="{Binding IsOwnedDesired, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                              IsEnabled="{Binding CanEdit}"
+                              VerticalAlignment="Center" />
+                    <TextBlock Grid.Column="1"
+                               Text="{Binding CurrentState, Mode=OneWay}"
+                               VerticalAlignment="Center" />
+                    <TextBlock Grid.Column="2"
+                               Text="{Binding Offset}"
+                               FontFamily="Consolas"
+                               VerticalAlignment="Center" />
+                    <TextBlock Grid.Column="3"
+                               Text="{Binding Bit}"
+                               VerticalAlignment="Center" />
+                    <TextBlock Grid.Column="4"
+                               Text="{Binding IsDirty, Mode=OneWay}"
+                               FontWeight="SemiBold"
+                               VerticalAlignment="Center" />
+                    <TextBlock Grid.Column="5"
+                               Text="{Binding CanEdit, Mode=OneWay}"
+                               VerticalAlignment="Center" />
+                    <TextBlock Grid.Column="6"
+                               Text="{Binding LastWriteStatus, Mode=OneWay}"
+                               TextTrimming="CharacterEllipsis"
+                               VerticalAlignment="Center"
+                               Margin="6,0" />
+                    <TextBlock Grid.Column="7"
+                               Text="{Binding LastVerificationStatus, Mode=OneWay}"
+                               TextTrimming="CharacterEllipsis"
+                               VerticalAlignment="Center"
+                               Margin="6,0" />
+                </Grid>
+            </Border>
+        </DataTemplate>
+
+        <DataTemplate x:Key="HiddenSkillDiagnosticTemplate">
+            <Border BorderBrush="{DynamicResource BorderBrush}"
+                    BorderThickness="0,0,0,1"
+                    Padding="0,4">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" MinWidth="140" />
+                        <ColumnDefinition Width="76" />
+                        <ColumnDefinition Width="52" />
+                        <ColumnDefinition Width="96" />
+                        <ColumnDefinition Width="*" MinWidth="170" />
+                        <ColumnDefinition Width="*" MinWidth="190" />
+                    </Grid.ColumnDefinitions>
+
+                    <TextBlock Text="{Binding Name}"
+                               VerticalAlignment="Center" />
+                    <TextBlock Grid.Column="1"
+                               Text="{Binding Offset}"
+                               FontFamily="Consolas"
+                               VerticalAlignment="Center" />
+                    <TextBlock Grid.Column="2"
+                               Text="{Binding Bit}"
+                               VerticalAlignment="Center" />
+                    <TextBlock Grid.Column="3"
+                               Text="{Binding CurrentState, Mode=OneWay}"
+                               VerticalAlignment="Center" />
+                    <TextBlock Grid.Column="4"
+                               Text="{Binding LastWriteStatus, Mode=OneWay}"
+                               TextTrimming="CharacterEllipsis"
+                               VerticalAlignment="Center"
+                               Margin="6,0" />
+                    <TextBlock Grid.Column="5"
+                               Text="{Binding LastVerificationStatus, Mode=OneWay}"
+                               TextTrimming="CharacterEllipsis"
+                               VerticalAlignment="Center"
+                               Margin="6,0" />
+                </Grid>
+            </Border>
+        </DataTemplate>
+
         <DataTemplate x:Key="ResearchRangeRowTemplate">
             <Border BorderBrush="{DynamicResource BorderBrush}"
                     BorderThickness="0,0,0,1"
@@ -2527,14 +2619,101 @@
             <TabItem Header="Hidden Skills">
                 <ScrollViewer VerticalScrollBarVisibility="Auto">
                     <StackPanel Margin="6">
-                        <GroupBox Header="Hidden Skills (Research)">
+                        <GroupBox Header="Confirmed Hidden Skills Editor">
                             <StackPanel>
-                                <TextBlock Text="Mappings not yet confirmed."
-                                           FontWeight="SemiBold"
-                                           Foreground="{DynamicResource WarningTextBrush}"
-                                           Margin="0,0,0,8" />
-                                <ItemsControl ItemsSource="{Binding HiddenSkills}"
-                                              ItemTemplate="{StaticResource FutureCheckTemplate}" />
+                                <Border BorderBrush="{DynamicResource WarningBorderBrush}"
+                                        BorderThickness="1"
+                                        Background="{DynamicResource WarningBackgroundBrush}"
+                                        Padding="8"
+                                        Margin="0,0,0,8">
+                                    <TextBlock TextWrapping="Wrap"
+                                               Foreground="{DynamicResource WarningTextBrush}"
+                                               FontWeight="SemiBold"
+                                               Text="Research-derived but live-confirmed. Hidden Skill flags affect both menu ownership and Hero's Shade/wolf progression. Use copied saves first. Removing a learned skill may cause the wolf encounter to become available again after area reload." />
+                                </Border>
+
+                                <TextBlock TextWrapping="Wrap"
+                                           Foreground="{DynamicResource SecondaryTextBrush}"
+                                           Margin="0,0,0,8"
+                                           Text="Writes only confirmed bits at _playerbase+0x3D5 and _playerbase+0x3D6. This editor does not touch 0x238 or lesson-state flags." />
+
+                                <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
+                                    <Button Content="Refresh Hidden Skills"
+                                            Click="RefreshHiddenSkills_Click" />
+                                    <Button Content="Apply Hidden Skills Changes"
+                                            Click="ApplyHiddenSkillsChanges_Click"
+                                            Margin="6,0,0,0" />
+                                    <Button Content="Add All Hidden Skills"
+                                            Click="AddAllHiddenSkills_Click"
+                                            Margin="6,0,0,0" />
+                                    <Button Content="Clear All Hidden Skills"
+                                            Click="ClearAllHiddenSkills_Click"
+                                            Margin="6,0,0,0" />
+                                    <Button Content="Restore Previous Hidden Skills"
+                                            Click="RestoreHiddenSkills_Click"
+                                            Margin="6,0,0,0" />
+                                </StackPanel>
+
+                                <Grid Margin="0,0,0,8">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="90" />
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="88" />
+                                        <ColumnDefinition Width="*" />
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Text="0x3D5"
+                                               VerticalAlignment="Center"
+                                               Margin="0,0,8,5" />
+                                    <TextBox Grid.Column="1"
+                                             x:Name="HiddenSkillsByte3D5Text"
+                                             Text="Not read"
+                                             IsReadOnly="True"
+                                             FontFamily="Consolas"
+                                             Background="{DynamicResource ReadOnlyBackgroundBrush}"
+                                             Margin="0,0,8,5" />
+                                    <TextBlock Grid.Column="2"
+                                               Text="0x3D6"
+                                               VerticalAlignment="Center"
+                                               Margin="0,0,8,5" />
+                                    <TextBox Grid.Column="3"
+                                             x:Name="HiddenSkillsByte3D6Text"
+                                             Text="Not read"
+                                             IsReadOnly="True"
+                                             FontFamily="Consolas"
+                                             Background="{DynamicResource ReadOnlyBackgroundBrush}"
+                                             Margin="0,0,0,5" />
+                                </Grid>
+
+                                <TextBox x:Name="HiddenSkillsEditorStatusText"
+                                         Text="Attach to Cemu and rescan before editing Hidden Skills."
+                                         IsReadOnly="True"
+                                         TextWrapping="Wrap"
+                                         Background="{DynamicResource ReadOnlyBackgroundBrush}"
+                                         Margin="0,0,0,8" />
+
+                                <Grid Margin="0,0,0,4">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*" MinWidth="150" />
+                                        <ColumnDefinition Width="96" />
+                                        <ColumnDefinition Width="76" />
+                                        <ColumnDefinition Width="52" />
+                                        <ColumnDefinition Width="72" />
+                                        <ColumnDefinition Width="52" />
+                                        <ColumnDefinition Width="*" MinWidth="160" />
+                                        <ColumnDefinition Width="*" MinWidth="180" />
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Text="Skill" FontWeight="SemiBold" />
+                                    <TextBlock Grid.Column="1" Text="Current" FontWeight="SemiBold" />
+                                    <TextBlock Grid.Column="2" Text="Offset" FontWeight="SemiBold" />
+                                    <TextBlock Grid.Column="3" Text="Bit" FontWeight="SemiBold" />
+                                    <TextBlock Grid.Column="4" Text="Dirty" FontWeight="SemiBold" />
+                                    <TextBlock Grid.Column="5" Text="Edit" FontWeight="SemiBold" />
+                                    <TextBlock Grid.Column="6" Text="Last write" FontWeight="SemiBold" Margin="6,0" />
+                                    <TextBlock Grid.Column="7" Text="Last verification" FontWeight="SemiBold" Margin="6,0" />
+                                </Grid>
+
+                                <ItemsControl ItemsSource="{Binding HiddenSkillsEditorRows}"
+                                              ItemTemplate="{StaticResource HiddenSkillEditorTemplate}" />
                             </StackPanel>
                         </GroupBox>
                     </StackPanel>
@@ -2721,6 +2900,82 @@
                                              TextWrapping="Wrap"
                                              Background="{DynamicResource ReadOnlyBackgroundBrush}" />
                                 </Grid>
+                            </StackPanel>
+                        </GroupBox>
+
+                        <GroupBox Header="Hidden Skills Editor Diagnostics">
+                            <StackPanel>
+                                <TextBlock Text="Also written to logs/hidden-skills-editor.log"
+                                           Foreground="{DynamicResource SecondaryTextBrush}"
+                                           Margin="0,0,0,6" />
+
+                                <Grid Margin="0,0,0,8">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="76" />
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="76" />
+                                        <ColumnDefinition Width="*" />
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Text="0x3D5"
+                                               VerticalAlignment="Center"
+                                               Margin="0,0,8,5" />
+                                    <TextBox Grid.Column="1"
+                                             x:Name="HiddenSkillsDebugByte3D5Text"
+                                             Text="Not read"
+                                             IsReadOnly="True"
+                                             FontFamily="Consolas"
+                                             Background="{DynamicResource ReadOnlyBackgroundBrush}"
+                                             Margin="0,0,8,5" />
+                                    <TextBlock Grid.Column="2"
+                                               Text="0x3D6"
+                                               VerticalAlignment="Center"
+                                               Margin="0,0,8,5" />
+                                    <TextBox Grid.Column="3"
+                                             x:Name="HiddenSkillsDebugByte3D6Text"
+                                             Text="Not read"
+                                             IsReadOnly="True"
+                                             FontFamily="Consolas"
+                                             Background="{DynamicResource ReadOnlyBackgroundBrush}"
+                                             Margin="0,0,0,5" />
+                                </Grid>
+
+                                <Grid Margin="0,0,0,4">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*" MinWidth="140" />
+                                        <ColumnDefinition Width="76" />
+                                        <ColumnDefinition Width="52" />
+                                        <ColumnDefinition Width="96" />
+                                        <ColumnDefinition Width="*" MinWidth="170" />
+                                        <ColumnDefinition Width="*" MinWidth="190" />
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Text="Skill" FontWeight="SemiBold" />
+                                    <TextBlock Grid.Column="1" Text="Offset" FontWeight="SemiBold" />
+                                    <TextBlock Grid.Column="2" Text="Bit" FontWeight="SemiBold" />
+                                    <TextBlock Grid.Column="3" Text="Current" FontWeight="SemiBold" />
+                                    <TextBlock Grid.Column="4" Text="Last write" FontWeight="SemiBold" Margin="6,0" />
+                                    <TextBlock Grid.Column="5" Text="Last verification" FontWeight="SemiBold" Margin="6,0" />
+                                </Grid>
+
+                                <ItemsControl ItemsSource="{Binding HiddenSkillsEditorRows}"
+                                              ItemTemplate="{StaticResource HiddenSkillDiagnosticTemplate}" />
+
+                                <ScrollViewer Height="150"
+                                              VerticalScrollBarVisibility="Auto"
+                                              HorizontalScrollBarVisibility="Auto"
+                                              Background="{DynamicResource ReadOnlyBackgroundBrush}"
+                                              Margin="0,8,0,0">
+                                    <ItemsControl ItemsSource="{Binding HiddenSkillsEditorDiagnostics}">
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate>
+                                                <TextBlock Text="{Binding}"
+                                                           FontFamily="Consolas"
+                                                           FontSize="11"
+                                                           TextWrapping="NoWrap"
+                                                           Margin="0,0,0,4" />
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+                                </ScrollViewer>
                             </StackPanel>
                         </GroupBox>
 

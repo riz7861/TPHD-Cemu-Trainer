@@ -82,6 +82,8 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     private DateTimeOffset? _goldenBugsBitfieldRestoreSnapshotCapturedAt;
     private byte[]? _goldenBugsEditorRestoreSnapshotBytes;
     private DateTimeOffset? _goldenBugsEditorRestoreSnapshotCapturedAt;
+    private byte[]? _hiddenSkillsRestoreSnapshotBytes;
+    private DateTimeOffset? _hiddenSkillsRestoreSnapshotCapturedAt;
     private byte? _candidatePreviousValue;
     private uint? _candidatePreviousOffset;
     private ResearchSnapshotViewModel? _snapshotA;
@@ -161,6 +163,9 @@ public partial class MainWindow : Window, INotifyPropertyChanged
                     bit.OffsetValue == definition.Offset && bit.Bit == definition.Bit)));
         GoldenBugsBitfieldDiagnostics = [];
         GoldenBugsEditorDiagnostics = [];
+        HiddenSkillsEditorRows = new ObservableCollection<HiddenSkillViewModel>(
+            HiddenSkillsDefinitions.Skills.Select(skill => new HiddenSkillViewModel(skill)));
+        HiddenSkillsEditorDiagnostics = [];
         HiddenSkillsResearchRows = [];
         HiddenSkillsCandidateGroups = [];
         HiddenSkillsMultiCaptureCandidates = [];
@@ -266,6 +271,9 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     private static string HiddenSkillsBitTestingLogPath =>
         Path.Combine(AppContext.BaseDirectory, "logs", "hidden-skills-bit-testing.log");
 
+    private static string HiddenSkillsEditorLogPath =>
+        Path.Combine(AppContext.BaseDirectory, "logs", "hidden-skills-editor.log");
+
     private static string HiddenSkillsLiveWatchLogPath =>
         Path.Combine(AppContext.BaseDirectory, "logs", "hidden-skills-live-watch.log");
 
@@ -359,6 +367,10 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     public ObservableCollection<string> GoldenBugsBitfieldDiagnostics { get; }
 
     public ObservableCollection<string> GoldenBugsEditorDiagnostics { get; }
+
+    public ObservableCollection<HiddenSkillViewModel> HiddenSkillsEditorRows { get; }
+
+    public ObservableCollection<string> HiddenSkillsEditorDiagnostics { get; }
 
     public ObservableCollection<HiddenSkillsResearchRowViewModel> HiddenSkillsResearchRows { get; }
 
@@ -1760,6 +1772,122 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             verified ? StatusKind.Connected : StatusKind.Warning);
     }
 
+    private void RefreshHiddenSkills_Click(object sender, RoutedEventArgs e)
+    {
+        RefreshHiddenSkillsEditor(preserveDirty: false, showStatus: true);
+    }
+
+    private async void ApplyHiddenSkillsChanges_Click(object sender, RoutedEventArgs e)
+    {
+        var dirtySkills = HiddenSkillsEditorRows
+            .Where(skill => skill.IsDirty && skill.CanEdit)
+            .ToList();
+        if (dirtySkills.Count == 0)
+        {
+            HiddenSkillsEditorStatusText.Text = "No Hidden Skills changes to apply.";
+            SetStatus("No Hidden Skills changes to apply.", StatusKind.Neutral);
+            return;
+        }
+
+        if (!TryReadHiddenSkillsEditorBytes(out var currentBytes, out _))
+        {
+            return;
+        }
+
+        var desiredBytes = currentBytes.ToArray();
+        foreach (var skill in dirtySkills)
+        {
+            SetHiddenSkillBitInBytes(desiredBytes, skill, skill.IsOwnedDesired);
+        }
+
+        var verified = await WriteHiddenSkillsEditorBytesAsync("apply", desiredBytes);
+        RefreshHiddenSkillsEditor(preserveDirty: !verified, showStatus: false);
+        HiddenSkillsEditorStatusText.Text = verified
+            ? $"Applied {dirtySkills.Count} Hidden Skill change(s)."
+            : "Hidden Skills write did not fully verify. Check diagnostics.";
+        SetStatus(
+            HiddenSkillsEditorStatusText.Text,
+            verified ? StatusKind.Connected : StatusKind.Warning);
+    }
+
+    private async void AddAllHiddenSkills_Click(object sender, RoutedEventArgs e)
+    {
+        if (!TryReadHiddenSkillsEditorBytes(out var currentBytes, out _))
+        {
+            return;
+        }
+
+        foreach (var skill in HiddenSkillsEditorRows)
+        {
+            skill.IsOwnedDesired = true;
+        }
+
+        var desiredBytes = currentBytes.ToArray();
+        foreach (var skill in HiddenSkillsEditorRows)
+        {
+            SetHiddenSkillBitInBytes(desiredBytes, skill, isSet: true);
+        }
+
+        var verified = await WriteHiddenSkillsEditorBytesAsync("add-all", desiredBytes);
+        RefreshHiddenSkillsEditor(preserveDirty: !verified, showStatus: false);
+        HiddenSkillsEditorStatusText.Text = verified
+            ? "Added all Hidden Skills."
+            : "Add All Hidden Skills did not fully verify. Check diagnostics.";
+        SetStatus(
+            HiddenSkillsEditorStatusText.Text,
+            verified ? StatusKind.Connected : StatusKind.Warning);
+    }
+
+    private async void ClearAllHiddenSkills_Click(object sender, RoutedEventArgs e)
+    {
+        if (!TryReadHiddenSkillsEditorBytes(out var currentBytes, out _))
+        {
+            return;
+        }
+
+        foreach (var skill in HiddenSkillsEditorRows)
+        {
+            skill.IsOwnedDesired = false;
+        }
+
+        var desiredBytes = currentBytes.ToArray();
+        foreach (var skill in HiddenSkillsEditorRows)
+        {
+            SetHiddenSkillBitInBytes(desiredBytes, skill, isSet: false);
+        }
+
+        var verified = await WriteHiddenSkillsEditorBytesAsync("clear-all", desiredBytes);
+        RefreshHiddenSkillsEditor(preserveDirty: !verified, showStatus: false);
+        HiddenSkillsEditorStatusText.Text = verified
+            ? "Cleared all Hidden Skills."
+            : "Clear All Hidden Skills did not fully verify. Check diagnostics.";
+        SetStatus(
+            HiddenSkillsEditorStatusText.Text,
+            verified ? StatusKind.Connected : StatusKind.Warning);
+    }
+
+    private async void RestoreHiddenSkills_Click(object sender, RoutedEventArgs e)
+    {
+        if (_hiddenSkillsRestoreSnapshotBytes is null)
+        {
+            HiddenSkillsEditorStatusText.Text = "No previous Hidden Skills state captured this session.";
+            SetStatus("No previous Hidden Skills state captured this session.", StatusKind.Neutral);
+            return;
+        }
+
+        var verified = await WriteHiddenSkillsEditorBytesAsync(
+            "restore-previous",
+            _hiddenSkillsRestoreSnapshotBytes,
+            capturePreviousState: false);
+        RefreshHiddenSkillsEditor(preserveDirty: !verified, showStatus: false);
+        HiddenSkillsEditorStatusText.Text = verified
+            ? $"Restored Hidden Skills state captured at {_hiddenSkillsRestoreSnapshotCapturedAt?.ToLocalTime():g}."
+            : "Restore Hidden Skills did not fully verify. Check diagnostics.";
+        SetStatus(
+            HiddenSkillsEditorStatusText.Text,
+            verified ? StatusKind.Connected : StatusKind.Warning);
+    }
+
     private void GoldenBugsCaptureBitfield_Click(object sender, RoutedEventArgs e)
     {
         if (!TryReadGoldenBugsBitfieldBytes(out var bytes, out _))
@@ -2763,6 +2891,11 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             }
 
             if (!_equipmentDiagnosticInProgress && !RefreshEquipment(showStatus: false))
+            {
+                return;
+            }
+
+            if (!RefreshHiddenSkillsEditor(preserveDirty: true, showStatus: false))
             {
                 return;
             }
@@ -5111,6 +5244,65 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         return true;
     }
 
+    private bool TryReadHiddenSkillsEditorBytes(out byte[] bytes, out ulong absoluteAddress)
+    {
+        bytes = [];
+        absoluteAddress = 0;
+
+        if (_memory is null || !_playerBaseAddress.HasValue)
+        {
+            HiddenSkillsEditorStatusText.Text = "Not attached. Attach to Cemu and rescan before editing Hidden Skills.";
+            SetStatus("Not attached. Attach to Cemu and rescan before editing Hidden Skills.", StatusKind.Neutral);
+            return false;
+        }
+
+        if (!HasPlayerData)
+        {
+            HiddenSkillsEditorStatusText.Text = "Player data is not available. Load into gameplay and rescan before editing Hidden Skills.";
+            SetStatus("Load into gameplay and rescan before editing Hidden Skills.", StatusKind.Neutral);
+            return false;
+        }
+
+        absoluteAddress = _playerBaseAddress.Value + HiddenSkillsDefinitions.FirstOffset;
+        if (!_memory.TryReadBytes(absoluteAddress, HiddenSkillsDefinitions.OwnershipByteCount, out bytes, out var bytesRead) ||
+            bytesRead != HiddenSkillsDefinitions.OwnershipByteCount)
+        {
+            HiddenSkillsEditorStatusText.Text = "Could not read Hidden Skills ownership bytes.";
+            SetStatus("Could not read Hidden Skills ownership bytes.", StatusKind.Warning);
+            return false;
+        }
+
+        return true;
+    }
+
+    private bool RefreshHiddenSkillsEditor(bool preserveDirty = true, bool showStatus = false)
+    {
+        if (!HasPlayerData)
+        {
+            MarkHiddenSkillsNotRead();
+            if (showStatus)
+            {
+                SetStatus("Player data is not available. Load into gameplay and rescan before editing Hidden Skills.", StatusKind.Neutral);
+            }
+
+            return true;
+        }
+
+        if (!TryReadHiddenSkillsEditorBytes(out var bytes, out _))
+        {
+            return false;
+        }
+
+        UpdateHiddenSkillsEditorRows(bytes, preserveDirty);
+        if (showStatus)
+        {
+            HiddenSkillsEditorStatusText.Text = "Hidden Skills refreshed.";
+            SetStatus("Hidden Skills refreshed.", StatusKind.Connected);
+        }
+
+        return true;
+    }
+
     private void RefreshGoldenBugsBitfieldFromMemory(bool preserveDirty = true)
     {
         if (!TryReadGoldenBugsBitfieldBytes(out var bytes, out _))
@@ -5241,6 +5433,138 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         finally
         {
             AppendGoldenBugsEditorDiagnostic(
+                operation,
+                beforeBytes,
+                desiredBytes,
+                immediateBytes,
+                delayed250Bytes,
+                delayed1000Bytes,
+                status);
+        }
+    }
+
+    private async Task<bool> WriteHiddenSkillsEditorBytesAsync(
+        string operation,
+        byte[] desiredBytes,
+        bool capturePreviousState = true)
+    {
+        var memory = _memory;
+        if (memory is null || !_playerBaseAddress.HasValue)
+        {
+            HiddenSkillsEditorStatusText.Text = "Not attached.";
+            SetStatus("Not attached. Attach to Cemu and rescan before editing Hidden Skills.", StatusKind.Neutral);
+            return false;
+        }
+
+        if (desiredBytes.Length != HiddenSkillsDefinitions.OwnershipByteCount)
+        {
+            HiddenSkillsEditorStatusText.Text = "Hidden Skills desired state has an invalid length.";
+            SetStatus("Hidden Skills desired state has an invalid length.", StatusKind.Warning);
+            return false;
+        }
+
+        var absoluteAddress = _playerBaseAddress.Value + HiddenSkillsDefinitions.FirstOffset;
+        byte[]? beforeBytes = null;
+        byte[]? immediateBytes = null;
+        byte[]? delayed250Bytes = null;
+        byte[]? delayed1000Bytes = null;
+        var status = "started";
+
+        try
+        {
+            if (!memory.TryReadBytes(absoluteAddress, HiddenSkillsDefinitions.OwnershipByteCount, out var currentBytes, out var currentBytesRead) ||
+                currentBytesRead != HiddenSkillsDefinitions.OwnershipByteCount)
+            {
+                status = "before-read-failed";
+                HiddenSkillsEditorStatusText.Text = "Could not read Hidden Skills before writing.";
+                SetStatus("Could not read Hidden Skills before writing.", StatusKind.Warning);
+                return false;
+            }
+
+            beforeBytes = currentBytes;
+            if (capturePreviousState && !beforeBytes.SequenceEqual(desiredBytes))
+            {
+                _hiddenSkillsRestoreSnapshotBytes = beforeBytes.ToArray();
+                _hiddenSkillsRestoreSnapshotCapturedAt = DateTimeOffset.Now;
+            }
+
+            if (beforeBytes.SequenceEqual(desiredBytes))
+            {
+                immediateBytes = beforeBytes.ToArray();
+                delayed250Bytes = beforeBytes.ToArray();
+                delayed1000Bytes = beforeBytes.ToArray();
+                status = "no-change";
+                SetHiddenSkillsRowWriteStatuses(desiredBytes, "No change", "Already matched desired state");
+                return true;
+            }
+
+            for (var index = 0; index < desiredBytes.Length; index++)
+            {
+                if (beforeBytes[index] == desiredBytes[index])
+                {
+                    continue;
+                }
+
+                if (!memory.TryWriteBytes(absoluteAddress + (uint)index, [desiredBytes[index]], out var writeError))
+                {
+                    status = $"write-failed-index-{index}: {writeError}";
+                    HiddenSkillsEditorStatusText.Text =
+                        $"Hidden Skills write failed at 0x{HiddenSkillsDefinitions.FirstOffset + (uint)index:X}: {writeError}";
+                    SetStatus("Hidden Skills write failed.", StatusKind.Warning);
+                    SetHiddenSkillsRowWriteStatuses(desiredBytes, "Write failed", status);
+                    return false;
+                }
+            }
+
+            if (!memory.TryReadBytes(absoluteAddress, HiddenSkillsDefinitions.OwnershipByteCount, out immediateBytes, out var immediateRead) ||
+                immediateRead != HiddenSkillsDefinitions.OwnershipByteCount)
+            {
+                status = "immediate-read-failed";
+                SetStatus("Hidden Skills immediate verification failed.", StatusKind.Warning);
+                SetHiddenSkillsRowWriteStatuses(desiredBytes, "Written", "Immediate read failed");
+                return false;
+            }
+
+            if (!desiredBytes.SequenceEqual(immediateBytes))
+            {
+                status = "immediate-mismatch";
+                SetStatus("Hidden Skills immediate readback mismatch.", StatusKind.Warning);
+                SetHiddenSkillsRowWriteStatuses(desiredBytes, "Written", "Immediate readback mismatch");
+                return false;
+            }
+
+            await Task.Delay(250);
+            if (memory.TryReadBytes(absoluteAddress, HiddenSkillsDefinitions.OwnershipByteCount, out var read250, out var read250Count) &&
+                read250Count == HiddenSkillsDefinitions.OwnershipByteCount)
+            {
+                delayed250Bytes = read250;
+            }
+
+            await Task.Delay(750);
+            if (memory.TryReadBytes(absoluteAddress, HiddenSkillsDefinitions.OwnershipByteCount, out var read1000, out var read1000Count) &&
+                read1000Count == HiddenSkillsDefinitions.OwnershipByteCount)
+            {
+                delayed1000Bytes = read1000;
+            }
+
+            var delayedMismatch =
+                delayed250Bytes is not null && !desiredBytes.SequenceEqual(delayed250Bytes) ||
+                delayed1000Bytes is not null && !desiredBytes.SequenceEqual(delayed1000Bytes);
+            status = delayedMismatch ? "delayed-mismatch" : "verified";
+            SetHiddenSkillsRowWriteStatuses(
+                desiredBytes,
+                "Written",
+                delayedMismatch ? "Delayed verification mismatch" : "Verified immediate/250ms/1000ms");
+            if (delayedMismatch)
+            {
+                SetStatus("Hidden Skills changed after delayed verification.", StatusKind.Warning);
+            }
+
+            return !delayedMismatch;
+        }
+        finally
+        {
+            AppendHiddenSkillsEditorDiagnostic(
                 operation,
                 beforeBytes,
                 desiredBytes,
@@ -7451,6 +7775,43 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         }
     }
 
+    private void AppendHiddenSkillsEditorDiagnostic(
+        string operation,
+        byte[]? beforeBytes,
+        byte[] desiredBytes,
+        byte[]? immediateBytes,
+        byte[]? delayed250Bytes,
+        byte[]? delayed1000Bytes,
+        string status)
+    {
+        var entry =
+            $"{DateTimeOffset.Now:O} operation={operation} " +
+            $"before=\"{FormatNullableByteArray(beforeBytes)}\" desired=\"{FormatByteArray(desiredBytes)}\" " +
+            $"immediate=\"{FormatNullableByteArray(immediateBytes)}\" read250ms=\"{FormatNullableByteArray(delayed250Bytes)}\" " +
+            $"read1000ms=\"{FormatNullableByteArray(delayed1000Bytes)}\" status=\"{status}\"";
+
+        HiddenSkillsEditorDiagnostics.Insert(0, entry);
+        while (HiddenSkillsEditorDiagnostics.Count > 100)
+        {
+            HiddenSkillsEditorDiagnostics.RemoveAt(HiddenSkillsEditorDiagnostics.Count - 1);
+        }
+
+        try
+        {
+            var logDirectory = Path.GetDirectoryName(HiddenSkillsEditorLogPath);
+            if (!string.IsNullOrWhiteSpace(logDirectory))
+            {
+                Directory.CreateDirectory(logDirectory);
+            }
+
+            File.AppendAllText(HiddenSkillsEditorLogPath, entry + Environment.NewLine);
+        }
+        catch (Exception ex)
+        {
+            HiddenSkillsEditorDiagnostics.Insert(0, $"{DateTimeOffset.Now:O} hidden-skills-editor-log-write-failed: {ex.Message}");
+        }
+    }
+
     private void AppendGoldenBugsBitfieldTestingLog(string entry)
     {
         GoldenBugsBitfieldDiagnostics.Insert(0, entry);
@@ -7601,6 +7962,11 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     private static string FormatResearchByte(byte value)
     {
         return $"{value} / 0x{value:X2}";
+    }
+
+    private static string FormatHiddenSkillsByte(byte value)
+    {
+        return $"{value} / 0x{value:X2} / {Convert.ToString(value, 2).PadLeft(8, '0')}";
     }
 
     private static string FormatUInt32Binary(uint value)
@@ -8148,6 +8514,79 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         GoldenBugsCountText.Text = GoldenBugsEditorOwnedCountText.Text;
     }
 
+    private void UpdateHiddenSkillsEditorRows(IReadOnlyList<byte> bytes, bool preserveDirty)
+    {
+        foreach (var skill in HiddenSkillsEditorRows)
+        {
+            var byteIndex = (int)(skill.OffsetValue - HiddenSkillsDefinitions.FirstOffset);
+            if (byteIndex < 0 || byteIndex >= bytes.Count)
+            {
+                skill.MarkNotRead();
+                continue;
+            }
+
+            var isOwned = (bytes[byteIndex] & (1 << skill.Bit)) != 0;
+            skill.SetDetected(isOwned, preserveDirty);
+            skill.CanEdit = HasPlayerData;
+        }
+
+        UpdateHiddenSkillsByteDisplays(bytes);
+    }
+
+    private void UpdateHiddenSkillsByteDisplays(IReadOnlyList<byte> bytes)
+    {
+        var byte3D5 = bytes.Count > 0 ? FormatHiddenSkillsByte(bytes[0]) : "Not read";
+        var byte3D6 = bytes.Count > 1 ? FormatHiddenSkillsByte(bytes[1]) : "Not read";
+        HiddenSkillsByte3D5Text.Text = byte3D5;
+        HiddenSkillsByte3D6Text.Text = byte3D6;
+        HiddenSkillsDebugByte3D5Text.Text = byte3D5;
+        HiddenSkillsDebugByte3D6Text.Text = byte3D6;
+    }
+
+    private void MarkHiddenSkillsNotRead()
+    {
+        foreach (var skill in HiddenSkillsEditorRows)
+        {
+            skill.MarkNotRead();
+        }
+
+        HiddenSkillsByte3D5Text.Text = "Not read";
+        HiddenSkillsByte3D6Text.Text = "Not read";
+        HiddenSkillsDebugByte3D5Text.Text = "Not read";
+        HiddenSkillsDebugByte3D6Text.Text = "Not read";
+        HiddenSkillsEditorStatusText.Text = "Attach to Cemu and rescan before editing Hidden Skills.";
+    }
+
+    private static void SetHiddenSkillBitInBytes(byte[] bytes, HiddenSkillViewModel skill, bool isSet)
+    {
+        var byteIndex = (int)(skill.OffsetValue - HiddenSkillsDefinitions.FirstOffset);
+        if (byteIndex < 0 || byteIndex >= bytes.Length)
+        {
+            return;
+        }
+
+        var mask = (byte)(1 << skill.Bit);
+        bytes[byteIndex] = isSet
+            ? (byte)(bytes[byteIndex] | mask)
+            : (byte)(bytes[byteIndex] & ~mask);
+    }
+
+    private void SetHiddenSkillsRowWriteStatuses(byte[] desiredBytes, string writeStatus, string verificationStatus)
+    {
+        foreach (var skill in HiddenSkillsEditorRows)
+        {
+            var byteIndex = (int)(skill.OffsetValue - HiddenSkillsDefinitions.FirstOffset);
+            if (byteIndex < 0 || byteIndex >= desiredBytes.Length)
+            {
+                continue;
+            }
+
+            var desiredState = (desiredBytes[byteIndex] & (1 << skill.Bit)) != 0;
+            skill.LastWriteStatus = $"{writeStatus}: desired {(desiredState ? "owned" : "not owned")}";
+            skill.LastVerificationStatus = verificationStatus;
+        }
+    }
+
     private static int CountGoldenBugs(uint flags)
     {
         var usedBits = flags >> 8;
@@ -8253,6 +8692,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             flag.MarkNotRead();
         }
 
+        MarkHiddenSkillsNotRead();
         ApplyProgressionState(ProgressionStateService.CreateUnavailable());
 
         UpdateDerivedDisplays();
@@ -8322,6 +8762,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             flag.MarkNotRead();
         }
 
+        MarkHiddenSkillsNotRead();
         ApplyProgressionState(ProgressionStateService.CreateUnavailable());
 
         GoldenBugsCountText.Text = "Not read";
