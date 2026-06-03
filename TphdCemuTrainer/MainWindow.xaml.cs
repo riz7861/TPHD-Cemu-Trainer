@@ -3,6 +3,8 @@ using System.ComponentModel;
 using System.Diagnostics;
 using System.Globalization;
 using System.IO;
+using System.IO.Compression;
+using System.Reflection;
 using System.Runtime.CompilerServices;
 using System.Text.Json;
 using System.Windows;
@@ -56,13 +58,13 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     private DateTimeOffset? _goldenBugsBeforeCapturedAt;
     private DateTimeOffset? _goldenBugsAfterCapturedAt;
     private GoldenBugsResearchExport? _lastGoldenBugsResearchExport;
-    private byte[]? _bombSlotsBeforeSnapshotBytes;
-    private byte[]? _bombSlotsAfterSnapshotBytes;
-    private uint _bombSlotsBeforeSnapshotStart;
-    private uint _bombSlotsAfterSnapshotStart;
-    private DateTimeOffset? _bombSlotsBeforeCapturedAt;
-    private DateTimeOffset? _bombSlotsAfterCapturedAt;
-    private BombSlotResearchExport? _lastBombSlotResearchExport;
+    private byte[]? _questItemsBeforeSnapshotBytes;
+    private byte[]? _questItemsAfterSnapshotBytes;
+    private uint _questItemsBeforeSnapshotStart;
+    private uint _questItemsAfterSnapshotStart;
+    private DateTimeOffset? _questItemsBeforeCapturedAt;
+    private DateTimeOffset? _questItemsAfterCapturedAt;
+    private QuestItemsResearchExport? _lastQuestItemsResearchExport;
     private byte[]? _hiddenSkillsBeforeSnapshotBytes;
     private byte[]? _hiddenSkillsAfterSnapshotBytes;
     private uint _hiddenSkillsBeforeSnapshotStart;
@@ -141,6 +143,8 @@ public partial class MainWindow : Window, INotifyPropertyChanged
                 .Select(slotIndex => new InventorySlotViewModel(slotIndex, InventoryDefinitions.SafeItems)));
         BottleSlots = new ObservableCollection<BottleSlotViewModel>(
             BottleDefinitions.Slots.Select(slot => new BottleSlotViewModel(slot)));
+        BombSlots = new ObservableCollection<BombSlotViewModel>(
+            BombSlotDefinitions.Slots.Select(slot => new BombSlotViewModel(slot)));
         InventoryOwnershipItems = new ObservableCollection<InventoryOwnershipItemViewModel>(
             InventoryDefinitions.OwnershipItems.Select(item => new InventoryOwnershipItemViewModel(item)));
         foreach (var item in InventoryOwnershipItems)
@@ -159,9 +163,10 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         InventoryRemovalDiagnostics = [];
         InventoryCheckboxTestingDiagnostics = [];
         BottleEditorDiagnostics = [];
+        BombSlotEditorDiagnostics = [];
         CollectiblesDiagnostics = [];
         GoldenBugsResearchRows = [];
-        BombSlotResearchRows = [];
+        QuestItemsResearchRows = [];
         GoldenBugsCandidateList = new ObservableCollection<string>(
             GoldenBugCandidateNames.Select((name, index) => $"{index + 1}. {name}"));
         GoldenBugsBitRows = new ObservableCollection<GoldenBugBitViewModel>(
@@ -282,8 +287,11 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     private static string CollectiblesLogPath =>
         Path.Combine(AppContext.BaseDirectory, "logs", "collectibles.log");
 
-    private static string BombSlotResearchLogPath =>
-        Path.Combine(AppContext.BaseDirectory, "logs", "bomb-slot-research.log");
+    private static string BombSlotEditorLogPath =>
+        Path.Combine(AppContext.BaseDirectory, "logs", "bomb-slot-editor.log");
+
+    private static string QuestItemsResearchLogPath =>
+        Path.Combine(AppContext.BaseDirectory, "logs", "quest-items-research.log");
 
     private static string GoldenBugsResearchLogPath =>
         Path.Combine(AppContext.BaseDirectory, "logs", "golden-bugs-research.log");
@@ -365,6 +373,8 @@ public partial class MainWindow : Window, INotifyPropertyChanged
 
     public ObservableCollection<BottleSlotViewModel> BottleSlots { get; }
 
+    public ObservableCollection<BombSlotViewModel> BombSlots { get; }
+
     public ObservableCollection<InventoryOwnershipItemViewModel> InventoryOwnershipItems { get; }
 
     public ObservableCollection<InventoryFixedSlotViewModel> FixedInventoryItems { get; }
@@ -383,9 +393,9 @@ public partial class MainWindow : Window, INotifyPropertyChanged
 
     public ObservableCollection<string> BottleEditorDiagnostics { get; }
 
-    public ObservableCollection<string> CollectiblesDiagnostics { get; }
+    public ObservableCollection<string> BombSlotEditorDiagnostics { get; }
 
-    public ObservableCollection<BombSlotResearchRowViewModel> BombSlotResearchRows { get; }
+    public ObservableCollection<string> CollectiblesDiagnostics { get; }
 
     public ObservableCollection<GoldenBugResearchRowViewModel> GoldenBugsResearchRows { get; }
 
@@ -398,6 +408,8 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     public ObservableCollection<string> GoldenBugsBitfieldDiagnostics { get; }
 
     public ObservableCollection<string> GoldenBugsEditorDiagnostics { get; }
+
+    public ObservableCollection<QuestItemsResearchRowViewModel> QuestItemsResearchRows { get; }
 
     public ObservableCollection<HiddenSkillViewModel> HiddenSkillsEditorRows { get; }
 
@@ -905,177 +917,173 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         }
     }
 
-    private void BombSlotsCaptureBefore_Click(object sender, RoutedEventArgs e)
+    private void QuestItemsCaptureBefore_Click(object sender, RoutedEventArgs e)
     {
-        if (!TryReadBombSlotResearchRange(out var startOffset, out var bytes, out _))
+        if (!TryReadQuestItemsResearchRange(out var startOffset, out var bytes, out _))
         {
             return;
         }
 
-        _bombSlotsBeforeSnapshotStart = startOffset;
-        _bombSlotsBeforeSnapshotBytes = bytes;
-        _bombSlotsBeforeCapturedAt = DateTimeOffset.Now;
-        BombSlotResearchRows.Clear();
-        _lastBombSlotResearchExport = null;
-        TryWriteBombSlotSnapshotExport(
-            "bomb-slots-before.json",
+        _questItemsBeforeSnapshotStart = startOffset;
+        _questItemsBeforeSnapshotBytes = bytes;
+        _questItemsBeforeCapturedAt = DateTimeOffset.Now;
+        QuestItemsResearchRows.Clear();
+        _lastQuestItemsResearchExport = null;
+        TryWriteQuestItemsSnapshotExport(
+            "quest-items-before.json",
             "Before",
             startOffset,
             bytes,
-            _bombSlotsBeforeCapturedAt);
+            _questItemsBeforeCapturedAt);
 
-        BombSlotResearchStatusText.Text =
-            $"Captured Before at _playerbase+0x{startOffset:X}, length 0x{bytes.Length:X}. Saved bomb-slots-before.json.";
-        AppendBombSlotResearchLog(
+        QuestItemsResearchStatusText.Text =
+            $"Captured Before at _playerbase+0x{startOffset:X}, length 0x{bytes.Length:X}. Saved quest-items-before.json.";
+        AppendQuestItemsResearchLog(
             $"action=capture-before start=0x{startOffset:X} length=0x{bytes.Length:X} bytes=\"{FormatByteArray(bytes)}\"");
-        SetStatus("Bomb Slot Before snapshot captured.", StatusKind.Connected);
+        SetStatus("Quest Items Before snapshot captured.", StatusKind.Connected);
     }
 
-    private void BombSlotsCaptureAfter_Click(object sender, RoutedEventArgs e)
+    private void QuestItemsCaptureAfter_Click(object sender, RoutedEventArgs e)
     {
-        if (!TryReadBombSlotResearchRange(out var startOffset, out var bytes, out _))
+        if (!TryReadQuestItemsResearchRange(out var startOffset, out var bytes, out _))
         {
             return;
         }
 
-        _bombSlotsAfterSnapshotStart = startOffset;
-        _bombSlotsAfterSnapshotBytes = bytes;
-        _bombSlotsAfterCapturedAt = DateTimeOffset.Now;
-        _lastBombSlotResearchExport = null;
-        TryWriteBombSlotSnapshotExport(
-            "bomb-slots-after.json",
+        _questItemsAfterSnapshotStart = startOffset;
+        _questItemsAfterSnapshotBytes = bytes;
+        _questItemsAfterCapturedAt = DateTimeOffset.Now;
+        _lastQuestItemsResearchExport = null;
+        TryWriteQuestItemsSnapshotExport(
+            "quest-items-after.json",
             "After",
             startOffset,
             bytes,
-            _bombSlotsAfterCapturedAt);
+            _questItemsAfterCapturedAt);
 
-        BombSlotResearchStatusText.Text =
-            $"Captured After at _playerbase+0x{startOffset:X}, length 0x{bytes.Length:X}. Saved bomb-slots-after.json.";
-        AppendBombSlotResearchLog(
+        QuestItemsResearchStatusText.Text =
+            $"Captured After at _playerbase+0x{startOffset:X}, length 0x{bytes.Length:X}. Saved quest-items-after.json.";
+        AppendQuestItemsResearchLog(
             $"action=capture-after start=0x{startOffset:X} length=0x{bytes.Length:X} bytes=\"{FormatByteArray(bytes)}\"");
-        SetStatus("Bomb Slot After snapshot captured.", StatusKind.Connected);
+        SetStatus("Quest Items After snapshot captured.", StatusKind.Connected);
     }
 
-    private void BombSlotsCompare_Click(object sender, RoutedEventArgs e)
+    private void QuestItemsCompare_Click(object sender, RoutedEventArgs e)
     {
-        if (_bombSlotsBeforeSnapshotBytes is null || _bombSlotsAfterSnapshotBytes is null)
+        if (_questItemsBeforeSnapshotBytes is null || _questItemsAfterSnapshotBytes is null)
         {
-            BombSlotResearchStatusText.Text = "Capture Before and After snapshots before comparing bomb slot research data.";
-            SetStatus("Capture Bomb Slot Before and After snapshots first.", StatusKind.Neutral);
+            QuestItemsResearchStatusText.Text = "Capture Before and After snapshots before comparing Quest Items research data.";
+            SetStatus("Capture Quest Items Before and After snapshots first.", StatusKind.Neutral);
             return;
         }
 
-        if (_bombSlotsBeforeSnapshotStart != _bombSlotsAfterSnapshotStart ||
-            _bombSlotsBeforeSnapshotBytes.Length != _bombSlotsAfterSnapshotBytes.Length)
+        if (_questItemsBeforeSnapshotStart != _questItemsAfterSnapshotStart ||
+            _questItemsBeforeSnapshotBytes.Length != _questItemsAfterSnapshotBytes.Length)
         {
-            BombSlotResearchStatusText.Text = "Before and After ranges must use the same start and length.";
-            SetStatus("Bomb Slot research ranges do not match.", StatusKind.Warning);
+            QuestItemsResearchStatusText.Text = "Before and After ranges must use the same start and length.";
+            SetStatus("Quest Items research ranges do not match.", StatusKind.Warning);
             return;
         }
 
-        BombSlotResearchRows.Clear();
-        var changedByteCount = 0;
-        var changedBitCount = 0;
-        for (var index = 0; index < _bombSlotsBeforeSnapshotBytes.Length; index++)
+        var rows = new List<QuestItemsResearchRowViewModel>(_questItemsBeforeSnapshotBytes.Length);
+        for (var index = 0; index < _questItemsBeforeSnapshotBytes.Length; index++)
         {
-            var offset = _bombSlotsBeforeSnapshotStart + (uint)index;
-            var beforeValue = _bombSlotsBeforeSnapshotBytes[index];
-            var afterValue = _bombSlotsAfterSnapshotBytes[index];
-            var row = new BombSlotResearchRowViewModel(
-                offset,
-                beforeValue,
-                afterValue,
-                GetBombSlotCandidateReference(offset));
-            BombSlotResearchRows.Add(row);
-
-            if (row.IsChanged)
-            {
-                changedByteCount++;
-                changedBitCount += row.ChangedBitCount;
-            }
+            rows.Add(new QuestItemsResearchRowViewModel(
+                _questItemsBeforeSnapshotStart + (uint)index,
+                _questItemsBeforeSnapshotBytes[index],
+                _questItemsAfterSnapshotBytes[index]));
         }
 
-        _lastBombSlotResearchExport = CreateBombSlotResearchExport(changedByteCount, changedBitCount);
-        BombSlotResearchStatusText.Text =
-            $"Compared bomb slot snapshots. Changed bytes: {changedByteCount}. Changed bits: {changedBitCount}.";
+        AssignQuestItemsCandidateGroups(rows);
+        QuestItemsResearchRows.Clear();
+        foreach (var row in rows)
+        {
+            QuestItemsResearchRows.Add(row);
+        }
+
+        var changedByteCount = rows.Count(row => row.IsChanged);
+        var changedBitCount = rows.Sum(row => row.ChangedBitCount);
+        _lastQuestItemsResearchExport = CreateQuestItemsResearchExport(changedByteCount, changedBitCount);
+        QuestItemsResearchStatusText.Text =
+            $"Compared Quest Items snapshots. Changed bytes: {changedByteCount}. Changed bits: {changedBitCount}.";
         var changes = string.Join(
             "; ",
-            BombSlotResearchRows
+            rows
                 .Where(row => row.IsChanged)
                 .Select(row =>
-                    $"{row.Offset}:{row.BeforeValue}(0x{row.BeforeValue:X2})->{row.AfterValue}(0x{row.AfterValue:X2}) {row.ChangedBits} ref=\"{row.CandidateSlotReference}\""));
-        AppendBombSlotResearchLog(
-            $"action=compare start=0x{_bombSlotsBeforeSnapshotStart:X} length=0x{_bombSlotsBeforeSnapshotBytes.Length:X} changed-bytes={changedByteCount} changed-bits={changedBitCount} changes=\"{changes}\"");
-        SetStatus("Bomb Slot research snapshots compared.", StatusKind.Connected);
+                    $"{row.Offset}:{row.BeforeValue}(0x{row.BeforeValue:X2})->{row.AfterValue}(0x{row.AfterValue:X2}) {row.ChangedBits} score={row.CandidateScore} group={row.CandidateGroup}"));
+        AppendQuestItemsResearchLog(
+            $"action=compare start=0x{_questItemsBeforeSnapshotStart:X} length=0x{_questItemsBeforeSnapshotBytes.Length:X} changed-bytes={changedByteCount} changed-bits={changedBitCount} changes=\"{changes}\"");
+        SetStatus("Quest Items research snapshots compared.", StatusKind.Connected);
     }
 
-    private void BombSlotsExportJson_Click(object sender, RoutedEventArgs e)
+    private void QuestItemsExportJson_Click(object sender, RoutedEventArgs e)
     {
-        if (_lastBombSlotResearchExport is null)
+        if (_lastQuestItemsResearchExport is null)
         {
-            BombSlotResearchStatusText.Text = "Compare bomb slot snapshots before exporting JSON.";
-            SetStatus("Compare Bomb Slot snapshots before exporting.", StatusKind.Neutral);
+            QuestItemsResearchStatusText.Text = "Compare Quest Items snapshots before exporting JSON.";
+            SetStatus("Compare Quest Items snapshots before exporting.", StatusKind.Neutral);
             return;
         }
 
         try
         {
             Directory.CreateDirectory(ResearchSnapshotStore.ExportDirectory);
-            if (_bombSlotsBeforeSnapshotBytes is not null)
+            if (_questItemsBeforeSnapshotBytes is not null)
             {
-                TryWriteBombSlotSnapshotExport(
-                    "bomb-slots-before.json",
+                TryWriteQuestItemsSnapshotExport(
+                    "quest-items-before.json",
                     "Before",
-                    _bombSlotsBeforeSnapshotStart,
-                    _bombSlotsBeforeSnapshotBytes,
-                    _bombSlotsBeforeCapturedAt);
+                    _questItemsBeforeSnapshotStart,
+                    _questItemsBeforeSnapshotBytes,
+                    _questItemsBeforeCapturedAt);
             }
 
-            if (_bombSlotsAfterSnapshotBytes is not null)
+            if (_questItemsAfterSnapshotBytes is not null)
             {
-                TryWriteBombSlotSnapshotExport(
-                    "bomb-slots-after.json",
+                TryWriteQuestItemsSnapshotExport(
+                    "quest-items-after.json",
                     "After",
-                    _bombSlotsAfterSnapshotStart,
-                    _bombSlotsAfterSnapshotBytes,
-                    _bombSlotsAfterCapturedAt);
+                    _questItemsAfterSnapshotStart,
+                    _questItemsAfterSnapshotBytes,
+                    _questItemsAfterCapturedAt);
             }
 
-            var reportPath = Path.Combine(ResearchSnapshotStore.ExportDirectory, "bomb-slots-report.json");
-            File.WriteAllText(reportPath, JsonSerializer.Serialize(_lastBombSlotResearchExport, ExportJsonOptions));
-            BombSlotResearchStatusText.Text = "Exported Bomb Slot JSON files to logs/research.";
-            AppendBombSlotResearchLog($"action=export-json report=\"{reportPath}\" rows={_lastBombSlotResearchExport.Rows.Count}");
-            SetStatus("Bomb Slot JSON exported.", StatusKind.Connected);
+            var reportPath = Path.Combine(ResearchSnapshotStore.ExportDirectory, "quest-items-report.json");
+            File.WriteAllText(reportPath, JsonSerializer.Serialize(_lastQuestItemsResearchExport, ExportJsonOptions));
+            QuestItemsResearchStatusText.Text = "Exported Quest Items JSON files to logs/research.";
+            AppendQuestItemsResearchLog($"action=export-json report=\"{reportPath}\" rows={_lastQuestItemsResearchExport.Rows.Count}");
+            SetStatus("Quest Items JSON exported.", StatusKind.Connected);
         }
         catch (Exception ex)
         {
-            BombSlotResearchStatusText.Text = $"Bomb Slot JSON export failed: {ex.Message}";
-            SetStatus("Bomb Slot JSON export failed.", StatusKind.Warning);
+            QuestItemsResearchStatusText.Text = $"Quest Items JSON export failed: {ex.Message}";
+            SetStatus("Quest Items JSON export failed.", StatusKind.Warning);
         }
     }
 
-    private void BombSlotsExportCsv_Click(object sender, RoutedEventArgs e)
+    private void QuestItemsExportCsv_Click(object sender, RoutedEventArgs e)
     {
-        if (_lastBombSlotResearchExport is null)
+        if (_lastQuestItemsResearchExport is null)
         {
-            BombSlotResearchStatusText.Text = "Compare bomb slot snapshots before exporting CSV.";
-            SetStatus("Compare Bomb Slot snapshots before exporting.", StatusKind.Neutral);
+            QuestItemsResearchStatusText.Text = "Compare Quest Items snapshots before exporting CSV.";
+            SetStatus("Compare Quest Items snapshots before exporting.", StatusKind.Neutral);
             return;
         }
 
         try
         {
             Directory.CreateDirectory(ResearchSnapshotStore.ExportDirectory);
-            var csvPath = Path.Combine(ResearchSnapshotStore.ExportDirectory, "bomb-slots-report.csv");
-            File.WriteAllLines(csvPath, CreateBombSlotResearchCsvLines(_lastBombSlotResearchExport.Rows));
-            BombSlotResearchStatusText.Text = "Exported Bomb Slot CSV report to logs/research.";
-            AppendBombSlotResearchLog($"action=export-csv csv=\"{csvPath}\" rows={_lastBombSlotResearchExport.Rows.Count}");
-            SetStatus("Bomb Slot CSV exported.", StatusKind.Connected);
+            var csvPath = Path.Combine(ResearchSnapshotStore.ExportDirectory, "quest-items-report.csv");
+            File.WriteAllLines(csvPath, CreateQuestItemsResearchCsvLines(_lastQuestItemsResearchExport.Rows));
+            QuestItemsResearchStatusText.Text = "Exported Quest Items CSV report to logs/research.";
+            AppendQuestItemsResearchLog($"action=export-csv csv=\"{csvPath}\" rows={_lastQuestItemsResearchExport.Rows.Count}");
+            SetStatus("Quest Items CSV exported.", StatusKind.Connected);
         }
         catch (Exception ex)
         {
-            BombSlotResearchStatusText.Text = $"Bomb Slot CSV export failed: {ex.Message}";
-            SetStatus("Bomb Slot CSV export failed.", StatusKind.Warning);
+            QuestItemsResearchStatusText.Text = $"Quest Items CSV export failed: {ex.Message}";
+            SetStatus("Quest Items CSV export failed.", StatusKind.Warning);
         }
     }
 
@@ -2533,6 +2541,106 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         }
     }
 
+    private void RefreshBombSlots_Click(object sender, RoutedEventArgs e)
+    {
+        RefreshBombSlots(showStatus: true);
+    }
+
+    private async void ApplyBombSlotChanges_Click(object sender, RoutedEventArgs e)
+    {
+        if (!CanWriteBombSlots())
+        {
+            return;
+        }
+
+        var changedSlots = BombSlots
+            .Where(slot => slot.IsDirty)
+            .ToList();
+        if (changedSlots.Count == 0)
+        {
+            BombSlotEditorStatusText.Text = "No Bomb Slot changes to apply.";
+            SetStatus("No Bomb Slot changes to apply.", StatusKind.Neutral);
+            return;
+        }
+
+        var verifiedCount = 0;
+        foreach (var slot in changedSlots)
+        {
+            var verified = await WriteBombSlotWithDiagnosticsAsync(
+                slot,
+                slot.SelectedContent.Value,
+                "apply",
+                $"Bomb Slot {slot.SlotNumber} changed to {slot.SelectedContent.Name}.");
+            if (verified)
+            {
+                verifiedCount++;
+            }
+        }
+
+        RefreshBombSlots(showStatus: false);
+        BombSlotEditorStatusText.Text =
+            verifiedCount == changedSlots.Count
+                ? $"Verification succeeded. Applied {verifiedCount} Bomb Slot change(s)."
+                : $"Verification failed for {changedSlots.Count - verifiedCount} of {changedSlots.Count} Bomb Slot change(s).";
+        SetStatus(BombSlotEditorStatusText.Text, verifiedCount == changedSlots.Count ? StatusKind.Connected : StatusKind.Warning);
+    }
+
+    private async void RestoreBombSlots_Click(object sender, RoutedEventArgs e)
+    {
+        if (!CanWriteBombSlots())
+        {
+            return;
+        }
+
+        var restorableSlots = BombSlots
+            .Where(slot => slot.PreviousValue.HasValue && BombSlotDefinitions.IsConfirmedContent(slot.PreviousValue.Value))
+            .ToList();
+        if (restorableSlots.Count == 0)
+        {
+            BombSlotEditorStatusText.Text = "No confirmed previous Bomb Slot values are captured this session.";
+            SetStatus("No confirmed previous Bomb Slot values are captured this session.", StatusKind.Neutral);
+            return;
+        }
+
+        var verifiedCount = 0;
+        foreach (var slot in restorableSlots)
+        {
+            var previousValue = slot.PreviousValue!.Value;
+            var verified = await WriteBombSlotWithDiagnosticsAsync(
+                slot,
+                previousValue,
+                "restore",
+                $"Bomb Slot {slot.SlotNumber} restored to {BombSlotDefinitions.GetContentName(previousValue)}.");
+            if (verified)
+            {
+                slot.ClearPrevious();
+                verifiedCount++;
+            }
+        }
+
+        RefreshBombSlots(showStatus: false);
+        BombSlotEditorStatusText.Text =
+            verifiedCount == restorableSlots.Count
+                ? $"Verification succeeded. Restored {verifiedCount} Bomb Slot value(s)."
+                : $"Verification failed for {restorableSlots.Count - verifiedCount} of {restorableSlots.Count} Bomb Slot restore(s).";
+        SetStatus(BombSlotEditorStatusText.Text, verifiedCount == restorableSlots.Count ? StatusKind.Connected : StatusKind.Warning);
+    }
+
+    private void CreateSupportSnapshot_Click(object sender, RoutedEventArgs e)
+    {
+        try
+        {
+            var snapshotPath = CreateSupportSnapshot();
+            SupportSnapshotStatusText.Text = $"Created support snapshot: {Path.GetFileName(snapshotPath)}";
+            SetStatus("Support snapshot created.", StatusKind.Connected);
+        }
+        catch (Exception ex)
+        {
+            SupportSnapshotStatusText.Text = $"Support snapshot failed: {ex.Message}";
+            SetStatus("Support snapshot failed.", StatusKind.Warning);
+        }
+    }
+
     private void ExportInventoryMapping_Click(object sender, RoutedEventArgs e)
     {
         ExportInventoryMapping();
@@ -3117,6 +3225,11 @@ public partial class MainWindow : Window, INotifyPropertyChanged
                 return;
             }
 
+            if (!RefreshBombSlots(showStatus: false))
+            {
+                return;
+            }
+
             if (!_equipmentDiagnosticInProgress && !RefreshEquipment(showStatus: false))
             {
                 return;
@@ -3378,6 +3491,52 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         if (showStatus)
         {
             UpdateInventoryEditGuard();
+        }
+
+        return true;
+    }
+
+    private bool RefreshBombSlots(bool showStatus)
+    {
+        if (_memory is null || !_playerBaseAddress.HasValue)
+        {
+            if (showStatus)
+            {
+                BombSlotEditorStatusText.Text = "Not attached. Attach to Cemu and rescan before refreshing Bomb Slots.";
+                SetStatus("Not attached. Attach to Cemu and rescan before refreshing Bomb Slots.", StatusKind.Neutral);
+            }
+
+            foreach (var slot in BombSlots)
+            {
+                slot.CanEdit = false;
+            }
+
+            return false;
+        }
+
+        foreach (var slot in BombSlots)
+        {
+            if (!InventoryMemoryService.TryReadByte(
+                    _memory,
+                    _playerBaseAddress.Value,
+                    slot.OffsetValue,
+                    $"Bomb Slot {slot.SlotNumber}",
+                    out var value,
+                    out var error))
+            {
+                BombSlotEditorStatusText.Text = error;
+                MarkMemoryUnavailable();
+                return false;
+            }
+
+            slot.SetCurrentValue(value);
+            slot.CanEdit = HasPlayerData;
+        }
+
+        if (showStatus)
+        {
+            BombSlotEditorStatusText.Text = "Bomb Slots refreshed. Confirmed values are Normal Bombs, Water Bombs, and Bomblings.";
+            SetStatus("Bomb Slots refreshed.", StatusKind.Connected);
         }
 
         return true;
@@ -4218,6 +4377,179 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         }
     }
 
+    private bool CanWriteBombSlots()
+    {
+        if (_memory is null || !_playerBaseAddress.HasValue)
+        {
+            BombSlotEditorStatusText.Text = "Not attached. Attach to Cemu and rescan before editing Bomb Slots.";
+            SetStatus("Not attached. Attach to Cemu and rescan before editing Bomb Slots.", StatusKind.Neutral);
+            return false;
+        }
+
+        if (!HasPlayerData)
+        {
+            BombSlotEditorStatusText.Text = "Player data is not available. Load into gameplay and rescan before editing Bomb Slots.";
+            SetStatus("Player data is not available. Load into gameplay and rescan before editing Bomb Slots.", StatusKind.Warning);
+            return false;
+        }
+
+        return true;
+    }
+
+    private async Task<bool> WriteBombSlotWithDiagnosticsAsync(
+        BombSlotViewModel slot,
+        byte desiredValue,
+        string action,
+        string successMessage)
+    {
+        var memory = _memory;
+        if (memory is null || !_playerBaseAddress.HasValue)
+        {
+            BombSlotEditorStatusText.Text = "Not attached. Attach to Cemu and rescan before editing Bomb Slots.";
+            SetStatus("Not attached. Attach to Cemu and rescan before editing Bomb Slots.", StatusKind.Neutral);
+            return false;
+        }
+
+        if (!BombSlotDefinitions.IsConfirmedContent(desiredValue))
+        {
+            BombSlotEditorStatusText.Text = $"Unsupported Bomb Slot value 0x{desiredValue:X2}.";
+            SetStatus("Unsupported Bomb Slot value.", StatusKind.Warning);
+            return false;
+        }
+
+        var absoluteAddress = _playerBaseAddress.Value + slot.OffsetValue;
+        byte? oldValue = null;
+        byte? immediateReadback = null;
+        byte? delayed250Readback = null;
+        byte? delayed1000Readback = null;
+        var diagnosticStatus = "started";
+
+        try
+        {
+            if (!InventoryMemoryService.TryReadByte(
+                    memory,
+                    _playerBaseAddress.Value,
+                    slot.OffsetValue,
+                    $"Bomb Slot {slot.SlotNumber}",
+                    out var oldSlotValue,
+                    out var oldReadError))
+            {
+                diagnosticStatus = $"old-read-failed: {oldReadError}";
+                slot.Status = oldReadError;
+                slot.LastWriteResult = oldReadError;
+                slot.LastVerificationResult = "Old value could not be read.";
+                BombSlotEditorStatusText.Text = oldReadError;
+                SetStatus(oldReadError, StatusKind.Warning);
+                return false;
+            }
+
+            oldValue = oldSlotValue;
+            if (action is not "restore")
+            {
+                slot.CapturePrevious(oldSlotValue);
+            }
+
+            if (!memory.TryWriteBytes(absoluteAddress, [desiredValue], out var writeError))
+            {
+                diagnosticStatus = $"write-call-failed: {writeError}";
+                slot.Status = $"Write failed: {writeError}";
+                slot.LastWriteResult = slot.Status;
+                slot.LastVerificationResult = "Write call failed.";
+                BombSlotEditorStatusText.Text = slot.Status;
+                SetStatus(slot.Status, StatusKind.Warning);
+                return false;
+            }
+
+            slot.LastWriteResult = $"Wrote {FormatEquipmentByte(desiredValue)}.";
+
+            if (!InventoryMemoryService.TryReadByte(
+                    memory,
+                    _playerBaseAddress.Value,
+                    slot.OffsetValue,
+                    $"Bomb Slot {slot.SlotNumber}",
+                    out var immediateValue,
+                    out var immediateReadError))
+            {
+                diagnosticStatus = $"immediate-read-failed: {immediateReadError}";
+                slot.Status = immediateReadError;
+                slot.LastVerificationResult = "Immediate readback failed.";
+                BombSlotEditorStatusText.Text = immediateReadError;
+                SetStatus(immediateReadError, StatusKind.Warning);
+                return false;
+            }
+
+            immediateReadback = immediateValue;
+            if (immediateReadback.Value != desiredValue)
+            {
+                diagnosticStatus = "immediate-mismatch";
+                slot.Status = $"Write failed: expected {desiredValue} but read {immediateReadback.Value}.";
+                slot.LastVerificationResult = slot.Status;
+                BombSlotEditorStatusText.Text = slot.Status;
+                SetStatus(slot.Status, StatusKind.Warning);
+                return false;
+            }
+
+            await Task.Delay(250);
+            if (InventoryMemoryService.TryReadByte(
+                    memory,
+                    _playerBaseAddress.Value,
+                    slot.OffsetValue,
+                    $"Bomb Slot {slot.SlotNumber}",
+                    out var delayed250Value,
+                    out _))
+            {
+                delayed250Readback = delayed250Value;
+            }
+
+            await Task.Delay(750);
+            if (InventoryMemoryService.TryReadByte(
+                    memory,
+                    _playerBaseAddress.Value,
+                    slot.OffsetValue,
+                    $"Bomb Slot {slot.SlotNumber}",
+                    out var delayed1000Value,
+                    out _))
+            {
+                delayed1000Readback = delayed1000Value;
+            }
+
+            var verificationFailed =
+                delayed250Readback.HasValue && delayed250Readback.Value != desiredValue ||
+                delayed1000Readback.HasValue && delayed1000Readback.Value != desiredValue;
+            if (verificationFailed)
+            {
+                diagnosticStatus = "verification-failed";
+                slot.Status = "Verification failed.";
+                slot.LastVerificationResult = "Immediate readback matched, but delayed verification changed.";
+                BombSlotEditorStatusText.Text = $"Bomb Slot {slot.SlotNumber}: Verification failed.";
+                SetStatus(BombSlotEditorStatusText.Text, StatusKind.Warning);
+            }
+            else
+            {
+                diagnosticStatus = "verified";
+                slot.Status = "Write verified.";
+                slot.LastVerificationResult = "Immediate, 250ms, and 1000ms readbacks matched.";
+                BombSlotEditorStatusText.Text = successMessage;
+                SetStatus(successMessage, StatusKind.Connected);
+            }
+
+            return !verificationFailed;
+        }
+        finally
+        {
+            AppendBombSlotEditorDiagnostic(
+                slot,
+                action,
+                absoluteAddress,
+                oldValue,
+                desiredValue,
+                immediateReadback,
+                delayed250Readback,
+                delayed1000Readback,
+                diagnosticStatus);
+        }
+    }
+
     private async Task<bool> WriteInventorySlotWithDiagnosticsAsync(
         int slotIndex,
         int slotNumber,
@@ -4826,6 +5158,51 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         }
     }
 
+    private void AppendBombSlotEditorDiagnostic(
+        BombSlotViewModel slot,
+        string action,
+        ulong absoluteAddress,
+        byte? oldValue,
+        byte writtenValue,
+        byte? immediateReadback,
+        byte? delayed250Readback,
+        byte? delayed1000Readback,
+        string diagnosticStatus)
+    {
+        var entry =
+            $"{DateTimeOffset.Now:O} kind=bomb-slot-editor action={action} " +
+            $"slot={slot.SlotNumber} offset={slot.Offset} address=0x{absoluteAddress:X} " +
+            $"previous={FormatEquipmentByte(oldValue)} new={FormatEquipmentByte(writtenValue)} " +
+            $"immediate={FormatEquipmentByte(immediateReadback)} read250ms={FormatEquipmentByte(delayed250Readback)} " +
+            $"read1000ms={FormatEquipmentByte(delayed1000Readback)} status={diagnosticStatus}";
+
+        AppendBombSlotEditorLogEntry(entry);
+    }
+
+    private void AppendBombSlotEditorLogEntry(string entry)
+    {
+        BombSlotEditorDiagnostics.Insert(0, entry);
+        while (BombSlotEditorDiagnostics.Count > 100)
+        {
+            BombSlotEditorDiagnostics.RemoveAt(BombSlotEditorDiagnostics.Count - 1);
+        }
+
+        try
+        {
+            var logDirectory = Path.GetDirectoryName(BombSlotEditorLogPath);
+            if (!string.IsNullOrWhiteSpace(logDirectory))
+            {
+                Directory.CreateDirectory(logDirectory);
+            }
+
+            File.AppendAllText(BombSlotEditorLogPath, entry + Environment.NewLine);
+        }
+        catch (Exception ex)
+        {
+            BombSlotEditorDiagnostics.Insert(0, $"{DateTimeOffset.Now:O} bomb-slot-editor-log-write-failed: {ex.Message}");
+        }
+    }
+
     private void AppendInventoryStateDiagnostic(string state)
     {
         var rawSlots = string.Join(
@@ -5387,7 +5764,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         return true;
     }
 
-    private bool TryReadBombSlotResearchRange(out uint startOffset, out byte[] bytes, out ulong absoluteAddress)
+    private bool TryReadQuestItemsResearchRange(out uint startOffset, out byte[] bytes, out ulong absoluteAddress)
     {
         startOffset = 0;
         bytes = [];
@@ -5395,28 +5772,28 @@ public partial class MainWindow : Window, INotifyPropertyChanged
 
         if (_memory is null || !_playerBaseAddress.HasValue)
         {
-            BombSlotResearchStatusText.Text = "Not attached. Attach to Cemu and rescan before using Bomb Slot research.";
-            SetStatus("Not attached. Attach to Cemu and rescan before using Bomb Slot research.", StatusKind.Neutral);
+            QuestItemsResearchStatusText.Text = "Not attached. Attach to Cemu and rescan before using Quest Items research.";
+            SetStatus("Not attached. Attach to Cemu and rescan before using Quest Items research.", StatusKind.Neutral);
             return false;
         }
 
-        if (!TryParseResearchOffset(BombSlotResearchStartOffsetText.Text, out startOffset, out var offsetError))
+        if (!TryParseResearchOffset(QuestItemsResearchStartOffsetText.Text, out startOffset, out var offsetError))
         {
-            BombSlotResearchStatusText.Text = offsetError;
+            QuestItemsResearchStatusText.Text = offsetError;
             return false;
         }
 
-        if (!TryParseResearchLength(BombSlotResearchLengthText.Text, out var length, out var lengthError))
+        if (!TryParseResearchLength(QuestItemsResearchLengthText.Text, out var length, out var lengthError))
         {
-            BombSlotResearchStatusText.Text = lengthError;
+            QuestItemsResearchStatusText.Text = lengthError;
             return false;
         }
 
         absoluteAddress = _playerBaseAddress.Value + startOffset;
         if (!_memory.TryReadBytes(absoluteAddress, length, out bytes, out var bytesRead) || bytesRead != length)
         {
-            BombSlotResearchStatusText.Text = $"Could not read 0x{length:X} byte(s) at _playerbase+0x{startOffset:X}.";
-            SetStatus("Could not read Bomb Slot research range.", StatusKind.Warning);
+            QuestItemsResearchStatusText.Text = $"Could not read 0x{length:X} byte(s) at _playerbase+0x{startOffset:X}.";
+            SetStatus("Could not read Quest Items research range.", StatusKind.Warning);
             return false;
         }
 
@@ -6556,17 +6933,17 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         }
     }
 
-    private BombSlotResearchExport CreateBombSlotResearchExport(int changedByteCount, int changedBitCount)
+    private QuestItemsResearchExport CreateQuestItemsResearchExport(int changedByteCount, int changedBitCount)
     {
-        return new BombSlotResearchExport(
+        return new QuestItemsResearchExport(
             DateTimeOffset.Now,
-            _bombSlotsBeforeSnapshotStart,
-            _bombSlotsBeforeSnapshotBytes?.Length ?? 0,
-            _bombSlotsBeforeCapturedAt,
-            _bombSlotsAfterCapturedAt,
+            _questItemsBeforeSnapshotStart,
+            _questItemsBeforeSnapshotBytes?.Length ?? 0,
+            _questItemsBeforeCapturedAt,
+            _questItemsAfterCapturedAt,
             changedByteCount,
             changedBitCount,
-            BombSlotResearchRows.Select(row => new BombSlotResearchExportRow(
+            QuestItemsResearchRows.Select(row => new QuestItemsResearchExportRow(
                 row.Offset,
                 row.BeforeValue,
                 row.AfterValue,
@@ -6575,12 +6952,13 @@ public partial class MainWindow : Window, INotifyPropertyChanged
                 row.ChangedBits,
                 row.ChangedBitCount,
                 row.IsChanged,
-                row.CandidateSlotReference)).ToList());
+                row.CandidateScore,
+                row.CandidateGroup)).ToList());
     }
 
-    private static IEnumerable<string> CreateBombSlotResearchCsvLines(IEnumerable<BombSlotResearchExportRow> rows)
+    private static IEnumerable<string> CreateQuestItemsResearchCsvLines(IEnumerable<QuestItemsResearchExportRow> rows)
     {
-        yield return "Offset,Before Byte,After Byte,Before Binary,After Binary,Changed Bits,Changed Bit Count,Changed,Candidate Slot Reference";
+        yield return "Offset,Before Value,After Value,Before Binary,After Binary,Changed Bits,Changed Bit Count,Changed,Candidate Score,Candidate Group";
         foreach (var row in rows)
         {
             yield return string.Join(
@@ -6593,7 +6971,44 @@ public partial class MainWindow : Window, INotifyPropertyChanged
                 Csv(row.ChangedBits),
                 Csv(row.ChangedBitCount.ToString(CultureInfo.InvariantCulture)),
                 Csv(row.Changed.ToString(CultureInfo.InvariantCulture)),
-                Csv(row.CandidateSlotReference));
+                Csv(row.CandidateScore.ToString(CultureInfo.InvariantCulture)),
+                Csv(row.CandidateGroup));
+        }
+    }
+
+    private static void AssignQuestItemsCandidateGroups(IReadOnlyList<QuestItemsResearchRowViewModel> rows)
+    {
+        var changedRows = rows
+            .Where(row => row.IsChanged)
+            .OrderBy(row => row.OffsetValue)
+            .ToList();
+        if (changedRows.Count == 0)
+        {
+            return;
+        }
+
+        var groups = new List<List<QuestItemsResearchRowViewModel>>();
+        List<QuestItemsResearchRowViewModel>? currentGroup = null;
+        uint? previousOffset = null;
+        foreach (var row in changedRows)
+        {
+            if (currentGroup is null || !previousOffset.HasValue || row.OffsetValue - previousOffset.Value > 4)
+            {
+                currentGroup = [];
+                groups.Add(currentGroup);
+            }
+
+            currentGroup.Add(row);
+            previousOffset = row.OffsetValue;
+        }
+
+        for (var index = 0; index < groups.Count; index++)
+        {
+            var groupName = GetHiddenSkillsCandidateGroupName(index);
+            foreach (var row in groups[index])
+            {
+                row.SetCandidateGroup(groupName);
+            }
         }
     }
 
@@ -7044,6 +7459,154 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         };
     }
 
+    private string CreateSupportSnapshot()
+    {
+        var timestamp = DateTimeOffset.Now;
+        var snapshotDirectory = Path.Combine(AppContext.BaseDirectory, "support-snapshots");
+        Directory.CreateDirectory(snapshotDirectory);
+
+        var fileName = $"TPHD-Trainer-SupportSnapshot_{timestamp:yyyyMMdd_HHmmss}.zip";
+        var path = Path.Combine(snapshotDirectory, fileName);
+        if (File.Exists(path))
+        {
+            File.Delete(path);
+        }
+
+        var includedLogs = new List<string>();
+        var skippedLogs = new List<string>();
+        using (var archive = ZipFile.Open(path, ZipArchiveMode.Create))
+        {
+            AddLogsToSupportSnapshot(archive, includedLogs, skippedLogs);
+            AddTextEntry(archive, "state.txt", CreateSupportSnapshotStateText(timestamp, includedLogs, skippedLogs));
+            AddJsonEntry(archive, "summary.json", CreateSupportSnapshotDocument(timestamp, includedLogs, skippedLogs));
+        }
+
+        return path;
+    }
+
+    private SupportSnapshotDocument CreateSupportSnapshotDocument(
+        DateTimeOffset timestamp,
+        IReadOnlyList<string> includedLogs,
+        IReadOnlyList<string> skippedLogs)
+    {
+        return new SupportSnapshotDocument(
+            ApplicationVersion: Assembly.GetExecutingAssembly().GetName().Version?.ToString() ?? "unknown",
+            Timestamp: timestamp,
+            ProcessName: "Cemu.exe",
+            IsAttached: _memory is not null && !_memory.HasExited,
+            Pid: PidText.Text,
+            PlayerBaseAddress: PlayerBaseText.Text,
+            ConnectionStatus: StatusText.Text,
+            HasPlayerData: HasPlayerData,
+            InventoryInitialized: InventoryInitialized,
+            EquipmentInitialized: EquipmentInitialized,
+            OwnershipEditsState: EffectiveOwnershipEditAcceptanceText,
+            DarkModeEnabled: IsDarkMode,
+            AobPattern: CheatCatalog.PlayerBaseAob,
+            Capacities: _capacities.Values.Select(capacity => new SupportSnapshotCapacity(
+                capacity.Name,
+                capacity.CurrentStoredValue,
+                capacity.SelectedOption?.Label ?? "-")).ToList(),
+            Values: _values.Values.Select(value => new SupportSnapshotValue(
+                value.Name,
+                value.Offset,
+                value.CurrentValue,
+                value.TargetValue,
+                value.IsLocked)).ToList(),
+            IncludedLogFiles: includedLogs.ToList(),
+            SkippedLogFiles: skippedLogs.ToList());
+    }
+
+    private string CreateSupportSnapshotStateText(
+        DateTimeOffset timestamp,
+        IReadOnlyList<string> includedLogs,
+        IReadOnlyList<string> skippedLogs)
+    {
+        return string.Join(
+            Environment.NewLine,
+            "TPHD Cemu Trainer Support Snapshot",
+            $"Timestamp: {timestamp:O}",
+            $"Application version: {Assembly.GetExecutingAssembly().GetName().Version?.ToString() ?? "unknown"}",
+            $"Attached: {_memory is not null && !_memory.HasExited}",
+            $"PID: {PidText.Text}",
+            $"Player base: {PlayerBaseText.Text}",
+            $"Status: {StatusText.Text}",
+            $"Player data: {HasPlayerData}",
+            $"Inventory initialized: {InventoryInitialized}",
+            $"Equipment initialized: {EquipmentInitialized}",
+            $"Ownership edits: {EffectiveOwnershipEditAcceptanceText}",
+            $"Dark mode: {IsDarkMode}",
+            $"Included log files: {includedLogs.Count}",
+            $"Skipped log files: {skippedLogs.Count}",
+            string.Empty,
+            "No save files or absolute user paths are included.");
+    }
+
+    private static void AddLogsToSupportSnapshot(
+        ZipArchive archive,
+        ICollection<string> includedLogs,
+        ICollection<string> skippedLogs)
+    {
+        var logsDirectory = Path.Combine(AppContext.BaseDirectory, "logs");
+        if (!Directory.Exists(logsDirectory))
+        {
+            return;
+        }
+
+        foreach (var filePath in Directory.EnumerateFiles(logsDirectory, "*", SearchOption.AllDirectories))
+        {
+            var relativePath = Path.GetRelativePath(logsDirectory, filePath);
+            if (relativePath.StartsWith("..", StringComparison.Ordinal))
+            {
+                skippedLogs.Add(relativePath);
+                continue;
+            }
+
+            var entryName = "logs/" + relativePath.Replace('\\', '/');
+            try
+            {
+                AddTextEntry(archive, entryName, File.ReadAllText(filePath));
+                includedLogs.Add(entryName);
+            }
+            catch (Exception ex)
+            {
+                skippedLogs.Add($"{entryName}: {ex.Message}");
+            }
+        }
+    }
+
+    private static void AddJsonEntry<T>(ZipArchive archive, string entryName, T value)
+    {
+        AddTextEntry(archive, entryName, JsonSerializer.Serialize(value, ExportJsonOptions));
+    }
+
+    private static void AddTextEntry(ZipArchive archive, string entryName, string content)
+    {
+        var entry = archive.CreateEntry(entryName, CompressionLevel.Optimal);
+        using var stream = entry.Open();
+        using var writer = new StreamWriter(stream);
+        writer.Write(SanitizeSupportSnapshotText(content));
+    }
+
+    private static string SanitizeSupportSnapshotText(string content)
+    {
+        var sanitized = content;
+        var userProfile = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+        if (!string.IsNullOrWhiteSpace(userProfile))
+        {
+            sanitized = sanitized.Replace(userProfile, "<user-profile>", StringComparison.OrdinalIgnoreCase);
+            sanitized = sanitized.Replace(userProfile.Replace('\\', '/'), "<user-profile>", StringComparison.OrdinalIgnoreCase);
+        }
+
+        var userName = Environment.UserName;
+        if (!string.IsNullOrWhiteSpace(userName) && userName.Length >= 3)
+        {
+            sanitized = sanitized.Replace(userName, "<user>", StringComparison.OrdinalIgnoreCase);
+        }
+
+        return sanitized;
+    }
+
     private void AppendResearchRangeComparisonLog(byte[] currentBytes, int changedCount)
     {
         if (_researchRangeSnapshotBytes is null)
@@ -7083,26 +7646,6 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         }
     }
 
-    private void AppendBombSlotResearchLog(string details)
-    {
-        var entry = $"{DateTimeOffset.Now:O} {details}";
-
-        try
-        {
-            var logDirectory = Path.GetDirectoryName(BombSlotResearchLogPath);
-            if (!string.IsNullOrWhiteSpace(logDirectory))
-            {
-                Directory.CreateDirectory(logDirectory);
-            }
-
-            File.AppendAllText(BombSlotResearchLogPath, entry + Environment.NewLine);
-        }
-        catch (Exception ex)
-        {
-            BombSlotResearchStatusText.Text = $"Bomb Slot research log write failed: {ex.Message}";
-        }
-    }
-
     private void AppendGoldenBugsResearchLog(string details)
     {
         var entry = $"{DateTimeOffset.Now:O} {details}";
@@ -7120,6 +7663,26 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         catch (Exception ex)
         {
             GoldenBugsResearchStatusText.Text = $"Golden Bugs research log write failed: {ex.Message}";
+        }
+    }
+
+    private void AppendQuestItemsResearchLog(string details)
+    {
+        var entry = $"{DateTimeOffset.Now:O} {details}";
+
+        try
+        {
+            var logDirectory = Path.GetDirectoryName(QuestItemsResearchLogPath);
+            if (!string.IsNullOrWhiteSpace(logDirectory))
+            {
+                Directory.CreateDirectory(logDirectory);
+            }
+
+            File.AppendAllText(QuestItemsResearchLogPath, entry + Environment.NewLine);
+        }
+        catch (Exception ex)
+        {
+            QuestItemsResearchStatusText.Text = $"Quest Items research log write failed: {ex.Message}";
         }
     }
 
@@ -7183,7 +7746,12 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         }
     }
 
-    private void TryWriteBombSlotSnapshotExport(
+    private string GetHiddenSkillsCaptureLabel()
+    {
+        return HiddenSkillsCaptureLabelText.Text.Trim();
+    }
+
+    private void TryWriteQuestItemsSnapshotExport(
         string fileName,
         string label,
         uint startOffset,
@@ -7193,7 +7761,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         try
         {
             Directory.CreateDirectory(ResearchSnapshotStore.ExportDirectory);
-            var snapshot = new BombSlotCaptureDocument(
+            var snapshot = new QuestItemsCaptureDocument(
                 capturedAt ?? DateTimeOffset.Now,
                 startOffset,
                 bytes.Length,
@@ -7204,15 +7772,10 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         }
         catch (Exception ex)
         {
-            BombSlotResearchStatusText.Text =
-                $"{BombSlotResearchStatusText.Text} Snapshot export failed: {ex.Message}";
-            AppendBombSlotResearchLog($"action=snapshot-export-failed file=\"{fileName}\" error=\"{ex.Message}\"");
+            QuestItemsResearchStatusText.Text =
+                $"{QuestItemsResearchStatusText.Text} Snapshot export failed: {ex.Message}";
+            AppendQuestItemsResearchLog($"action=snapshot-export-failed file=\"{fileName}\" error=\"{ex.Message}\"");
         }
-    }
-
-    private string GetHiddenSkillsCaptureLabel()
-    {
-        return HiddenSkillsCaptureLabelText.Text.Trim();
     }
 
     private string? TrySaveHiddenSkillsCapture(
@@ -8891,30 +9454,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
 
     private static string DecodeBombSlotType(byte value)
     {
-        // Research-only provisional decode: these values are known TPHD item IDs from the CT dropdown,
-        // not confirmed authoritative bomb-slot content fields.
-        return value switch
-        {
-            112 => "Bombs",
-            113 => "Water Bombs",
-            114 => "Bomblings",
-            _ => "Unknown"
-        };
-    }
-
-    private static string GetBombSlotCandidateReference(uint offset)
-    {
-        return offset switch
-        {
-            0x267 => "Visible Bomb Slot 1 candidate",
-            0x268 => "Visible Bomb Slot 2 candidate",
-            0x269 => "Visible Bomb Slot 3 candidate",
-            0x2A9 => "CT-backed Bomb Slot 1 count",
-            0x2AA => "CT-backed Bomb Slot 2 count",
-            0x2AB => "CT-backed Bomb Slot 3 count",
-            0x2B5 => "CT-backed shared bomb capacity",
-            _ => "-"
-        };
+        return BombSlotDefinitions.GetContentName(value);
     }
 
     private void UpdateGoldenBugsResearchCurrentDisplay(uint rawValue, bool preserveDirty = true)
@@ -9267,6 +9807,11 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             bottleSlot.MarkNotRead();
         }
 
+        foreach (var bombSlot in BombSlots)
+        {
+            bombSlot.MarkNotRead();
+        }
+
         foreach (var item in InventoryOwnershipItems)
         {
             item.MarkNotRead();
@@ -9335,6 +9880,11 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         foreach (var bottleSlot in BottleSlots)
         {
             bottleSlot.MarkNotRead();
+        }
+
+        foreach (var bombSlot in BombSlots)
+        {
+            bombSlot.MarkNotRead();
         }
 
         foreach (var item in InventoryOwnershipItems)
@@ -9415,6 +9965,15 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             SetBrush("TabHoverBackgroundBrush", 0x2D, 0x30, 0x36);
             SetBrush("TabSelectedTextBrush", 0xFF, 0xFF, 0xFF);
             SetBrush("DisabledTextBrush", 0x8F, 0x94, 0x9B);
+            SetBrush("AccentBrush", 0x4C, 0xA3, 0xF5);
+            SetBrush("ControlHoverBackgroundBrush", 0x3D, 0x42, 0x49);
+            SetBrush("ControlFocusedBorderBrush", 0x63, 0xB3, 0xFF);
+            SetBrush("DisabledControlBackgroundBrush", 0x27, 0x29, 0x2D);
+            SetBrush("CheckBoxUncheckedBorderBrush", 0x68, 0x6D, 0x76);
+            SetBrush("CheckBoxCheckedBackgroundBrush", 0x4C, 0xA3, 0xF5);
+            SetBrush("CheckBoxCheckBrush", 0x10, 0x13, 0x18);
+            SetBrush("ComboBoxItemHoverBackgroundBrush", 0x42, 0x4B, 0x57);
+            SetBrush("ComboBoxItemSelectedBackgroundBrush", 0x3C, 0x62, 0x82);
         }
         else
         {
@@ -9437,6 +9996,15 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             SetBrush("TabHoverBackgroundBrush", 0xF4, 0xF4, 0xF4);
             SetBrush("TabSelectedTextBrush", 0x11, 0x11, 0x11);
             SetBrush("DisabledTextBrush", 0x77, 0x77, 0x77);
+            SetBrush("AccentBrush", 0x1F, 0x6F, 0xB2);
+            SetBrush("ControlHoverBackgroundBrush", 0xF2, 0xF7, 0xFC);
+            SetBrush("ControlFocusedBorderBrush", 0x1F, 0x6F, 0xB2);
+            SetBrush("DisabledControlBackgroundBrush", 0xE8, 0xE8, 0xE8);
+            SetBrush("CheckBoxUncheckedBorderBrush", 0x8A, 0x8A, 0x8A);
+            SetBrush("CheckBoxCheckedBackgroundBrush", 0x1F, 0x6F, 0xB2);
+            SetBrush("CheckBoxCheckBrush", 0xFF, 0xFF, 0xFF);
+            SetBrush("ComboBoxItemHoverBackgroundBrush", 0xDD, 0xEE, 0xFF);
+            SetBrush("ComboBoxItemSelectedBackgroundBrush", 0xC8, 0xE2, 0xFA);
         }
     }
 
@@ -9547,14 +10115,14 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         int CandidateBugIndex,
         string CandidateBugName);
 
-    private sealed record BombSlotCaptureDocument(
+    private sealed record QuestItemsCaptureDocument(
         DateTimeOffset Timestamp,
         uint StartOffset,
         int Length,
         IReadOnlyList<string> RawBytes,
         string Label);
 
-    private sealed record BombSlotResearchExport(
+    private sealed record QuestItemsResearchExport(
         DateTimeOffset Timestamp,
         uint StartOffset,
         int Length,
@@ -9562,9 +10130,9 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         DateTimeOffset? AfterCapturedAt,
         int ChangedByteCount,
         int ChangedBitCount,
-        IReadOnlyList<BombSlotResearchExportRow> Rows);
+        IReadOnlyList<QuestItemsResearchExportRow> Rows);
 
-    private sealed record BombSlotResearchExportRow(
+    private sealed record QuestItemsResearchExportRow(
         string Offset,
         byte BeforeValue,
         byte AfterValue,
@@ -9573,7 +10141,39 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         string ChangedBits,
         int ChangedBitCount,
         bool Changed,
-        string CandidateSlotReference);
+        int CandidateScore,
+        string CandidateGroup);
+
+    private sealed record SupportSnapshotDocument(
+        string ApplicationVersion,
+        DateTimeOffset Timestamp,
+        string ProcessName,
+        bool IsAttached,
+        string Pid,
+        string PlayerBaseAddress,
+        string ConnectionStatus,
+        bool HasPlayerData,
+        bool InventoryInitialized,
+        bool EquipmentInitialized,
+        string OwnershipEditsState,
+        bool DarkModeEnabled,
+        string AobPattern,
+        IReadOnlyList<SupportSnapshotCapacity> Capacities,
+        IReadOnlyList<SupportSnapshotValue> Values,
+        IReadOnlyList<string> IncludedLogFiles,
+        IReadOnlyList<string> SkippedLogFiles);
+
+    private sealed record SupportSnapshotCapacity(
+        string Name,
+        string CurrentStoredValue,
+        string SelectedCapacity);
+
+    private sealed record SupportSnapshotValue(
+        string Name,
+        string Offset,
+        string CurrentValue,
+        string TargetValue,
+        bool Locked);
 
     private sealed record HiddenSkillsCaptureDocument(
         DateTimeOffset Timestamp,

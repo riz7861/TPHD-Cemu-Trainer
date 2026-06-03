@@ -31,12 +31,73 @@
         <SolidColorBrush x:Key="TabHoverBackgroundBrush" Color="#F4F4F4" />
         <SolidColorBrush x:Key="TabSelectedTextBrush" Color="#111111" />
         <SolidColorBrush x:Key="DisabledTextBrush" Color="#777777" />
+        <SolidColorBrush x:Key="AccentBrush" Color="#1F6FB2" />
+        <SolidColorBrush x:Key="ControlHoverBackgroundBrush" Color="#F2F7FC" />
+        <SolidColorBrush x:Key="ControlFocusedBorderBrush" Color="#1F6FB2" />
+        <SolidColorBrush x:Key="DisabledControlBackgroundBrush" Color="#E8E8E8" />
+        <SolidColorBrush x:Key="CheckBoxUncheckedBorderBrush" Color="#8A8A8A" />
+        <SolidColorBrush x:Key="CheckBoxCheckedBackgroundBrush" Color="#1F6FB2" />
+        <SolidColorBrush x:Key="CheckBoxCheckBrush" Color="#FFFFFF" />
+        <SolidColorBrush x:Key="ComboBoxItemHoverBackgroundBrush" Color="#DDEEFF" />
+        <SolidColorBrush x:Key="ComboBoxItemSelectedBackgroundBrush" Color="#C8E2FA" />
 
         <Style TargetType="TextBlock">
             <Setter Property="Foreground" Value="{DynamicResource TextBrush}" />
         </Style>
         <Style TargetType="CheckBox">
             <Setter Property="Foreground" Value="{DynamicResource TextBrush}" />
+            <Setter Property="VerticalContentAlignment" Value="Center" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="{x:Type CheckBox}">
+                        <Grid SnapsToDevicePixels="True">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+                            <Border x:Name="CheckBoxBorder"
+                                    Width="15"
+                                    Height="15"
+                                    BorderThickness="1"
+                                    BorderBrush="{DynamicResource CheckBoxUncheckedBorderBrush}"
+                                    Background="{DynamicResource ControlBackgroundBrush}"
+                                    VerticalAlignment="Center">
+                                <Path x:Name="CheckMark"
+                                      Data="M 3 7 L 6 10 L 12 3"
+                                      Stroke="{DynamicResource CheckBoxCheckBrush}"
+                                      StrokeThickness="2"
+                                      StrokeStartLineCap="Square"
+                                      StrokeEndLineCap="Square"
+                                      Visibility="Collapsed" />
+                            </Border>
+                            <ContentPresenter Grid.Column="1"
+                                              Margin="6,0,0,0"
+                                              VerticalAlignment="{TemplateBinding VerticalContentAlignment}"
+                                              HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
+                                              RecognizesAccessKey="True" />
+                        </Grid>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="CheckBoxBorder" Property="BorderBrush" Value="{DynamicResource ControlFocusedBorderBrush}" />
+                            </Trigger>
+                            <Trigger Property="IsKeyboardFocused" Value="True">
+                                <Setter TargetName="CheckBoxBorder" Property="BorderBrush" Value="{DynamicResource ControlFocusedBorderBrush}" />
+                            </Trigger>
+                            <Trigger Property="IsChecked" Value="True">
+                                <Setter TargetName="CheckBoxBorder" Property="Background" Value="{DynamicResource CheckBoxCheckedBackgroundBrush}" />
+                                <Setter TargetName="CheckBoxBorder" Property="BorderBrush" Value="{DynamicResource CheckBoxCheckedBackgroundBrush}" />
+                                <Setter TargetName="CheckMark" Property="Visibility" Value="Visible" />
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter Property="Foreground" Value="{DynamicResource DisabledTextBrush}" />
+                                <Setter TargetName="CheckBoxBorder" Property="Background" Value="{DynamicResource DisabledControlBackgroundBrush}" />
+                                <Setter TargetName="CheckBoxBorder" Property="BorderBrush" Value="{DynamicResource BorderBrush}" />
+                                <Setter TargetName="CheckMark" Property="Opacity" Value="0.45" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
         </Style>
         <Style TargetType="Button">
             <Setter Property="MinHeight" Value="26" />
@@ -62,6 +123,63 @@
             <Setter Property="Background" Value="{DynamicResource ControlBackgroundBrush}" />
             <Setter Property="Foreground" Value="{DynamicResource TextBrush}" />
             <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}" />
+            <Setter Property="ItemContainerStyle">
+                <Setter.Value>
+                    <Style TargetType="{x:Type ComboBoxItem}">
+                        <Setter Property="Background" Value="{DynamicResource ControlBackgroundBrush}" />
+                        <Setter Property="Foreground" Value="{DynamicResource TextBrush}" />
+                        <Setter Property="Padding" Value="6,3" />
+                        <Setter Property="MinHeight" Value="24" />
+                        <Style.Triggers>
+                            <Trigger Property="IsHighlighted" Value="True">
+                                <Setter Property="Background" Value="{DynamicResource ComboBoxItemHoverBackgroundBrush}" />
+                                <Setter Property="Foreground" Value="{DynamicResource TextBrush}" />
+                            </Trigger>
+                            <Trigger Property="IsSelected" Value="True">
+                                <Setter Property="Background" Value="{DynamicResource ComboBoxItemSelectedBackgroundBrush}" />
+                                <Setter Property="Foreground" Value="{DynamicResource TextBrush}" />
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter Property="Background" Value="{DynamicResource DisabledControlBackgroundBrush}" />
+                                <Setter Property="Foreground" Value="{DynamicResource DisabledTextBrush}" />
+                            </Trigger>
+                        </Style.Triggers>
+                    </Style>
+                </Setter.Value>
+            </Setter>
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="Background" Value="{DynamicResource ControlHoverBackgroundBrush}" />
+                    <Setter Property="BorderBrush" Value="{DynamicResource ControlFocusedBorderBrush}" />
+                </Trigger>
+                <Trigger Property="IsKeyboardFocusWithin" Value="True">
+                    <Setter Property="BorderBrush" Value="{DynamicResource ControlFocusedBorderBrush}" />
+                </Trigger>
+                <Trigger Property="IsEnabled" Value="False">
+                    <Setter Property="Background" Value="{DynamicResource DisabledControlBackgroundBrush}" />
+                    <Setter Property="Foreground" Value="{DynamicResource DisabledTextBrush}" />
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+        <Style TargetType="ComboBoxItem">
+            <Setter Property="Background" Value="{DynamicResource ControlBackgroundBrush}" />
+            <Setter Property="Foreground" Value="{DynamicResource TextBrush}" />
+            <Setter Property="Padding" Value="6,3" />
+            <Setter Property="MinHeight" Value="24" />
+            <Style.Triggers>
+                <Trigger Property="IsHighlighted" Value="True">
+                    <Setter Property="Background" Value="{DynamicResource ComboBoxItemHoverBackgroundBrush}" />
+                    <Setter Property="Foreground" Value="{DynamicResource TextBrush}" />
+                </Trigger>
+                <Trigger Property="IsSelected" Value="True">
+                    <Setter Property="Background" Value="{DynamicResource ComboBoxItemSelectedBackgroundBrush}" />
+                    <Setter Property="Foreground" Value="{DynamicResource TextBrush}" />
+                </Trigger>
+                <Trigger Property="IsEnabled" Value="False">
+                    <Setter Property="Background" Value="{DynamicResource DisabledControlBackgroundBrush}" />
+                    <Setter Property="Foreground" Value="{DynamicResource DisabledTextBrush}" />
+                </Trigger>
+            </Style.Triggers>
         </Style>
         <Style TargetType="GroupBox">
             <Setter Property="Margin" Value="7" />
@@ -1137,7 +1255,90 @@
             </Border>
         </DataTemplate>
 
-        <DataTemplate x:Key="BombSlotResearchRowTemplate">
+        <DataTemplate x:Key="BombSlotEditorTemplate">
+            <Border BorderBrush="{DynamicResource BorderBrush}"
+                    BorderThickness="0,0,0,1"
+                    Padding="0,4">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="76" />
+                        <ColumnDefinition Width="74" />
+                        <ColumnDefinition Width="106" />
+                        <ColumnDefinition Width="*" MinWidth="150" />
+                        <ColumnDefinition Width="210" />
+                        <ColumnDefinition Width="92" />
+                        <ColumnDefinition Width="*" MinWidth="150" />
+                        <ColumnDefinition Width="66" />
+                    </Grid.ColumnDefinitions>
+
+                    <TextBlock Text="{Binding SlotNumber}"
+                               VerticalAlignment="Center" />
+                    <TextBlock Grid.Column="1"
+                               Text="{Binding Offset}"
+                               FontFamily="Consolas"
+                               VerticalAlignment="Center" />
+                    <TextBlock Grid.Column="2"
+                               Text="{Binding CurrentRawValue}"
+                               FontFamily="Consolas"
+                               VerticalAlignment="Center" />
+                    <TextBlock Grid.Column="3"
+                               Text="{Binding CurrentDecodedContent}"
+                               TextTrimming="CharacterEllipsis"
+                               VerticalAlignment="Center" />
+                    <ComboBox Grid.Column="4"
+                              ItemsSource="{Binding AvailableContents}"
+                              DisplayMemberPath="Name"
+                              SelectedItem="{Binding SelectedContent, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                              IsEnabled="{Binding CanEdit}"
+                              Margin="6,0" />
+                    <TextBlock Grid.Column="5"
+                               Text="{Binding PreviousRawValue}"
+                               FontFamily="Consolas"
+                               VerticalAlignment="Center" />
+                    <TextBlock Grid.Column="6"
+                               Text="{Binding Status}"
+                               TextTrimming="CharacterEllipsis"
+                               VerticalAlignment="Center"
+                               Margin="6,0" />
+                    <TextBlock Grid.Column="7"
+                               Text="{Binding IsDirty}"
+                               FontWeight="SemiBold"
+                               VerticalAlignment="Center" />
+                </Grid>
+            </Border>
+        </DataTemplate>
+
+        <DataTemplate x:Key="BombSlotDiagnosticTemplate">
+            <Border BorderBrush="{DynamicResource BorderBrush}"
+                    BorderThickness="0,0,0,1"
+                    Padding="0,4">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="54" />
+                        <ColumnDefinition Width="74" />
+                        <ColumnDefinition Width="112" />
+                        <ColumnDefinition Width="112" />
+                        <ColumnDefinition Width="86" />
+                        <ColumnDefinition Width="86" />
+                        <ColumnDefinition Width="96" />
+                        <ColumnDefinition Width="*" MinWidth="220" />
+                        <ColumnDefinition Width="*" MinWidth="250" />
+                    </Grid.ColumnDefinitions>
+
+                    <TextBlock Text="{Binding SlotNumber}" VerticalAlignment="Center" />
+                    <TextBlock Grid.Column="1" Text="{Binding Offset}" FontFamily="Consolas" VerticalAlignment="Center" />
+                    <TextBlock Grid.Column="2" Text="{Binding CurrentRawValue}" FontFamily="Consolas" VerticalAlignment="Center" />
+                    <TextBlock Grid.Column="3" Text="{Binding PreviousRawValue}" FontFamily="Consolas" VerticalAlignment="Center" />
+                    <TextBlock Grid.Column="4" Text="{Binding CurrentHex}" FontFamily="Consolas" VerticalAlignment="Center" />
+                    <TextBlock Grid.Column="5" Text="{Binding CurrentDecimal}" FontFamily="Consolas" VerticalAlignment="Center" />
+                    <TextBlock Grid.Column="6" Text="{Binding CurrentBinary}" FontFamily="Consolas" VerticalAlignment="Center" />
+                    <TextBlock Grid.Column="7" Text="{Binding LastWriteResult}" TextTrimming="CharacterEllipsis" VerticalAlignment="Center" Margin="6,0" />
+                    <TextBlock Grid.Column="8" Text="{Binding LastVerificationResult}" TextTrimming="CharacterEllipsis" VerticalAlignment="Center" Margin="6,0" />
+                </Grid>
+            </Border>
+        </DataTemplate>
+
+        <DataTemplate x:Key="QuestItemsResearchRowTemplate">
             <Border BorderBrush="{DynamicResource BorderBrush}"
                     BorderThickness="0,0,0,1"
                     Padding="0,4">
@@ -1147,6 +1348,9 @@
                         <Style.Triggers>
                             <DataTrigger Binding="{Binding IsChanged}" Value="True">
                                 <Setter Property="Background" Value="{DynamicResource ChangedRowBackgroundBrush}" />
+                            </DataTrigger>
+                            <DataTrigger Binding="{Binding IsSingleBitChange}" Value="True">
+                                <Setter Property="Background" Value="{DynamicResource StrongCandidateBackgroundBrush}" />
                             </DataTrigger>
                         </Style.Triggers>
                     </Style>
@@ -1159,42 +1363,18 @@
                         <ColumnDefinition Width="92" />
                         <ColumnDefinition Width="92" />
                         <ColumnDefinition Width="118" />
-                        <ColumnDefinition Width="70" />
-                        <ColumnDefinition Width="*" MinWidth="220" />
+                        <ColumnDefinition Width="64" />
+                        <ColumnDefinition Width="76" />
                     </Grid.ColumnDefinitions>
 
-                    <TextBlock Text="{Binding Offset}"
-                               FontFamily="Consolas"
-                               VerticalAlignment="Center" />
-                    <TextBlock Grid.Column="1"
-                               Text="{Binding BeforeByte}"
-                               FontFamily="Consolas"
-                               VerticalAlignment="Center" />
-                    <TextBlock Grid.Column="2"
-                               Text="{Binding AfterByte}"
-                               FontFamily="Consolas"
-                               VerticalAlignment="Center" />
-                    <TextBlock Grid.Column="3"
-                               Text="{Binding BeforeBinary}"
-                               FontFamily="Consolas"
-                               VerticalAlignment="Center" />
-                    <TextBlock Grid.Column="4"
-                               Text="{Binding AfterBinary}"
-                               FontFamily="Consolas"
-                               VerticalAlignment="Center" />
-                    <TextBlock Grid.Column="5"
-                               Text="{Binding ChangedBits}"
-                               FontFamily="Consolas"
-                               VerticalAlignment="Center" />
-                    <TextBlock Grid.Column="6"
-                               Text="{Binding Changed}"
-                               FontWeight="SemiBold"
-                               VerticalAlignment="Center" />
-                    <TextBlock Grid.Column="7"
-                               Text="{Binding CandidateSlotReference}"
-                               TextTrimming="CharacterEllipsis"
-                               VerticalAlignment="Center"
-                               Margin="6,0" />
+                    <TextBlock Text="{Binding Offset}" FontFamily="Consolas" VerticalAlignment="Center" />
+                    <TextBlock Grid.Column="1" Text="{Binding BeforeByte}" FontFamily="Consolas" VerticalAlignment="Center" />
+                    <TextBlock Grid.Column="2" Text="{Binding AfterByte}" FontFamily="Consolas" VerticalAlignment="Center" />
+                    <TextBlock Grid.Column="3" Text="{Binding BeforeBinary}" FontFamily="Consolas" VerticalAlignment="Center" />
+                    <TextBlock Grid.Column="4" Text="{Binding AfterBinary}" FontFamily="Consolas" VerticalAlignment="Center" />
+                    <TextBlock Grid.Column="5" Text="{Binding ChangedBits}" FontFamily="Consolas" VerticalAlignment="Center" />
+                    <TextBlock Grid.Column="6" Text="{Binding CandidateScore}" FontWeight="SemiBold" VerticalAlignment="Center" />
+                    <TextBlock Grid.Column="7" Text="{Binding CandidateGroup}" VerticalAlignment="Center" Margin="6,0" />
                 </Grid>
             </Border>
         </DataTemplate>
@@ -2424,7 +2604,7 @@
                             </GroupBox>
                         </UniformGrid>
 
-                        <GroupBox Header="Bomb Slot Research / Experimental">
+                        <GroupBox Header="Bomb Slot Editor">
                             <StackPanel>
                                 <Border BorderBrush="{DynamicResource WarningBorderBrush}"
                                         BorderThickness="1"
@@ -2434,85 +2614,53 @@
                                     <TextBlock TextWrapping="Wrap"
                                                Foreground="{DynamicResource WarningTextBrush}"
                                                FontWeight="SemiBold"
-                                               Text="Research only. This tool reads memory ranges to investigate visible bomb slot contents. It does not write memory, change bomb counts, or edit bomb slot types." />
+                                               Text="Confirmed Bomb Slot content editor. This writes only _playerbase+0x267 through _playerbase+0x269 and exposes only Normal Bombs, Water Bombs, and Bomblings. Count/capacity controls above remain CT-backed diagnostics." />
                                 </Border>
 
-                                <Grid Margin="0,0,0,8">
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="90" />
-                                        <ColumnDefinition Width="90" />
-                                        <ColumnDefinition Width="72" />
-                                        <ColumnDefinition Width="90" />
-                                        <ColumnDefinition Width="*" />
-                                    </Grid.ColumnDefinitions>
-                                    <TextBlock Text="Start offset"
-                                               VerticalAlignment="Center" />
-                                    <TextBox Grid.Column="1"
-                                             x:Name="BombSlotResearchStartOffsetText"
-                                             Text="0x250"
-                                             FontFamily="Consolas" />
-                                    <TextBlock Grid.Column="2"
-                                               Text="Length"
-                                               VerticalAlignment="Center"
-                                               Margin="12,0,0,0" />
-                                    <TextBox Grid.Column="3"
-                                             x:Name="BombSlotResearchLengthText"
-                                             Text="0x40"
-                                             FontFamily="Consolas" />
-                                    <TextBlock Grid.Column="4"
-                                               Text="Default range covers nearby inventory, slot, and ammo candidate bytes."
-                                               Foreground="{DynamicResource SecondaryTextBrush}"
-                                               TextWrapping="Wrap"
-                                               VerticalAlignment="Center"
-                                               Margin="12,0,0,0" />
-                                </Grid>
+                                <TextBlock TextWrapping="Wrap"
+                                           Foreground="{DynamicResource SecondaryTextBrush}"
+                                           Margin="0,0,0,8"
+                                           Text="Confirmed values: 0x70 Normal Bombs, 0x71 Water Bombs, 0x72 Bomblings. 0x50 is a known glitched/empty icon value and is intentionally not exposed." />
 
                                 <WrapPanel Margin="0,0,0,8">
-                                    <Button Content="Capture Before"
-                                            Click="BombSlotsCaptureBefore_Click" />
-                                    <Button Content="Capture After"
-                                            Click="BombSlotsCaptureAfter_Click" />
-                                    <Button Content="Compare"
-                                            Click="BombSlotsCompare_Click" />
-                                    <Button Content="Export JSON"
-                                            Click="BombSlotsExportJson_Click" />
-                                    <Button Content="Export CSV"
-                                            Click="BombSlotsExportCsv_Click" />
+                                    <Button Content="Refresh Bomb Slots"
+                                            Click="RefreshBombSlots_Click" />
+                                    <Button Content="Apply Bomb Slot Changes"
+                                            Click="ApplyBombSlotChanges_Click" />
+                                    <Button Content="Restore Previous Bomb Slots"
+                                            Click="RestoreBombSlots_Click" />
                                 </WrapPanel>
 
-                                <TextBox x:Name="BombSlotResearchStatusText"
-                                         Text="Ready. Default range: _playerbase+0x250 length 0x40. Capture before and after an in-game bomb slot change."
+                                <TextBox x:Name="BombSlotEditorStatusText"
+                                         Text="Ready. Bomb Slots are not written on attach or refresh."
                                          IsReadOnly="True"
                                          Background="{DynamicResource ReadOnlyBackgroundBrush}"
+                                         TextWrapping="Wrap"
                                          Margin="0,0,0,8" />
 
                                 <Grid Margin="0,0,0,4">
                                     <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="76" />
                                         <ColumnDefinition Width="74" />
+                                        <ColumnDefinition Width="106" />
+                                        <ColumnDefinition Width="*" MinWidth="150" />
+                                        <ColumnDefinition Width="210" />
                                         <ColumnDefinition Width="92" />
-                                        <ColumnDefinition Width="92" />
-                                        <ColumnDefinition Width="92" />
-                                        <ColumnDefinition Width="92" />
-                                        <ColumnDefinition Width="118" />
-                                        <ColumnDefinition Width="70" />
-                                        <ColumnDefinition Width="*" MinWidth="220" />
+                                        <ColumnDefinition Width="*" MinWidth="150" />
+                                        <ColumnDefinition Width="66" />
                                     </Grid.ColumnDefinitions>
-                                    <TextBlock Text="Offset" FontWeight="SemiBold" />
-                                    <TextBlock Grid.Column="1" Text="Before" FontWeight="SemiBold" />
-                                    <TextBlock Grid.Column="2" Text="After" FontWeight="SemiBold" />
-                                    <TextBlock Grid.Column="3" Text="Before bits" FontWeight="SemiBold" />
-                                    <TextBlock Grid.Column="4" Text="After bits" FontWeight="SemiBold" />
-                                    <TextBlock Grid.Column="5" Text="Changed bits" FontWeight="SemiBold" />
-                                    <TextBlock Grid.Column="6" Text="Changed" FontWeight="SemiBold" />
-                                    <TextBlock Grid.Column="7" Text="Candidate slot reference" FontWeight="SemiBold" />
+                                    <TextBlock Text="Slot" FontWeight="SemiBold" />
+                                    <TextBlock Grid.Column="1" Text="Offset" FontWeight="SemiBold" />
+                                    <TextBlock Grid.Column="2" Text="Current raw" FontWeight="SemiBold" />
+                                    <TextBlock Grid.Column="3" Text="Current type" FontWeight="SemiBold" />
+                                    <TextBlock Grid.Column="4" Text="Desired type" FontWeight="SemiBold" Margin="6,0" />
+                                    <TextBlock Grid.Column="5" Text="Previous" FontWeight="SemiBold" />
+                                    <TextBlock Grid.Column="6" Text="Status" FontWeight="SemiBold" Margin="6,0" />
+                                    <TextBlock Grid.Column="7" Text="Dirty" FontWeight="SemiBold" />
                                 </Grid>
 
-                                <ScrollViewer Height="220"
-                                              VerticalScrollBarVisibility="Auto"
-                                              HorizontalScrollBarVisibility="Auto">
-                                    <ItemsControl ItemsSource="{Binding BombSlotResearchRows}"
-                                                  ItemTemplate="{StaticResource BombSlotResearchRowTemplate}" />
-                                </ScrollViewer>
+                                <ItemsControl ItemsSource="{Binding BombSlots}"
+                                              ItemTemplate="{StaticResource BombSlotEditorTemplate}" />
                             </StackPanel>
                         </GroupBox>
                     </StackPanel>
@@ -3034,17 +3182,109 @@
 
             <TabItem Header="Quest Items">
                 <ScrollViewer VerticalScrollBarVisibility="Auto">
-                    <UniformGrid Columns="2" Margin="6">
-                        <GroupBox Header="Quest Items">
-                            <ItemsControl ItemsSource="{Binding QuestItems}"
-                                          ItemTemplate="{StaticResource FutureCheckTemplate}" />
+                    <StackPanel Margin="6">
+                        <UniformGrid Columns="2">
+                            <GroupBox Header="Quest Items">
+                                <ItemsControl ItemsSource="{Binding QuestItems}"
+                                              ItemTemplate="{StaticResource FutureCheckTemplate}" />
+                            </GroupBox>
+                            <GroupBox Header="Progression Notes">
+                                <TextBlock TextWrapping="Wrap"
+                                           Foreground="{DynamicResource SecondaryTextBrush}"
+                                           Text="Quest item editing will be added after item state, event flags, and save compatibility are mapped. The research workflow below is read-only." />
+                            </GroupBox>
+                        </UniformGrid>
+
+                        <GroupBox Header="Quest Items Research / Experimental">
+                            <StackPanel>
+                                <TextBlock TextWrapping="Wrap"
+                                           Foreground="{DynamicResource SecondaryTextBrush}"
+                                           Margin="0,0,0,8"
+                                           Text="Research only. Capture before and after quest progression to locate candidate storage for Fused Shadows, Mirror Shards, Sky Book/Sky Characters, Dominion Rod progression, Horse Call, Ashei quest chain items, Invoice/Wooden Statue chain, and other quest state. This feature does not write memory." />
+
+                                <Grid Margin="0,0,0,8">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="94" />
+                                        <ColumnDefinition Width="110" />
+                                        <ColumnDefinition Width="62" />
+                                        <ColumnDefinition Width="90" />
+                                        <ColumnDefinition Width="*" />
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Text="Start offset"
+                                               VerticalAlignment="Center"
+                                               Margin="0,0,6,0" />
+                                    <TextBox Grid.Column="1"
+                                             x:Name="QuestItemsResearchStartOffsetText"
+                                             Text="0x200"
+                                             FontFamily="Consolas"
+                                             Margin="0,0,8,0" />
+                                    <TextBlock Grid.Column="2"
+                                               Text="Length"
+                                               VerticalAlignment="Center"
+                                               Margin="0,0,6,0" />
+                                    <TextBox Grid.Column="3"
+                                             x:Name="QuestItemsResearchLengthText"
+                                             Text="0x200"
+                                             FontFamily="Consolas"
+                                             Margin="0,0,8,0" />
+                                    <TextBlock Grid.Column="4"
+                                               Text="Default range: _playerbase+0x200 length 0x200."
+                                               Foreground="{DynamicResource SecondaryTextBrush}"
+                                               TextWrapping="Wrap"
+                                               VerticalAlignment="Center" />
+                                </Grid>
+
+                                <WrapPanel Margin="0,0,0,8">
+                                    <Button Content="Capture Before"
+                                            Click="QuestItemsCaptureBefore_Click" />
+                                    <Button Content="Capture After"
+                                            Click="QuestItemsCaptureAfter_Click" />
+                                    <Button Content="Compare"
+                                            Click="QuestItemsCompare_Click" />
+                                    <Button Content="Export JSON"
+                                            Click="QuestItemsExportJson_Click" />
+                                    <Button Content="Export CSV"
+                                            Click="QuestItemsExportCsv_Click" />
+                                </WrapPanel>
+
+                                <TextBox x:Name="QuestItemsResearchStatusText"
+                                         Text="Ready. Capture Before and After snapshots, then compare."
+                                         IsReadOnly="True"
+                                         TextWrapping="Wrap"
+                                         Background="{DynamicResource ReadOnlyBackgroundBrush}"
+                                         Margin="0,0,0,8" />
+
+                                <Grid Margin="0,0,0,4">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="74" />
+                                        <ColumnDefinition Width="92" />
+                                        <ColumnDefinition Width="92" />
+                                        <ColumnDefinition Width="92" />
+                                        <ColumnDefinition Width="92" />
+                                        <ColumnDefinition Width="118" />
+                                        <ColumnDefinition Width="64" />
+                                        <ColumnDefinition Width="76" />
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Text="Offset" FontWeight="SemiBold" />
+                                    <TextBlock Grid.Column="1" Text="Before" FontWeight="SemiBold" />
+                                    <TextBlock Grid.Column="2" Text="After" FontWeight="SemiBold" />
+                                    <TextBlock Grid.Column="3" Text="Before bin" FontWeight="SemiBold" />
+                                    <TextBlock Grid.Column="4" Text="After bin" FontWeight="SemiBold" />
+                                    <TextBlock Grid.Column="5" Text="Changed bits" FontWeight="SemiBold" />
+                                    <TextBlock Grid.Column="6" Text="Score" FontWeight="SemiBold" />
+                                    <TextBlock Grid.Column="7" Text="Group" FontWeight="SemiBold" Margin="6,0" />
+                                </Grid>
+
+                                <ScrollViewer Height="300"
+                                              VerticalScrollBarVisibility="Auto"
+                                              HorizontalScrollBarVisibility="Auto"
+                                              Background="{DynamicResource ReadOnlyBackgroundBrush}">
+                                    <ItemsControl ItemsSource="{Binding QuestItemsResearchRows}"
+                                                  ItemTemplate="{StaticResource QuestItemsResearchRowTemplate}" />
+                                </ScrollViewer>
+                            </StackPanel>
                         </GroupBox>
-                        <GroupBox Header="Progression Notes">
-                            <TextBlock TextWrapping="Wrap"
-                                       Foreground="{DynamicResource SecondaryTextBrush}"
-                                       Text="Quest item editing will be added after item state, event flags, and save compatibility are mapped." />
-                        </GroupBox>
-                    </UniformGrid>
+                    </StackPanel>
                 </ScrollViewer>
             </TabItem>
 
@@ -3080,6 +3320,24 @@
                                          AcceptsReturn="True"
                                          MinHeight="150"
                                          FontFamily="Consolas"
+                                         Background="{DynamicResource ReadOnlyBackgroundBrush}" />
+                            </StackPanel>
+                        </GroupBox>
+
+                        <GroupBox Header="Support Snapshot">
+                            <StackPanel>
+                                <TextBlock TextWrapping="Wrap"
+                                           Foreground="{DynamicResource SecondaryTextBrush}"
+                                           Margin="0,0,0,8"
+                                           Text="Creates a timestamped troubleshooting package with sanitized trainer state and relative log files. Save files are not included." />
+                                <Button Content="Create Support Snapshot"
+                                        HorizontalAlignment="Left"
+                                        Click="CreateSupportSnapshot_Click"
+                                        Margin="0,0,0,8" />
+                                <TextBox x:Name="SupportSnapshotStatusText"
+                                         Text="Ready. Support snapshots are written to support-snapshots/."
+                                         IsReadOnly="True"
+                                         TextWrapping="Wrap"
                                          Background="{DynamicResource ReadOnlyBackgroundBrush}" />
                             </StackPanel>
                         </GroupBox>
@@ -4809,6 +5067,58 @@
                                               Background="{DynamicResource ReadOnlyBackgroundBrush}"
                                               Margin="0,8,0,0">
                                     <ItemsControl ItemsSource="{Binding BottleEditorDiagnostics}">
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate>
+                                                <TextBlock Text="{Binding}"
+                                                           FontFamily="Consolas"
+                                                           FontSize="11"
+                                                           TextWrapping="NoWrap"
+                                                           Margin="0,0,0,4" />
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+                                </ScrollViewer>
+                            </StackPanel>
+                        </GroupBox>
+
+                        <GroupBox Header="Bomb Slot Editor Diagnostics">
+                            <StackPanel>
+                                <TextBlock Text="Bomb Slot write diagnostics are also written to logs/bomb-slot-editor.log"
+                                           Foreground="{DynamicResource SecondaryTextBrush}"
+                                           Margin="0,0,0,6" />
+
+                                <Grid Margin="0,0,0,4">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="54" />
+                                        <ColumnDefinition Width="74" />
+                                        <ColumnDefinition Width="112" />
+                                        <ColumnDefinition Width="112" />
+                                        <ColumnDefinition Width="86" />
+                                        <ColumnDefinition Width="86" />
+                                        <ColumnDefinition Width="96" />
+                                        <ColumnDefinition Width="*" MinWidth="220" />
+                                        <ColumnDefinition Width="*" MinWidth="250" />
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Text="Slot" FontWeight="SemiBold" />
+                                    <TextBlock Grid.Column="1" Text="Offset" FontWeight="SemiBold" />
+                                    <TextBlock Grid.Column="2" Text="Current" FontWeight="SemiBold" />
+                                    <TextBlock Grid.Column="3" Text="Previous" FontWeight="SemiBold" />
+                                    <TextBlock Grid.Column="4" Text="Hex" FontWeight="SemiBold" />
+                                    <TextBlock Grid.Column="5" Text="Decimal" FontWeight="SemiBold" />
+                                    <TextBlock Grid.Column="6" Text="Binary" FontWeight="SemiBold" />
+                                    <TextBlock Grid.Column="7" Text="Last write" FontWeight="SemiBold" Margin="6,0" />
+                                    <TextBlock Grid.Column="8" Text="Last verification" FontWeight="SemiBold" Margin="6,0" />
+                                </Grid>
+
+                                <ItemsControl ItemsSource="{Binding BombSlots}"
+                                              ItemTemplate="{StaticResource BombSlotDiagnosticTemplate}" />
+
+                                <ScrollViewer Height="170"
+                                              VerticalScrollBarVisibility="Auto"
+                                              HorizontalScrollBarVisibility="Auto"
+                                              Background="{DynamicResource ReadOnlyBackgroundBrush}"
+                                              Margin="0,8,0,0">
+                                    <ItemsControl ItemsSource="{Binding BombSlotEditorDiagnostics}">
                                         <ItemsControl.ItemTemplate>
                                             <DataTemplate>
                                                 <TextBlock Text="{Binding}"

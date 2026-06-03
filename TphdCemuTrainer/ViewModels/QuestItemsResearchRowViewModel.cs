@@ -1,17 +1,14 @@
 namespace TphdCemuTrainer.ViewModels;
 
-public sealed class BombSlotResearchRowViewModel : ObservableObject
+public sealed class QuestItemsResearchRowViewModel : ObservableObject
 {
-    public BombSlotResearchRowViewModel(
-        uint offsetValue,
-        byte beforeValue,
-        byte afterValue,
-        string candidateSlotReference)
+    private string _candidateGroup = "-";
+
+    public QuestItemsResearchRowViewModel(uint offsetValue, byte beforeValue, byte afterValue)
     {
         OffsetValue = offsetValue;
         BeforeValue = beforeValue;
         AfterValue = afterValue;
-        CandidateSlotReference = candidateSlotReference;
         Offset = $"0x{offsetValue:X}";
         BeforeByte = FormatByte(beforeValue);
         AfterByte = FormatByte(afterValue);
@@ -44,9 +41,30 @@ public sealed class BombSlotResearchRowViewModel : ObservableObject
 
     public bool IsChanged { get; }
 
-    public string Changed => IsChanged ? "True" : "False";
+    public bool IsSingleBitChange => IsChanged && ChangedBitCount == 1;
 
-    public string CandidateSlotReference { get; }
+    public int CandidateScore =>
+        (IsChanged ? 1 : 0) +
+        (IsSingleBitChange ? 5 : 0) +
+        (IsChanged && ChangedBitCount is > 1 and <= 3 ? 2 : 0) +
+        (CandidateGroup != "-" ? 2 : 0);
+
+    public string CandidateGroup
+    {
+        get => _candidateGroup;
+        private set
+        {
+            if (SetField(ref _candidateGroup, value))
+            {
+                OnPropertyChanged(nameof(CandidateScore));
+            }
+        }
+    }
+
+    public void SetCandidateGroup(string groupName)
+    {
+        CandidateGroup = groupName;
+    }
 
     private static string FormatByte(byte value)
     {

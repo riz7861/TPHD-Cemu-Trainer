@@ -18,14 +18,14 @@ The UI is organized as a tabbed trainer/save-editor hybrid so new systems can be
 - **General**: health, max health, heart container summary, lantern oil, wallet, rupees, Poe Souls, Golden Bugs count
 - **Inventory**: ownership-first item detection, fixed-slot experimental grant/remove for mapped visible slots, Bottle Editor v1, read-only current slot view, mapping research, unsafe removal testing, and unsafe raw CT writes for research
 - **Equipment**: ownership flag editor with read-only current equipped armor/sword/shield diagnostics
-- **Ammo & Upgrades**: wallet, quiver, bomb slot count/capacity diagnostics, Bomb Slot Research, and seed capacity-aware edits
+- **Ammo & Upgrades**: wallet, quiver, bomb slot count/capacity diagnostics, confirmed Bomb Slot Editor, and seed capacity-aware edits
 - **Collectibles**: verified Poe Souls editing, full Golden Bugs ownership editor, Golden Bugs research tools, and health/heart summaries
 - **Story Flags**: reserved progression flags
 - **Hidden Skills**: confirmed ownership editor plus advanced research tools
-- **Quest Items**: reserved quest item/progression tracking
-- **Debug**: player base, AOB pattern, progression diagnostics, research snapshots, Hidden Skills Research, Ownership Discovery Mode, raw CT-backed values, and future memory tools
+- **Quest Items**: reserved quest item/progression tracking plus Quest Items Research snapshots
+- **Debug**: player base, AOB pattern, progression diagnostics, research snapshots, Hidden Skills Research, Ownership Discovery Mode, support snapshots, raw CT-backed values, and future memory tools
 
-The top bar includes a **Dark Mode** toggle. The app defaults to Light mode and stores the local preference under the user's AppData folder when possible.
+The top bar includes a **Dark Mode** toggle. The app defaults to Light mode and stores the local preference under the user's AppData folder when possible. Theme styles cover tabs, panels, text inputs, dropdowns, data grids, buttons, and checkboxes.
 
 ## Implemented Memory Edits
 
@@ -35,6 +35,7 @@ The top bar includes a **Dark Mode** toggle. The app defaults to Light mode and 
 - Lantern oil
 - Arrows
 - Bomb slot count bytes 1-3
+- Bomb slot contents at `_playerbase+0x267`, `_playerbase+0x268`, and `_playerbase+0x269`
 - Seeds
 - Poe souls at `_playerbase+0x2C8`, clamped to 0-60 with readback diagnostics
 - Wallet capacity
@@ -63,9 +64,23 @@ The CT exposes one shared bomb capacity byte, so all three CT-backed bomb slot c
 
 Targets initialize from the current in-memory value after a successful scan. Lock mode writes only clamped values. Current health is also clamped to maximum health.
 
-## Bomb Slot Research
+## Bomb Slot Editor And Research
 
-The Ammo & Upgrades tab includes **Bomb Slot Research / Experimental** for investigating TPHD's visible bomb slot contents. Current research focuses on whether the game stores visible bomb slots as content fields for Bombs, Water Bombs, and Bomblings, while count and capacity live elsewhere.
+The Ammo & Upgrades tab includes a confirmed **Bomb Slot Editor** for TPHD's visible bomb slot content bytes:
+
+- Bomb Slot 1 content: `_playerbase+0x267`
+- Bomb Slot 2 content: `_playerbase+0x268`
+- Bomb Slot 3 content: `_playerbase+0x269`
+
+Confirmed live-tested content values:
+
+- `0x70`: Normal Bombs
+- `0x71`: Water Bombs
+- `0x72`: Bomblings
+
+The invalid `0x50` value produced an empty/glitched bomb icon during testing and is intentionally not exposed in the editor.
+
+Bomb Slot Editor writes happen only when **Apply Bomb Slot Changes** or **Restore Previous Bomb Slots** is clicked. The trainer reads the previous slot bytes, writes only the selected confirmed slot values, verifies immediate readback, verifies again after 250ms and 1000ms, refreshes the slot state, and logs to `logs/bomb-slot-editor.log`. Restore is session-only and restores the previous 3-byte bomb slot snapshot captured before the last editor write.
 
 The existing CT-backed bomb count/capacity behavior remains unchanged:
 
@@ -74,9 +89,22 @@ The existing CT-backed bomb count/capacity behavior remains unchanged:
 - Bomb Slot 3 count: `_playerbase+0x2AB`
 - Shared bomb capacity: `_playerbase+0x2B5`
 
-The research tool is read-only. It captures and compares `_playerbase`-relative byte ranges, defaulting to start `0x250` and length `0x40`, then shows offset, before/after byte values, binary values, changed bits, and candidate slot references. Captures and reports are written to `logs/research/bomb-slots-before.json`, `logs/research/bomb-slots-after.json`, `logs/research/bomb-slots-report.json`, and `logs/research/bomb-slots-report.csv`. Activity is logged to `logs/bomb-slot-research.log`.
+The count/capacity controls remain CT-backed diagnostics and existing count/capacity editing is preserved. Slot contents, counts, capacity, and button assignments are separate pieces of game state.
 
-See `docs/research/BombSlotsResearch.md` for current notes. No bomb slot type writer or dropdown editor exists yet.
+See `docs/research/BombSlotsResearch.md` for current notes.
+
+## Quest Items Research
+
+The Quest Items tab includes **Quest Items Research / Experimental**. It is read-only and is intended to help identify quest-item and progression bytes without promoting unconfirmed offsets into an editor.
+
+The tool captures Before and After snapshots of a configurable `_playerbase`-relative range, defaulting to start `0x200` and length `0x200`. Compare shows offset, before/after byte, before/after binary, changed bits, candidate score, and nearby candidate group. Snapshot and report exports are written to:
+
+- `logs/research/quest-items-before.json`
+- `logs/research/quest-items-after.json`
+- `logs/research/quest-items-report.json`
+- `logs/research/quest-items-report.csv`
+
+Activity is logged to `logs/quest-items-research.log`. See `docs/research/QuestItemsResearch.md`.
 
 ## Progression Initialization
 
@@ -397,6 +425,7 @@ The app does not parse or execute Cheat Engine scripts at runtime. The relevant 
 - `TphdCemuTrainer/Memory/InventoryMemoryService.cs`: CT-backed inventory slot reads, unsafe raw research writes, and mapped inventory ownership flag reads/writes
 - `TphdCemuTrainer/Memory/EquipmentMemoryService.cs`: CT-backed equipment byte and ownership flag reads/writes
 - `TphdCemuTrainer/Cheats/CheatCatalog.cs`: CT-derived cheat and capacity definitions
+- `TphdCemuTrainer/Cheats/BombSlotDefinitions.cs`: confirmed visible bomb slot offsets and content values
 - `TphdCemuTrainer/Cheats/BottleDefinitions.cs`: experimental bottle slot and confirmed bottle content definitions
 - `TphdCemuTrainer/Cheats/GoldenBugsDefinitions.cs`: confirmed Golden Bugs bit mappings and reference bug names
 - `TphdCemuTrainer/Cheats/HiddenSkillsDefinitions.cs`: confirmed Hidden Skills ownership bit mappings
@@ -408,6 +437,7 @@ The app does not parse or execute Cheat Engine scripts at runtime. The relevant 
 - `TphdCemuTrainer/Research/`: named memory snapshots plus JSON/CSV comparison and ownership discovery exports
 - `TphdCemuTrainer/ViewModels/`: UI-facing value and capacity models
 - `docs/research/HiddenSkillsResearch.md`: current Hidden Skills mapping notes and workflow
+- `docs/research/QuestItemsResearch.md`: Quest Items research workflow and export notes
 - `TphdCemuTrainer/MainWindow.xaml`: tabbed WPF trainer UI
 
 ## Known Limitations
@@ -420,6 +450,7 @@ The app does not parse or execute Cheat Engine scripts at runtime. The relevant 
 - Inventory ownership editing uses detected/desired/apply where real flags are mapped. Current listed inventory ownership flags are not identified yet.
 - Bottle Editor v1 edits visible bottle-content slots only; bottle ownership and unconfirmed bottled item raw values are still being researched.
 - General inventory ownership/progression editing is not solved yet. Static fixed-slot grant/remove is confirmed only for specific visible-slot item/slot pairs.
+- Bomb Slot Editor changes visible slot content bytes only. Bomb counts, shared capacity, button assignments, and any related story state remain separate.
 - The fixed-slot experimental editor uses detected or static visible-slot mappings for known fixed/special items only. These are confirmed slot writes for tested items, not confirmed story progression or authoritative ownership flags.
 - Clawshot and Double Clawshots are mutually exclusive in the fixed-slot editor because enabling both can hide or displace another progression item such as Dominion Rod.
 - Arbitrary visible-slot replacement is not supported. Use the known static item/slot pairs only.
@@ -431,6 +462,8 @@ The app does not parse or execute Cheat Engine scripts at runtime. The relevant 
 - Early Ordon intro saves may accept byte writes in memory while TPHD ignores ownership edits. Progress past the intro arc and rescan, or use the manual overrides only for diagnostics on copied saves.
 - Golden Bugs ownership editing is mapped for the visible collection-screen bugs, but Agitha reward and turn-in flags are not edited.
 - Values are simple external memory edits. They do not patch game logic.
+- Quest Items Research is read-only. Quest item/progression editing is not implemented until mappings are confirmed.
+- Support snapshots include trainer logs and state summaries only. They intentionally do not include Cemu saves, game files, memory dumps, or personal account data.
 - If Cemu runs as administrator, the trainer may also need to run as administrator.
 
 ## Troubleshooting
@@ -474,6 +507,10 @@ The save appears to be before TPHD begins honoring ownership edits, usually duri
 **Newly granted equipment is not visible in the in-game equipment screen**
 
 If the equipment screen was already open when ownership changed, TPHD may not refresh the displayed equipment immediately. Close and reopen the in-game equipment screen. The trainer grants ownership flags only; the player still equips owned items using the game's own menu.
+
+**Need to share diagnostics**
+
+Use **Debug -> Create Support Snapshot**. The trainer writes a zip to `support-snapshots/` with app version, attach status, player base, trainer state summary, config values, and a snapshot of the `logs/` directory. It does not include save files or game files.
 
 **Access denied**
 

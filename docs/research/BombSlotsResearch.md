@@ -2,21 +2,45 @@
 
 ## Status
 
-Research only. No bomb slot content write editor has been implemented.
+Confirmed visible bomb slot content editor implemented.
 
-The current trainer still supports the CT-backed bomb count and shared bomb capacity values, but the UI now labels them as **Bomb Slot 1**, **Bomb Slot 2**, and **Bomb Slot 3** instead of assuming they are independent bomb bags.
+The trainer still preserves the CT-backed bomb count and shared bomb capacity controls, but the UI labels them as **Bomb Slot 1**, **Bomb Slot 2**, and **Bomb Slot 3** instead of assuming they are independent bomb bags.
 
-## Current Understanding
+## Confirmed Visible Slot Content Offsets
 
-Live research suggests Twilight Princess HD may represent the visible bomb inventory as slot contents rather than three fully independent bomb bags.
+Live TPHD memory testing confirms these visible bomb slot content bytes:
 
-The player-facing slots can contain:
+| Slot | Offset |
+| --- | --- |
+| Bomb Slot 1 | `_playerbase+0x267` |
+| Bomb Slot 2 | `_playerbase+0x268` |
+| Bomb Slot 3 | `_playerbase+0x269` |
 
-- Bombs
-- Water Bombs
-- Bomblings
+## Confirmed Slot Content Values
 
-The count/capacity bytes may be stored separately from the visible slot-content bytes.
+| Value | Hex | Meaning |
+| --- | --- | --- |
+| 112 | `0x70` | Normal Bombs |
+| 113 | `0x71` | Water Bombs |
+| 114 | `0x72` | Bomblings |
+
+The value `0x50` was observed to create an empty or glitched bomb slot icon and is intentionally not exposed in the trainer UI.
+
+## Editor Behavior
+
+The Ammo & Upgrades tab includes **Bomb Slot Editor**.
+
+Writes occur only when the user clicks **Apply Bomb Slot Changes** or **Restore Previous Bomb Slots**. The editor:
+
+- Reads the current 3-byte slot state.
+- Captures a session-only previous snapshot before writes.
+- Writes only confirmed slot content values.
+- Verifies immediate readback.
+- Verifies delayed readback after 250ms and 1000ms.
+- Refreshes bomb slot state after writing.
+- Logs to `logs/bomb-slot-editor.log`.
+
+Restore writes the last captured 3-byte snapshot for the current trainer session. The restore buffer is not saved to disk.
 
 ## CT-Backed Count / Capacity Values
 
@@ -29,33 +53,12 @@ The Cheat Engine table exposes these existing count/capacity fields:
 
 These remain in the trainer as diagnostics and preserve existing behavior.
 
-## Research Tool
+## Current Understanding
 
-The Ammo & Upgrades tab includes **Bomb Slot Research / Experimental**.
+TPHD appears to separate visible bomb slot contents from bomb counts, shared capacity, button assignments, and progression state.
 
-Default range:
-
-- Start: `_playerbase+0x250`
-- Length: `0x40`
-
-The tool captures Before and After snapshots, compares bytes and changed bits, and exports:
-
-- `logs/research/bomb-slots-before.json`
-- `logs/research/bomb-slots-after.json`
-- `logs/research/bomb-slots-report.json`
-- `logs/research/bomb-slots-report.csv`
-
-Activity is logged to:
-
-- `logs/bomb-slot-research.log`
-
-## Goals
-
-- Identify which bytes represent visible bomb slot contents.
-- Confirm whether Bombs, Water Bombs, and Bomblings use item IDs or a separate slot-content encoding.
-- Distinguish slot contents from bomb counts and capacity.
-- Avoid assuming the three slots are independent bomb bags until live memory evidence confirms that model.
+The confirmed editor changes the visible slot content bytes only. It does not grant story progression, modify button assignments, or edit bomb count/capacity values.
 
 ## Safety
 
-The Bomb Slot Research tool is read-only. It does not write memory, modify bomb counts, grant items, remove items, or alter button assignments.
+Use copied saves or save states when testing. The confirmed values are live-tested, but bomb slot contents are still one part of a larger inventory system.
