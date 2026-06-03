@@ -11,7 +11,7 @@ The trainer includes a read-only **Hidden Skills Research** workflow in the Debu
 
 Before and After captures are persisted immediately so the trainer and Cemu can be closed between save states.
 
-The Hidden Skills tab includes a confirmed editor for the seven ownership bits listed below. Research tools remain available for mapping related lesson, wolf, Hero's Shade, and menu refresh state.
+The Hidden Skills tab includes a confirmed progression editor for the seven ownership bits listed below. Research tools remain available for mapping related lesson, wolf, Hero's Shade, and menu refresh state.
 
 Current findings:
 
@@ -19,15 +19,17 @@ Current findings:
 - Hidden Skill bits affect both menu ownership and Hero's Shade/wolf progression.
 - Disabling a learned skill, such as Ending Blow at `0x3D5` bit `2`, can make the wolf/Hero's Shade encounter available again after area reload.
 - `_playerbase+0x238` bit `0` is not Hidden Skill ownership. It appears to be Hero's Shade / lesson active state and is not used by the editor.
+- Hidden Skills should be edited sequentially. Some moves require prerequisite flags for combat usability.
+- The in-game Skills menu may show progression slots rather than exact isolated bit state, so menu display is not reliable for isolated flag testing.
 - Hidden Skills still likely involve additional progression states, such as wolf/howling interactions, Hero's Shade lesson state, tutorial completion, and final menu visibility.
 - Live Memory Watch was added for direct observation while triggering Howling Stones, Golden Wolves, Hero's Shade lessons, and menu updates.
 
 ## Known Skills
 
-- Back Slice: `_playerbase+0x3D5` bit `0`
-- Helm Splitter: `_playerbase+0x3D5` bit `1`
 - Ending Blow: `_playerbase+0x3D5` bit `2`
 - Shield Attack: `_playerbase+0x3D5` bit `3`
+- Back Slice: `_playerbase+0x3D5` bit `0`
+- Helm Splitter: `_playerbase+0x3D5` bit `1`
 - Mortal Draw: `_playerbase+0x3D6` bit `5`
 - Jump Strike: `_playerbase+0x3D6` bit `6`
 - Great Spin: `_playerbase+0x3D6` bit `7`
@@ -43,7 +45,7 @@ The editor writes only confirmed bits and preserves unrelated bits in those byte
 
 Related lesson/progression storage is not fully mapped yet.
 
-## Confirmed Editor
+## Progression Editor
 
 The Hidden Skills tab supports:
 
@@ -61,17 +63,24 @@ Write behavior:
 - Immediate, 250ms, and 1000ms readbacks are verified.
 - Diagnostics are shown in the Debug tab and written to `logs/hidden-skills-editor.log`.
 
+Dependency behavior:
+
+- Enabling a skill automatically enables all earlier prerequisites.
+- Disabling a skill automatically disables all later dependent skills.
+- The normal editor does not allow isolated advanced toggles.
+- Isolated bit testing remains available only in the Debug tab's experimental bit tester.
+
 Mapping table:
 
-| Skill | Offset | Bit | Live-test note |
-| --- | --- | --- | --- |
-| Back Slice | `0x3D5` | `0` | Confirmed ownership bit |
-| Helm Splitter | `0x3D5` | `1` | Confirmed ownership bit |
-| Ending Blow | `0x3D5` | `2` | Enabling grants Ending Blow; disabling removes it and can make the wolf/Hero's Shade encounter available again after area reload |
-| Shield Attack | `0x3D5` | `3` | Confirmed ownership bit |
-| Mortal Draw | `0x3D6` | `5` | Confirmed ownership bit |
-| Jump Strike | `0x3D6` | `6` | Confirmed ownership bit |
-| Great Spin | `0x3D6` | `7` | Confirmed ownership bit |
+| Order | Skill | Offset | Bit | Live-test note |
+| --- | --- | --- | --- | --- |
+| 1 | Ending Blow | `0x3D5` | `2` | Enabling grants Ending Blow; disabling removes it and can make the wolf/Hero's Shade encounter available again after area reload |
+| 2 | Shield Attack | `0x3D5` | `3` | Confirmed ownership bit |
+| 3 | Back Slice | `0x3D5` | `0` | Confirmed ownership bit |
+| 4 | Helm Splitter | `0x3D5` | `1` | Confirmed ownership bit |
+| 5 | Mortal Draw | `0x3D6` | `5` | Confirmed ownership bit |
+| 6 | Jump Strike | `0x3D6` | `6` | Confirmed ownership bit |
+| 7 | Great Spin | `0x3D6` | `7` | Confirmed ownership bit |
 
 ## Suggested Workflow
 

@@ -43,6 +43,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     private bool _inventoryInitialized;
     private bool _equipmentInitialized;
     private bool _isDarkMode;
+    private bool _suppressHiddenSkillDependencyEnforcement;
     private byte? _researchSnapshotValue;
     private uint? _researchSnapshotOffset;
     private byte[]? _researchRangeSnapshotBytes;
@@ -165,6 +166,11 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         GoldenBugsEditorDiagnostics = [];
         HiddenSkillsEditorRows = new ObservableCollection<HiddenSkillViewModel>(
             HiddenSkillsDefinitions.Skills.Select(skill => new HiddenSkillViewModel(skill)));
+        foreach (var skill in HiddenSkillsEditorRows)
+        {
+            skill.PropertyChanged += HiddenSkill_PropertyChanged;
+        }
+
         HiddenSkillsEditorDiagnostics = [];
         HiddenSkillsResearchRows = [];
         HiddenSkillsCandidateGroups = [];
@@ -231,6 +237,18 @@ public partial class MainWindow : Window, INotifyPropertyChanged
 
         _lastEnabledClawshotVariantId = item.Definition.Id;
         EnforceClawshotVariantSafeguard(item, "desired-state-change");
+    }
+
+    private void HiddenSkill_PropertyChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (_suppressHiddenSkillDependencyEnforcement ||
+            e.PropertyName != nameof(HiddenSkillViewModel.IsOwnedDesired) ||
+            sender is not HiddenSkillViewModel skill)
+        {
+            return;
+        }
+
+        EnforceHiddenSkillProgressionFrom(skill);
     }
 
     public event PropertyChangedEventHandler? PropertyChanged;
@@ -1779,6 +1797,8 @@ public partial class MainWindow : Window, INotifyPropertyChanged
 
     private async void ApplyHiddenSkillsChanges_Click(object sender, RoutedEventArgs e)
     {
+        var normalized = NormalizeHiddenSkillDesiredProgression("apply-normalize", out var dependencyMessage);
+
         var dirtySkills = HiddenSkillsEditorRows
             .Where(skill => skill.IsDirty && skill.CanEdit)
             .ToList();
@@ -1803,7 +1823,9 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         var verified = await WriteHiddenSkillsEditorBytesAsync("apply", desiredBytes);
         RefreshHiddenSkillsEditor(preserveDirty: !verified, showStatus: false);
         HiddenSkillsEditorStatusText.Text = verified
-            ? $"Applied {dirtySkills.Count} Hidden Skill change(s)."
+            ? normalized
+                ? $"{dependencyMessage} Applied {dirtySkills.Count} Hidden Skill change(s)."
+                : $"Applied {dirtySkills.Count} Hidden Skill change(s)."
             : "Hidden Skills write did not fully verify. Check diagnostics.";
         SetStatus(
             HiddenSkillsEditorStatusText.Text,
@@ -1817,9 +1839,18 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             return;
         }
 
-        foreach (var skill in HiddenSkillsEditorRows)
+        var previousSuppressHiddenSkillDependencyEnforcement = _suppressHiddenSkillDependencyEnforcement;
+        _suppressHiddenSkillDependencyEnforcement = true;
+        try
         {
-            skill.IsOwnedDesired = true;
+            foreach (var skill in HiddenSkillsEditorRows)
+            {
+                skill.IsOwnedDesired = true;
+            }
+        }
+        finally
+        {
+            _suppressHiddenSkillDependencyEnforcement = previousSuppressHiddenSkillDependencyEnforcement;
         }
 
         var desiredBytes = currentBytes.ToArray();
@@ -1845,9 +1876,18 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             return;
         }
 
-        foreach (var skill in HiddenSkillsEditorRows)
+        var previousSuppressHiddenSkillDependencyEnforcement = _suppressHiddenSkillDependencyEnforcement;
+        _suppressHiddenSkillDependencyEnforcement = true;
+        try
         {
-            skill.IsOwnedDesired = false;
+            foreach (var skill in HiddenSkillsEditorRows)
+            {
+                skill.IsOwnedDesired = false;
+            }
+        }
+        finally
+        {
+            _suppressHiddenSkillDependencyEnforcement = previousSuppressHiddenSkillDependencyEnforcement;
         }
 
         var desiredBytes = currentBytes.ToArray();
@@ -7812,6 +7852,32 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         }
     }
 
+    private void AppendHiddenSkillsEditorStatusDiagnostic(string details)
+    {
+        var entry = $"{DateTimeOffset.Now:O} {details}";
+
+        HiddenSkillsEditorDiagnostics.Insert(0, entry);
+        while (HiddenSkillsEditorDiagnostics.Count > 100)
+        {
+            HiddenSkillsEditorDiagnostics.RemoveAt(HiddenSkillsEditorDiagnostics.Count - 1);
+        }
+
+        try
+        {
+            var logDirectory = Path.GetDirectoryName(HiddenSkillsEditorLogPath);
+            if (!string.IsNullOrWhiteSpace(logDirectory))
+            {
+                Directory.CreateDirectory(logDirectory);
+            }
+
+            File.AppendAllText(HiddenSkillsEditorLogPath, entry + Environment.NewLine);
+        }
+        catch (Exception ex)
+        {
+            HiddenSkillsEditorDiagnostics.Insert(0, $"{DateTimeOffset.Now:O} hidden-skills-editor-log-write-failed: {ex.Message}");
+        }
+    }
+
     private void AppendGoldenBugsBitfieldTestingLog(string entry)
     {
         GoldenBugsBitfieldDiagnostics.Insert(0, entry);
@@ -8516,18 +8582,27 @@ public partial class MainWindow : Window, INotifyPropertyChanged
 
     private void UpdateHiddenSkillsEditorRows(IReadOnlyList<byte> bytes, bool preserveDirty)
     {
-        foreach (var skill in HiddenSkillsEditorRows)
+        var previousSuppressHiddenSkillDependencyEnforcement = _suppressHiddenSkillDependencyEnforcement;
+        _suppressHiddenSkillDependencyEnforcement = true;
+        try
         {
-            var byteIndex = (int)(skill.OffsetValue - HiddenSkillsDefinitions.FirstOffset);
-            if (byteIndex < 0 || byteIndex >= bytes.Count)
+            foreach (var skill in HiddenSkillsEditorRows)
             {
-                skill.MarkNotRead();
-                continue;
-            }
+                var byteIndex = (int)(skill.OffsetValue - HiddenSkillsDefinitions.FirstOffset);
+                if (byteIndex < 0 || byteIndex >= bytes.Count)
+                {
+                    skill.MarkNotRead();
+                    continue;
+                }
 
-            var isOwned = (bytes[byteIndex] & (1 << skill.Bit)) != 0;
-            skill.SetDetected(isOwned, preserveDirty);
-            skill.CanEdit = HasPlayerData;
+                var isOwned = (bytes[byteIndex] & (1 << skill.Bit)) != 0;
+                skill.SetDetected(isOwned, preserveDirty);
+                skill.CanEdit = HasPlayerData;
+            }
+        }
+        finally
+        {
+            _suppressHiddenSkillDependencyEnforcement = previousSuppressHiddenSkillDependencyEnforcement;
         }
 
         UpdateHiddenSkillsByteDisplays(bytes);
@@ -8545,9 +8620,18 @@ public partial class MainWindow : Window, INotifyPropertyChanged
 
     private void MarkHiddenSkillsNotRead()
     {
-        foreach (var skill in HiddenSkillsEditorRows)
+        var previousSuppressHiddenSkillDependencyEnforcement = _suppressHiddenSkillDependencyEnforcement;
+        _suppressHiddenSkillDependencyEnforcement = true;
+        try
         {
-            skill.MarkNotRead();
+            foreach (var skill in HiddenSkillsEditorRows)
+            {
+                skill.MarkNotRead();
+            }
+        }
+        finally
+        {
+            _suppressHiddenSkillDependencyEnforcement = previousSuppressHiddenSkillDependencyEnforcement;
         }
 
         HiddenSkillsByte3D5Text.Text = "Not read";
@@ -8555,6 +8639,131 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         HiddenSkillsDebugByte3D5Text.Text = "Not read";
         HiddenSkillsDebugByte3D6Text.Text = "Not read";
         HiddenSkillsEditorStatusText.Text = "Attach to Cemu and rescan before editing Hidden Skills.";
+    }
+
+    private void EnforceHiddenSkillProgressionFrom(HiddenSkillViewModel changedSkill)
+    {
+        var changedIndex = HiddenSkillsEditorRows.IndexOf(changedSkill);
+        if (changedIndex < 0)
+        {
+            return;
+        }
+
+        var adjustedSkills = new List<string>();
+        var previousSuppressHiddenSkillDependencyEnforcement = _suppressHiddenSkillDependencyEnforcement;
+        _suppressHiddenSkillDependencyEnforcement = true;
+        try
+        {
+            if (changedSkill.IsOwnedDesired)
+            {
+                for (var index = 0; index < changedIndex; index++)
+                {
+                    var prerequisite = HiddenSkillsEditorRows[index];
+                    if (!prerequisite.IsOwnedDesired)
+                    {
+                        prerequisite.IsOwnedDesired = true;
+                        adjustedSkills.Add(prerequisite.Name);
+                    }
+                }
+            }
+            else
+            {
+                for (var index = changedIndex + 1; index < HiddenSkillsEditorRows.Count; index++)
+                {
+                    var dependent = HiddenSkillsEditorRows[index];
+                    if (dependent.IsOwnedDesired)
+                    {
+                        dependent.IsOwnedDesired = false;
+                        adjustedSkills.Add(dependent.Name);
+                    }
+                }
+            }
+        }
+        finally
+        {
+            _suppressHiddenSkillDependencyEnforcement = previousSuppressHiddenSkillDependencyEnforcement;
+        }
+
+        if (adjustedSkills.Count == 0)
+        {
+            return;
+        }
+
+        var message = changedSkill.IsOwnedDesired
+            ? $"Auto-enabled prerequisites for {changedSkill.Name}: {string.Join(", ", adjustedSkills)}."
+            : $"Auto-disabled dependent skills after {changedSkill.Name}: {string.Join(", ", adjustedSkills)}.";
+        ReportHiddenSkillDependencyMessage(message, "desired-state-change");
+    }
+
+    private bool NormalizeHiddenSkillDesiredProgression(string reason, out string message)
+    {
+        message = string.Empty;
+        var highestDesiredIndex = -1;
+        for (var index = 0; index < HiddenSkillsEditorRows.Count; index++)
+        {
+            if (HiddenSkillsEditorRows[index].IsOwnedDesired)
+            {
+                highestDesiredIndex = index;
+            }
+        }
+
+        var autoEnabled = new List<string>();
+        var autoDisabled = new List<string>();
+        var previousSuppressHiddenSkillDependencyEnforcement = _suppressHiddenSkillDependencyEnforcement;
+        _suppressHiddenSkillDependencyEnforcement = true;
+        try
+        {
+            for (var index = 0; index < HiddenSkillsEditorRows.Count; index++)
+            {
+                var skill = HiddenSkillsEditorRows[index];
+                var desiredState = index <= highestDesiredIndex;
+                if (skill.IsOwnedDesired == desiredState)
+                {
+                    continue;
+                }
+
+                skill.IsOwnedDesired = desiredState;
+                if (desiredState)
+                {
+                    autoEnabled.Add(skill.Name);
+                }
+                else
+                {
+                    autoDisabled.Add(skill.Name);
+                }
+            }
+        }
+        finally
+        {
+            _suppressHiddenSkillDependencyEnforcement = previousSuppressHiddenSkillDependencyEnforcement;
+        }
+
+        if (autoEnabled.Count == 0 && autoDisabled.Count == 0)
+        {
+            return false;
+        }
+
+        var parts = new List<string>();
+        if (autoEnabled.Count > 0)
+        {
+            parts.Add($"auto-enabled prerequisites: {string.Join(", ", autoEnabled)}");
+        }
+
+        if (autoDisabled.Count > 0)
+        {
+            parts.Add($"auto-disabled dependents: {string.Join(", ", autoDisabled)}");
+        }
+
+        message = "Hidden Skills progression normalized before apply: " + string.Join("; ", parts) + ".";
+        ReportHiddenSkillDependencyMessage(message, reason);
+        return true;
+    }
+
+    private void ReportHiddenSkillDependencyMessage(string message, string reason)
+    {
+        HiddenSkillsEditorStatusText.Text = message;
+        SetStatus(message, StatusKind.Neutral);
+        AppendHiddenSkillsEditorStatusDiagnostic($"dependency reason={reason} message=\"{message}\"");
     }
 
     private static void SetHiddenSkillBitInBytes(byte[] bytes, HiddenSkillViewModel skill, bool isSet)

@@ -256,17 +256,19 @@ Golden Bugs editing controls collection-screen ownership only. It does not edit 
 
 The **Advanced / Golden Bugs Research** section keeps the raw research tools. The before/after compare defaults to `_playerbase+0x2A1` length `0x04` and logs to `logs/golden-bugs-research.log`. The **Golden Bugs Bitfield Tester / Experimental** still displays all 32 bits across `0x2A1-0x2A4` for controlled research, logs to `logs/golden-bugs-bitfield-testing.log`, and exports reports to `logs/research/`. Use that advanced area for `0x2A4` investigation and reward/turn-in research, not normal ownership editing. Details are tracked in `docs/research/GoldenBugsResearch.md`.
 
-## Hidden Skills Editor And Research
+## Hidden Skills Progression Editor And Research
 
-The Hidden Skills tab includes a confirmed ownership editor for all seven Hidden Skills. The mappings are live-tested:
+The Hidden Skills tab includes a confirmed progression editor for all seven Hidden Skills. The editor treats the skills as an ordered chain:
 
-- `_playerbase+0x3D5` bit `0`: Back Slice
-- `_playerbase+0x3D5` bit `1`: Helm Splitter
-- `_playerbase+0x3D5` bit `2`: Ending Blow
-- `_playerbase+0x3D5` bit `3`: Shield Attack
-- `_playerbase+0x3D6` bit `5`: Mortal Draw
-- `_playerbase+0x3D6` bit `6`: Jump Strike
-- `_playerbase+0x3D6` bit `7`: Great Spin
+1. Ending Blow: `_playerbase+0x3D5` bit `2`
+2. Shield Attack: `_playerbase+0x3D5` bit `3`
+3. Back Slice: `_playerbase+0x3D5` bit `0`
+4. Helm Splitter: `_playerbase+0x3D5` bit `1`
+5. Mortal Draw: `_playerbase+0x3D6` bit `5`
+6. Jump Strike: `_playerbase+0x3D6` bit `6`
+7. Great Spin: `_playerbase+0x3D6` bit `7`
+
+Enabling a skill automatically enables all earlier prerequisites. Disabling a skill automatically disables all later dependent skills. The in-game Skills menu may show progression slots rather than exact isolated bit state, and some moves require prerequisite flags for combat usability. Treat combat usability as the real validation signal when testing copied saves.
 
 The editor shows detected state, desired state, dirty state, mapping offset/bit, and last write/verification status. It supports refresh, apply changed skills, add all, clear all, and session-only restore of the previous two-byte state. Writes preserve unrelated bits in `0x3D5` and `0x3D6`, verify immediate/250ms/1000ms readbacks, and log to `logs/hidden-skills-editor.log`.
 

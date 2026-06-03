@@ -2619,7 +2619,7 @@
             <TabItem Header="Hidden Skills">
                 <ScrollViewer VerticalScrollBarVisibility="Auto">
                     <StackPanel Margin="6">
-                        <GroupBox Header="Confirmed Hidden Skills Editor">
+                        <GroupBox Header="Hidden Skills Progression Editor">
                             <StackPanel>
                                 <Border BorderBrush="{DynamicResource WarningBorderBrush}"
                                         BorderThickness="1"
@@ -2629,13 +2629,13 @@
                                     <TextBlock TextWrapping="Wrap"
                                                Foreground="{DynamicResource WarningTextBrush}"
                                                FontWeight="SemiBold"
-                                               Text="Research-derived but live-confirmed. Hidden Skill flags affect both menu ownership and Hero's Shade/wolf progression. Use copied saves first. Removing a learned skill may cause the wolf encounter to become available again after area reload." />
+                                               Text="Hidden Skills are progression-dependent. The in-game Skills menu may not reflect isolated flags correctly. This editor enforces safe sequential progression. Use copied saves first." />
                                 </Border>
 
                                 <TextBlock TextWrapping="Wrap"
                                            Foreground="{DynamicResource SecondaryTextBrush}"
                                            Margin="0,0,0,8"
-                                           Text="Writes only confirmed bits at _playerbase+0x3D5 and _playerbase+0x3D6. This editor does not touch 0x238 or lesson-state flags." />
+                                           Text="Enabling a skill automatically enables earlier prerequisites; disabling a skill automatically disables later dependent skills. Writes only confirmed bits at _playerbase+0x3D5 and _playerbase+0x3D6. This editor does not touch 0x238 or lesson-state flags." />
 
                                 <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
                                     <Button Content="Refresh Hidden Skills"

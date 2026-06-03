@@ -8,18 +8,6 @@ public static class HiddenSkillsDefinitions
     public static IReadOnlyList<HiddenSkillDefinition> Skills { get; } =
     [
         new(
-            "back-slice",
-            "Back Slice",
-            0x3D5,
-            0,
-            "Live TPHD confirmed: _playerbase+0x3D5 bit 0"),
-        new(
-            "helm-splitter",
-            "Helm Splitter",
-            0x3D5,
-            1,
-            "Live TPHD confirmed: _playerbase+0x3D5 bit 1"),
-        new(
             "ending-blow",
             "Ending Blow",
             0x3D5,
@@ -31,6 +19,18 @@ public static class HiddenSkillsDefinitions
             0x3D5,
             3,
             "Live TPHD confirmed: _playerbase+0x3D5 bit 3"),
+        new(
+            "back-slice",
+            "Back Slice",
+            0x3D5,
+            0,
+            "Live TPHD confirmed: _playerbase+0x3D5 bit 0"),
+        new(
+            "helm-splitter",
+            "Helm Splitter",
+            0x3D5,
+            1,
+            "Live TPHD confirmed: _playerbase+0x3D5 bit 1"),
         new(
             "mortal-draw",
             "Mortal Draw",
