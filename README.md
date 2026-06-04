@@ -97,7 +97,31 @@ See `docs/research/BombSlotsResearch.md` for current notes.
 
 The Quest Items tab includes **Quest Items Research / Experimental**. It is read-only and is intended to help identify quest-item and progression bytes without promoting unconfirmed offsets into an editor.
 
-The tool captures Before and After snapshots of a configurable `_playerbase`-relative range, defaulting to start `0x200` and length `0x200`. Compare shows offset, before/after byte, before/after binary, changed bits, candidate score, and nearby candidate group. Snapshot and report exports are written to:
+The tool captures Before and After snapshots of a configurable `_playerbase`-relative range, defaulting to start `0x200` and length `0x200`. Compare shows offset, before/after byte, before/after binary, changed bits, candidate score, and nearby candidate group.
+
+Persistent Quest Items captures are saved under `logs/research/quest-search/` with labels, capture type, notes, timestamps, app version, start offset, length, and raw bytes:
+
+- `quest-capture_<timestamp>_<safe-label>.json`
+
+You can load saved captures as Capture A and Capture B later, compare them without Cemu running, and export named comparison reports:
+
+- `logs/research/quest-search/quest-report_<timestamp>_<captureA>_vs_<captureB>.json`
+- `logs/research/quest-search/quest-report_<timestamp>_<captureA>_vs_<captureB>.csv`
+
+The **Candidate Ranking** section scores changed bytes so low-value noise is easier to filter out. Scores increase for single-bit changes, small value transitions, nearby grouped changes, monotonic increases, persisted saved-capture changes, flag-like transitions, and offsets that appear across progression comparisons. Scores are reduced for large noisy changes and timer-like/counter-like values. The default filter shows changed rows only.
+
+The **Candidate Groups** section groups nearby changed offsets such as `0x2B1-0x2B3` into named groups with count, range, highest score, and reasons. The **Multi-Capture Analysis** section loads multiple saved captures, or all `quest-capture_*.json` files in `quest-search`, sorts known temple/progression types, and ranks offsets whose values only increase, step upward, or appear once and remain set across a progression chain.
+
+Analyzer exports are written to:
+
+- `logs/research/quest-search/quest-candidate-ranking.json`
+- `logs/research/quest-search/quest-candidate-ranking.csv`
+- `logs/research/quest-search/quest-candidate-groups.json`
+- `logs/research/quest-search/quest-candidate-groups.csv`
+- `logs/research/quest-search/quest-multi-capture-analysis.json`
+- `logs/research/quest-search/quest-multi-capture-analysis.csv`
+
+The legacy quick exports are still written for convenience:
 
 - `logs/research/quest-items-before.json`
 - `logs/research/quest-items-after.json`

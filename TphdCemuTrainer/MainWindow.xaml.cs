@@ -64,7 +64,17 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     private uint _questItemsAfterSnapshotStart;
     private DateTimeOffset? _questItemsBeforeCapturedAt;
     private DateTimeOffset? _questItemsAfterCapturedAt;
+    private QuestItemsCaptureDocument? _questItemsCaptureA;
+    private QuestItemsCaptureDocument? _questItemsCaptureB;
+    private string _questItemsCaptureAPath = string.Empty;
+    private string _questItemsCaptureBPath = string.Empty;
     private QuestItemsResearchExport? _lastQuestItemsResearchExport;
+    private List<QuestItemsCandidateRowViewModel> _questItemsAllCandidateRows = [];
+    private QuestItemsCandidateRankingExport? _lastQuestItemsCandidateRankingExport;
+    private QuestItemsCandidateGroupsExport? _lastQuestItemsCandidateGroupsExport;
+    private QuestItemsMultiCaptureAnalysisExport? _lastQuestItemsMultiCaptureAnalysisExport;
+    private readonly List<QuestItemsLoadedCapture> _questItemsMultiCaptures = [];
+    private readonly Dictionary<uint, int> _questItemsMultiAppearanceCounts = [];
     private byte[]? _hiddenSkillsBeforeSnapshotBytes;
     private byte[]? _hiddenSkillsAfterSnapshotBytes;
     private uint _hiddenSkillsBeforeSnapshotStart;
@@ -118,6 +128,20 @@ public partial class MainWindow : Window, INotifyPropertyChanged
 
     private static readonly IReadOnlyList<string> GoldenBugCandidateNames = GoldenBugsDefinitions.BugNames;
 
+    private static readonly IReadOnlyList<string> QuestItemsCaptureTypes =
+    [
+        "Forest Temple",
+        "Goron Mines",
+        "Lakebed Temple",
+        "Arbiter's Grounds",
+        "Snowpeak Ruins",
+        "Temple of Time",
+        "City in the Sky",
+        "Palace of Twilight",
+        "Hyrule Castle",
+        "Custom"
+    ];
+
     private static readonly JsonSerializerOptions ExportJsonOptions = new()
     {
         WriteIndented = true
@@ -167,6 +191,9 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         CollectiblesDiagnostics = [];
         GoldenBugsResearchRows = [];
         QuestItemsResearchRows = [];
+        QuestItemsCandidateRows = [];
+        QuestItemsCandidateGroups = [];
+        QuestItemsMultiCaptureRows = [];
         GoldenBugsCandidateList = new ObservableCollection<string>(
             GoldenBugCandidateNames.Select((name, index) => $"{index + 1}. {name}"));
         GoldenBugsBitRows = new ObservableCollection<GoldenBugBitViewModel>(
@@ -317,6 +344,9 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     private static string HiddenSkillsCaptureDirectory =>
         Path.Combine(ResearchSnapshotStore.ExportDirectory, "hidden-skills-captures");
 
+    private static string QuestSearchDirectory =>
+        Path.Combine(ResearchSnapshotStore.ExportDirectory, "quest-search");
+
     private static string ProgressionLogPath =>
         Path.Combine(AppContext.BaseDirectory, "logs", "progression.log");
 
@@ -410,6 +440,12 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     public ObservableCollection<string> GoldenBugsEditorDiagnostics { get; }
 
     public ObservableCollection<QuestItemsResearchRowViewModel> QuestItemsResearchRows { get; }
+
+    public ObservableCollection<QuestItemsCandidateRowViewModel> QuestItemsCandidateRows { get; }
+
+    public ObservableCollection<QuestItemsCandidateGroupViewModel> QuestItemsCandidateGroups { get; }
+
+    public ObservableCollection<QuestItemsMultiCaptureRowViewModel> QuestItemsMultiCaptureRows { get; }
 
     public ObservableCollection<HiddenSkillViewModel> HiddenSkillsEditorRows { get; }
 
@@ -927,19 +963,27 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         _questItemsBeforeSnapshotStart = startOffset;
         _questItemsBeforeSnapshotBytes = bytes;
         _questItemsBeforeCapturedAt = DateTimeOffset.Now;
+        _questItemsCaptureA = CreateQuestItemsCaptureDocument(
+            _questItemsBeforeCapturedAt.Value,
+            BuildQuestItemsCaptureLabel("Before"),
+            startOffset,
+            bytes,
+            GetQuestItemsCaptureNotes());
+        _questItemsCaptureAPath = string.Empty;
         QuestItemsResearchRows.Clear();
         _lastQuestItemsResearchExport = null;
         TryWriteQuestItemsSnapshotExport(
             "quest-items-before.json",
-            "Before",
+            _questItemsCaptureA.Label,
             startOffset,
             bytes,
             _questItemsBeforeCapturedAt);
+        UpdateQuestItemsCaptureSummary();
 
         QuestItemsResearchStatusText.Text =
-            $"Captured Before at _playerbase+0x{startOffset:X}, length 0x{bytes.Length:X}. Saved quest-items-before.json.";
+            $"Captured Before \"{_questItemsCaptureA.Label}\" at _playerbase+0x{startOffset:X}, length 0x{bytes.Length:X}. Saved quest-items-before.json.";
         AppendQuestItemsResearchLog(
-            $"action=capture-before start=0x{startOffset:X} length=0x{bytes.Length:X} bytes=\"{FormatByteArray(bytes)}\"");
+            $"action=capture-before label=\"{_questItemsCaptureA.Label}\" start=0x{startOffset:X} length=0x{bytes.Length:X} bytes=\"{FormatByteArray(bytes)}\"");
         SetStatus("Quest Items Before snapshot captured.", StatusKind.Connected);
     }
 
@@ -953,34 +997,211 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         _questItemsAfterSnapshotStart = startOffset;
         _questItemsAfterSnapshotBytes = bytes;
         _questItemsAfterCapturedAt = DateTimeOffset.Now;
+        _questItemsCaptureB = CreateQuestItemsCaptureDocument(
+            _questItemsAfterCapturedAt.Value,
+            BuildQuestItemsCaptureLabel("After"),
+            startOffset,
+            bytes,
+            GetQuestItemsCaptureNotes());
+        _questItemsCaptureBPath = string.Empty;
         _lastQuestItemsResearchExport = null;
         TryWriteQuestItemsSnapshotExport(
             "quest-items-after.json",
-            "After",
+            _questItemsCaptureB.Label,
             startOffset,
             bytes,
             _questItemsAfterCapturedAt);
+        UpdateQuestItemsCaptureSummary();
 
         QuestItemsResearchStatusText.Text =
-            $"Captured After at _playerbase+0x{startOffset:X}, length 0x{bytes.Length:X}. Saved quest-items-after.json.";
+            $"Captured After \"{_questItemsCaptureB.Label}\" at _playerbase+0x{startOffset:X}, length 0x{bytes.Length:X}. Saved quest-items-after.json.";
         AppendQuestItemsResearchLog(
-            $"action=capture-after start=0x{startOffset:X} length=0x{bytes.Length:X} bytes=\"{FormatByteArray(bytes)}\"");
+            $"action=capture-after label=\"{_questItemsCaptureB.Label}\" start=0x{startOffset:X} length=0x{bytes.Length:X} bytes=\"{FormatByteArray(bytes)}\"");
         SetStatus("Quest Items After snapshot captured.", StatusKind.Connected);
+    }
+
+    private void QuestItemsSaveCurrentCapture_Click(object sender, RoutedEventArgs e)
+    {
+        if (!TryReadQuestItemsResearchRange(out var startOffset, out var bytes, out _))
+        {
+            return;
+        }
+
+        var timestamp = DateTimeOffset.Now;
+        var label = BuildQuestItemsCaptureLabel("Current");
+        var path = TrySaveQuestItemsCapture(label, startOffset, bytes, timestamp, GetQuestItemsCaptureNotes());
+        if (!string.IsNullOrWhiteSpace(path))
+        {
+            QuestItemsResearchStatusText.Text =
+                $"Saved current Quest Items capture \"{label}\" to {Path.GetFileName(path)}.";
+            AppendQuestItemsResearchLog(
+                $"action=save-current label=\"{label}\" path=\"{path}\" start=0x{startOffset:X} length=0x{bytes.Length:X}");
+            SetStatus("Quest Items capture saved.", StatusKind.Connected);
+        }
+    }
+
+    private void QuestItemsSaveBeforeCapture_Click(object sender, RoutedEventArgs e)
+    {
+        SaveQuestItemsCapturedSlot(
+            "A",
+            _questItemsBeforeSnapshotStart,
+            _questItemsBeforeSnapshotBytes,
+            _questItemsBeforeCapturedAt,
+            _questItemsCaptureA);
+    }
+
+    private void QuestItemsSaveAfterCapture_Click(object sender, RoutedEventArgs e)
+    {
+        SaveQuestItemsCapturedSlot(
+            "B",
+            _questItemsAfterSnapshotStart,
+            _questItemsAfterSnapshotBytes,
+            _questItemsAfterCapturedAt,
+            _questItemsCaptureB);
+    }
+
+    private void QuestItemsLoadCaptureA_Click(object sender, RoutedEventArgs e)
+    {
+        if (!TryLoadQuestItemsCapture("A", out var capture, out var bytes, out var path))
+        {
+            return;
+        }
+
+        _questItemsCaptureA = capture;
+        _questItemsCaptureAPath = path;
+        _questItemsBeforeSnapshotStart = capture.StartOffset;
+        _questItemsBeforeSnapshotBytes = bytes;
+        _questItemsBeforeCapturedAt = capture.Timestamp;
+        _lastQuestItemsResearchExport = null;
+        QuestItemsResearchRows.Clear();
+        UpdateQuestItemsCaptureSummary();
+
+        QuestItemsResearchStatusText.Text =
+            $"Loaded Capture A \"{capture.Label}\" from {Path.GetFileName(path)}.";
+        AppendQuestItemsResearchLog(
+            $"action=load-capture-a label=\"{capture.Label}\" path=\"{path}\" start=0x{capture.StartOffset:X} length=0x{capture.Length:X}");
+        SetStatus("Quest Items Capture A loaded.", StatusKind.Connected);
+    }
+
+    private void QuestItemsLoadCaptureB_Click(object sender, RoutedEventArgs e)
+    {
+        if (!TryLoadQuestItemsCapture("B", out var capture, out var bytes, out var path))
+        {
+            return;
+        }
+
+        _questItemsCaptureB = capture;
+        _questItemsCaptureBPath = path;
+        _questItemsAfterSnapshotStart = capture.StartOffset;
+        _questItemsAfterSnapshotBytes = bytes;
+        _questItemsAfterCapturedAt = capture.Timestamp;
+        _lastQuestItemsResearchExport = null;
+        QuestItemsResearchRows.Clear();
+        UpdateQuestItemsCaptureSummary();
+
+        QuestItemsResearchStatusText.Text =
+            $"Loaded Capture B \"{capture.Label}\" from {Path.GetFileName(path)}.";
+        AppendQuestItemsResearchLog(
+            $"action=load-capture-b label=\"{capture.Label}\" path=\"{path}\" start=0x{capture.StartOffset:X} length=0x{capture.Length:X}");
+        SetStatus("Quest Items Capture B loaded.", StatusKind.Connected);
+    }
+
+    private void QuestItemsCompareLoadedCaptures_Click(object sender, RoutedEventArgs e)
+    {
+        CompareQuestItemsSnapshots("compare-loaded");
+    }
+
+    private void QuestItemsAnalyzeLoadedCaptures_Click(object sender, RoutedEventArgs e)
+    {
+        if (QuestItemsResearchRows.Count == 0)
+        {
+            CompareQuestItemsSnapshots("analyze-loaded");
+        }
+
+        BuildQuestItemsCandidateAnalysis("analyze-loaded");
+    }
+
+    private void QuestItemsCandidateFilter_Changed(object sender, RoutedEventArgs e)
+    {
+        ApplyQuestItemsCandidateFilters();
+    }
+
+    private void QuestItemsExportCandidateRanking_Click(object sender, RoutedEventArgs e)
+    {
+        ExportQuestItemsCandidateRanking();
+    }
+
+    private void QuestItemsExportCandidateGroups_Click(object sender, RoutedEventArgs e)
+    {
+        ExportQuestItemsCandidateGroups();
+    }
+
+    private void QuestItemsLoadMultiCaptures_Click(object sender, RoutedEventArgs e)
+    {
+        LoadQuestItemsMultiCaptures();
+    }
+
+    private void QuestItemsLoadAllCaptures_Click(object sender, RoutedEventArgs e)
+    {
+        LoadAllQuestItemsCapturesFromSearchFolder();
+    }
+
+    private void QuestItemsAnalyzeMultiCaptures_Click(object sender, RoutedEventArgs e)
+    {
+        AnalyzeQuestItemsMultiCaptures();
+    }
+
+    private void QuestItemsExportMultiCaptureAnalysis_Click(object sender, RoutedEventArgs e)
+    {
+        ExportQuestItemsMultiCaptureAnalysis();
+    }
+
+    private void QuestItemsExportReport_Click(object sender, RoutedEventArgs e)
+    {
+        ExportQuestItemsNamedReport();
+    }
+
+    private void QuestItemsOpenSearchFolder_Click(object sender, RoutedEventArgs e)
+    {
+        try
+        {
+            Directory.CreateDirectory(QuestSearchDirectory);
+            Process.Start(new ProcessStartInfo
+            {
+                FileName = QuestSearchDirectory,
+                UseShellExecute = true
+            });
+        }
+        catch (Exception ex)
+        {
+            QuestItemsResearchStatusText.Text = $"Open Quest Search folder failed: {ex.Message}";
+            SetStatus("Open Quest Search folder failed.", StatusKind.Warning);
+        }
     }
 
     private void QuestItemsCompare_Click(object sender, RoutedEventArgs e)
     {
+        CompareQuestItemsSnapshots("compare");
+    }
+
+    private void CompareQuestItemsSnapshots(string action)
+    {
         if (_questItemsBeforeSnapshotBytes is null || _questItemsAfterSnapshotBytes is null)
         {
-            QuestItemsResearchStatusText.Text = "Capture Before and After snapshots before comparing Quest Items research data.";
+            QuestItemsResearchStatusText.Text = "Capture or load Capture A and Capture B before comparing Quest Items research data.";
             SetStatus("Capture Quest Items Before and After snapshots first.", StatusKind.Neutral);
             return;
         }
 
+        UpdateQuestItemsCaptureSummary();
         if (_questItemsBeforeSnapshotStart != _questItemsAfterSnapshotStart ||
             _questItemsBeforeSnapshotBytes.Length != _questItemsAfterSnapshotBytes.Length)
         {
-            QuestItemsResearchStatusText.Text = "Before and After ranges must use the same start and length.";
+            QuestItemsResearchStatusText.Text =
+                $"Range mismatch. Capture A \"{GetQuestItemsCaptureALabel()}\" uses 0x{_questItemsBeforeSnapshotStart:X} length 0x{_questItemsBeforeSnapshotBytes.Length:X}; " +
+                $"Capture B \"{GetQuestItemsCaptureBLabel()}\" uses 0x{_questItemsAfterSnapshotStart:X} length 0x{_questItemsAfterSnapshotBytes.Length:X}.";
+            AppendQuestItemsResearchLog(
+                $"action={action}-range-mismatch capture-a=\"{GetQuestItemsCaptureALabel()}\" start-a=0x{_questItemsBeforeSnapshotStart:X} length-a=0x{_questItemsBeforeSnapshotBytes.Length:X} capture-b=\"{GetQuestItemsCaptureBLabel()}\" start-b=0x{_questItemsAfterSnapshotStart:X} length-b=0x{_questItemsAfterSnapshotBytes.Length:X}");
             SetStatus("Quest Items research ranges do not match.", StatusKind.Warning);
             return;
         }
@@ -1004,8 +1225,11 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         var changedByteCount = rows.Count(row => row.IsChanged);
         var changedBitCount = rows.Sum(row => row.ChangedBitCount);
         _lastQuestItemsResearchExport = CreateQuestItemsResearchExport(changedByteCount, changedBitCount);
+        BuildQuestItemsCandidateAnalysis(action);
         QuestItemsResearchStatusText.Text =
-            $"Compared Quest Items snapshots. Changed bytes: {changedByteCount}. Changed bits: {changedBitCount}.";
+            $"Compared Quest Items captures: \"{_lastQuestItemsResearchExport.CaptureALabel}\" vs \"{_lastQuestItemsResearchExport.CaptureBLabel}\". " +
+            $"Range _playerbase+0x{_lastQuestItemsResearchExport.CaptureAStartOffset:X}, length 0x{_lastQuestItemsResearchExport.CaptureALength:X}. " +
+            $"Changed bytes: {changedByteCount}. Changed bits: {changedBitCount}.";
         var changes = string.Join(
             "; ",
             rows
@@ -1013,7 +1237,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
                 .Select(row =>
                     $"{row.Offset}:{row.BeforeValue}(0x{row.BeforeValue:X2})->{row.AfterValue}(0x{row.AfterValue:X2}) {row.ChangedBits} score={row.CandidateScore} group={row.CandidateGroup}"));
         AppendQuestItemsResearchLog(
-            $"action=compare start=0x{_questItemsBeforeSnapshotStart:X} length=0x{_questItemsBeforeSnapshotBytes.Length:X} changed-bytes={changedByteCount} changed-bits={changedBitCount} changes=\"{changes}\"");
+            $"action={action} capture-a=\"{_lastQuestItemsResearchExport.CaptureALabel}\" capture-b=\"{_lastQuestItemsResearchExport.CaptureBLabel}\" start=0x{_questItemsBeforeSnapshotStart:X} length=0x{_questItemsBeforeSnapshotBytes.Length:X} changed-bytes={changedByteCount} changed-bits={changedBitCount} changes=\"{changes}\"");
         SetStatus("Quest Items research snapshots compared.", StatusKind.Connected);
     }
 
@@ -1029,6 +1253,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         try
         {
             Directory.CreateDirectory(ResearchSnapshotStore.ExportDirectory);
+            Directory.CreateDirectory(QuestSearchDirectory);
             if (_questItemsBeforeSnapshotBytes is not null)
             {
                 TryWriteQuestItemsSnapshotExport(
@@ -1051,7 +1276,9 @@ public partial class MainWindow : Window, INotifyPropertyChanged
 
             var reportPath = Path.Combine(ResearchSnapshotStore.ExportDirectory, "quest-items-report.json");
             File.WriteAllText(reportPath, JsonSerializer.Serialize(_lastQuestItemsResearchExport, ExportJsonOptions));
-            QuestItemsResearchStatusText.Text = "Exported Quest Items JSON files to logs/research.";
+            var namedReportPath = WriteQuestItemsNamedJsonReport();
+            QuestItemsResearchStatusText.Text =
+                $"Exported Quest Items JSON report to logs/research and {Path.GetFileName(namedReportPath)}.";
             AppendQuestItemsResearchLog($"action=export-json report=\"{reportPath}\" rows={_lastQuestItemsResearchExport.Rows.Count}");
             SetStatus("Quest Items JSON exported.", StatusKind.Connected);
         }
@@ -1074,9 +1301,12 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         try
         {
             Directory.CreateDirectory(ResearchSnapshotStore.ExportDirectory);
+            Directory.CreateDirectory(QuestSearchDirectory);
             var csvPath = Path.Combine(ResearchSnapshotStore.ExportDirectory, "quest-items-report.csv");
-            File.WriteAllLines(csvPath, CreateQuestItemsResearchCsvLines(_lastQuestItemsResearchExport.Rows));
-            QuestItemsResearchStatusText.Text = "Exported Quest Items CSV report to logs/research.";
+            File.WriteAllLines(csvPath, CreateQuestItemsResearchCsvLines(_lastQuestItemsResearchExport));
+            var namedCsvPath = WriteQuestItemsNamedCsvReport();
+            QuestItemsResearchStatusText.Text =
+                $"Exported Quest Items CSV report to logs/research and {Path.GetFileName(namedCsvPath)}.";
             AppendQuestItemsResearchLog($"action=export-csv csv=\"{csvPath}\" rows={_lastQuestItemsResearchExport.Rows.Count}");
             SetStatus("Quest Items CSV exported.", StatusKind.Connected);
         }
@@ -6937,10 +7167,15 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     {
         return new QuestItemsResearchExport(
             DateTimeOffset.Now,
+            GetQuestItemsCaptureALabel(),
+            GetQuestItemsCaptureBLabel(),
             _questItemsBeforeSnapshotStart,
             _questItemsBeforeSnapshotBytes?.Length ?? 0,
             _questItemsBeforeCapturedAt,
+            _questItemsAfterSnapshotStart,
+            _questItemsAfterSnapshotBytes?.Length ?? 0,
             _questItemsAfterCapturedAt,
+            string.Empty,
             changedByteCount,
             changedBitCount,
             QuestItemsResearchRows.Select(row => new QuestItemsResearchExportRow(
@@ -6956,10 +7191,21 @@ public partial class MainWindow : Window, INotifyPropertyChanged
                 row.CandidateGroup)).ToList());
     }
 
-    private static IEnumerable<string> CreateQuestItemsResearchCsvLines(IEnumerable<QuestItemsResearchExportRow> rows)
+    private static IEnumerable<string> CreateQuestItemsResearchCsvLines(QuestItemsResearchExport export)
     {
-        yield return "Offset,Before Value,After Value,Before Binary,After Binary,Changed Bits,Changed Bit Count,Changed,Candidate Score,Candidate Group";
-        foreach (var row in rows)
+        yield return "Field,Value";
+        yield return string.Join(",", Csv("Capture A"), Csv(export.CaptureALabel));
+        yield return string.Join(",", Csv("Capture B"), Csv(export.CaptureBLabel));
+        yield return string.Join(",", Csv("Capture A Start Offset"), Csv($"0x{export.CaptureAStartOffset:X}"));
+        yield return string.Join(",", Csv("Capture A Length"), Csv($"0x{export.CaptureALength:X}"));
+        yield return string.Join(",", Csv("Capture B Start Offset"), Csv($"0x{export.CaptureBStartOffset:X}"));
+        yield return string.Join(",", Csv("Capture B Length"), Csv($"0x{export.CaptureBLength:X}"));
+        yield return string.Join(",", Csv("Changed Byte Count"), Csv(export.ChangedByteCount.ToString(CultureInfo.InvariantCulture)));
+        yield return string.Join(",", Csv("Changed Bit Count"), Csv(export.ChangedBitCount.ToString(CultureInfo.InvariantCulture)));
+        yield return string.Join(",", Csv("Range Warning"), Csv(export.RangeWarning));
+        yield return string.Empty;
+        yield return "Offset,Capture A Value,Capture B Value,Capture A Binary,Capture B Binary,Changed Bits,Changed Bit Count,Changed,Candidate Score,Candidate Group";
+        foreach (var row in export.Rows)
         {
             yield return string.Join(
                 ",",
@@ -7009,6 +7255,663 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             {
                 row.SetCandidateGroup(groupName);
             }
+        }
+    }
+
+    private void BuildQuestItemsCandidateAnalysis(string action)
+    {
+        _questItemsAllCandidateRows = [];
+        QuestItemsCandidateGroups.Clear();
+        _lastQuestItemsCandidateRankingExport = null;
+        _lastQuestItemsCandidateGroupsExport = null;
+
+        var persisted = !string.IsNullOrWhiteSpace(_questItemsCaptureAPath) &&
+                        !string.IsNullOrWhiteSpace(_questItemsCaptureBPath);
+        foreach (var row in QuestItemsResearchRows)
+        {
+            var analysis = ScoreQuestItemsCandidate(row, persisted);
+            _questItemsAllCandidateRows.Add(new QuestItemsCandidateRowViewModel(
+                row.OffsetValue,
+                row.BeforeValue,
+                row.AfterValue,
+                row.ChangedBits,
+                row.ChangedBitCount,
+                row.IsChanged,
+                row.IsSingleBitChange,
+                persisted,
+                row.CandidateGroup != "-",
+                analysis.Score,
+                GetQuestItemsConfidence(analysis.Score),
+                row.CandidateGroup,
+                string.Join("; ", analysis.Reasons)));
+        }
+
+        ApplyQuestItemsCandidateFilters();
+        BuildQuestItemsCandidateGroups();
+        _lastQuestItemsCandidateRankingExport = CreateQuestItemsCandidateRankingExport();
+        _lastQuestItemsCandidateGroupsExport = CreateQuestItemsCandidateGroupsExport();
+        AppendQuestItemsResearchLog(
+            $"action={action}-candidate-analysis rows={QuestItemsCandidateRows.Count} groups={QuestItemsCandidateGroups.Count}");
+    }
+
+    private (int Score, List<string> Reasons) ScoreQuestItemsCandidate(
+        QuestItemsResearchRowViewModel row,
+        bool persisted)
+    {
+        var score = 0;
+        var reasons = new List<string>();
+        var delta = row.AfterValue - row.BeforeValue;
+        var absoluteDelta = Math.Abs(delta);
+
+        if (row.IsChanged)
+        {
+            score += 2;
+            reasons.Add("Changed");
+        }
+        else
+        {
+            reasons.Add("Unchanged");
+        }
+
+        if (row.IsSingleBitChange)
+        {
+            score += 5;
+            reasons.Add("Single-bit change");
+        }
+        else if (row.ChangedBitCount is > 1 and <= 3)
+        {
+            score += 2;
+            reasons.Add("Small bit change");
+        }
+        else if (row.ChangedBitCount >= 5)
+        {
+            score -= 4;
+            reasons.Add("Large noisy bit change");
+        }
+
+        if (row.IsChanged && absoluteDelta <= 4)
+        {
+            score += 2;
+            reasons.Add("Small value transition");
+        }
+        else if (row.IsChanged && absoluteDelta > 64)
+        {
+            score -= 3;
+            reasons.Add("Large value jump");
+        }
+
+        if (row.IsChanged && delta > 0)
+        {
+            score += 2;
+            reasons.Add("Monotonic increase");
+        }
+
+        if (row.IsChanged && IsFlagLikeTransition(row.BeforeValue, row.AfterValue))
+        {
+            score += 3;
+            reasons.Add("Flag-like transition");
+        }
+
+        if (row.CandidateGroup != "-")
+        {
+            score += 2;
+            reasons.Add($"Nearby grouped candidate ({row.CandidateGroup})");
+        }
+
+        if (persisted && row.IsChanged)
+        {
+            score += 2;
+            reasons.Add("Persisted saved-capture change");
+        }
+
+        if (_questItemsMultiAppearanceCounts.TryGetValue(row.OffsetValue, out var appearances) && appearances > 1)
+        {
+            score += Math.Min(4, appearances);
+            reasons.Add($"Appears in {appearances} progression comparisons");
+        }
+
+        if (LooksTimerLike(row.BeforeValue, row.AfterValue, row.ChangedBitCount))
+        {
+            score -= 3;
+            reasons.Add("Possible counter/timer noise");
+        }
+
+        return (Math.Max(0, score), reasons);
+    }
+
+    private static bool IsFlagLikeTransition(byte beforeValue, byte afterValue)
+    {
+        if (beforeValue == afterValue)
+        {
+            return false;
+        }
+
+        var newlySet = (byte)(afterValue & ~beforeValue);
+        var cleared = (byte)(beforeValue & ~afterValue);
+        return cleared == 0 && newlySet != 0 && IsSingleBitMask(newlySet);
+    }
+
+    private static bool IsSingleBitMask(byte value)
+    {
+        return value != 0 && (value & (value - 1)) == 0;
+    }
+
+    private static bool LooksTimerLike(byte beforeValue, byte afterValue, int changedBitCount)
+    {
+        return Math.Abs(afterValue - beforeValue) > 32 && changedBitCount >= 4;
+    }
+
+    private static string GetQuestItemsConfidence(int score)
+    {
+        return score >= 10 ? "High" : score >= 6 ? "Medium" : "Low";
+    }
+
+    private void ApplyQuestItemsCandidateFilters()
+    {
+        if (!IsInitialized)
+        {
+            return;
+        }
+
+        var changedOnly = QuestItemsFilterChangedOnlyCheckBox.IsChecked != false;
+        var singleBitOnly = QuestItemsFilterSingleBitOnlyCheckBox.IsChecked == true;
+        var groupedOnly = QuestItemsFilterGroupedOnlyCheckBox.IsChecked == true;
+        var persistedOnly = QuestItemsFilterPersistedOnlyCheckBox.IsChecked == true;
+        var minimumScore = 0;
+        if (!int.TryParse(QuestItemsFilterMinimumScoreText.Text, NumberStyles.Integer, CultureInfo.InvariantCulture, out minimumScore))
+        {
+            minimumScore = 0;
+        }
+
+        QuestItemsCandidateRows.Clear();
+        foreach (var row in _questItemsAllCandidateRows
+                     .Where(row => !changedOnly || row.IsChanged)
+                     .Where(row => !singleBitOnly || row.IsSingleBitChange)
+                     .Where(row => !groupedOnly || row.IsGrouped)
+                     .Where(row => !persistedOnly || row.IsPersisted)
+                     .Where(row => row.CandidateScore >= minimumScore)
+                     .OrderByDescending(row => row.CandidateScore)
+                     .ThenBy(row => row.OffsetValue))
+        {
+            QuestItemsCandidateRows.Add(row);
+        }
+    }
+
+    private void BuildQuestItemsCandidateGroups()
+    {
+        QuestItemsCandidateGroups.Clear();
+        var groupedRows = _questItemsAllCandidateRows
+            .Where(row => row.IsChanged && row.GroupName != "-")
+            .GroupBy(row => row.GroupName)
+            .OrderBy(group => group.Min(row => row.OffsetValue));
+
+        foreach (var group in groupedRows)
+        {
+            var rows = group.OrderBy(row => row.OffsetValue).ToList();
+            var reasons = rows
+                .SelectMany(row => row.Reasons.Split(';', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries))
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .Take(5);
+            QuestItemsCandidateGroups.Add(new QuestItemsCandidateGroupViewModel(
+                group.Key,
+                rows.First().OffsetValue,
+                rows.Last().OffsetValue,
+                rows.Count,
+                rows.Max(row => row.CandidateScore),
+                string.Join("; ", reasons)));
+        }
+    }
+
+    private QuestItemsCandidateRankingExport CreateQuestItemsCandidateRankingExport()
+    {
+        return new QuestItemsCandidateRankingExport(
+            DateTimeOffset.Now,
+            GetQuestItemsCaptureALabel(),
+            GetQuestItemsCaptureBLabel(),
+            QuestItemsCandidateRows.Select(row => new QuestItemsCandidateRankingExportRow(
+                row.Offset,
+                row.BeforeHex,
+                row.AfterHex,
+                row.ChangedBits,
+                row.ChangedBitCount,
+                row.CandidateScore,
+                row.Confidence,
+                row.GroupName,
+                row.Reasons)).ToList());
+    }
+
+    private QuestItemsCandidateGroupsExport CreateQuestItemsCandidateGroupsExport()
+    {
+        return new QuestItemsCandidateGroupsExport(
+            DateTimeOffset.Now,
+            GetQuestItemsCaptureALabel(),
+            GetQuestItemsCaptureBLabel(),
+            QuestItemsCandidateGroups.Select(group => new QuestItemsCandidateGroupsExportRow(
+                group.GroupName,
+                group.OffsetRange,
+                group.Count,
+                group.HighestCandidateScore,
+                group.Reasons)).ToList());
+    }
+
+    private void ExportQuestItemsCandidateRanking()
+    {
+        if (QuestItemsCandidateRows.Count == 0 && _questItemsAllCandidateRows.Count == 0)
+        {
+            QuestItemsResearchStatusText.Text = "Analyze Quest Items captures before exporting candidate ranking.";
+            SetStatus("Analyze Quest Items captures before exporting.", StatusKind.Neutral);
+            return;
+        }
+
+        try
+        {
+            Directory.CreateDirectory(QuestSearchDirectory);
+            _lastQuestItemsCandidateRankingExport = CreateQuestItemsCandidateRankingExport();
+            var jsonPath = Path.Combine(QuestSearchDirectory, "quest-candidate-ranking.json");
+            var csvPath = Path.Combine(QuestSearchDirectory, "quest-candidate-ranking.csv");
+            File.WriteAllText(jsonPath, JsonSerializer.Serialize(_lastQuestItemsCandidateRankingExport, ExportJsonOptions));
+            File.WriteAllLines(csvPath, CreateQuestItemsCandidateRankingCsvLines(_lastQuestItemsCandidateRankingExport));
+            QuestItemsResearchStatusText.Text =
+                $"Exported Quest Items candidate ranking: {Path.GetFileName(jsonPath)} and {Path.GetFileName(csvPath)}.";
+            AppendQuestItemsResearchLog(
+                $"action=export-candidate-ranking json=\"{jsonPath}\" csv=\"{csvPath}\" rows={_lastQuestItemsCandidateRankingExport.Rows.Count}");
+            SetStatus("Quest Items candidate ranking exported.", StatusKind.Connected);
+        }
+        catch (Exception ex)
+        {
+            QuestItemsResearchStatusText.Text = $"Quest Items candidate ranking export failed: {ex.Message}";
+            SetStatus("Quest Items candidate ranking export failed.", StatusKind.Warning);
+        }
+    }
+
+    private void ExportQuestItemsCandidateGroups()
+    {
+        if (QuestItemsCandidateGroups.Count == 0)
+        {
+            QuestItemsResearchStatusText.Text = "Analyze Quest Items captures before exporting candidate groups.";
+            SetStatus("Analyze Quest Items captures before exporting groups.", StatusKind.Neutral);
+            return;
+        }
+
+        try
+        {
+            Directory.CreateDirectory(QuestSearchDirectory);
+            _lastQuestItemsCandidateGroupsExport = CreateQuestItemsCandidateGroupsExport();
+            var jsonPath = Path.Combine(QuestSearchDirectory, "quest-candidate-groups.json");
+            var csvPath = Path.Combine(QuestSearchDirectory, "quest-candidate-groups.csv");
+            File.WriteAllText(jsonPath, JsonSerializer.Serialize(_lastQuestItemsCandidateGroupsExport, ExportJsonOptions));
+            File.WriteAllLines(csvPath, CreateQuestItemsCandidateGroupsCsvLines(_lastQuestItemsCandidateGroupsExport));
+            QuestItemsResearchStatusText.Text =
+                $"Exported Quest Items candidate groups: {Path.GetFileName(jsonPath)} and {Path.GetFileName(csvPath)}.";
+            AppendQuestItemsResearchLog(
+                $"action=export-candidate-groups json=\"{jsonPath}\" csv=\"{csvPath}\" groups={_lastQuestItemsCandidateGroupsExport.Groups.Count}");
+            SetStatus("Quest Items candidate groups exported.", StatusKind.Connected);
+        }
+        catch (Exception ex)
+        {
+            QuestItemsResearchStatusText.Text = $"Quest Items candidate groups export failed: {ex.Message}";
+            SetStatus("Quest Items candidate groups export failed.", StatusKind.Warning);
+        }
+    }
+
+    private static IEnumerable<string> CreateQuestItemsCandidateRankingCsvLines(QuestItemsCandidateRankingExport export)
+    {
+        yield return "Offset,Capture A Value,Capture B Value,Changed Bits,Changed Bit Count,Score,Confidence,Group,Reasons";
+        foreach (var row in export.Rows)
+        {
+            yield return string.Join(
+                ",",
+                Csv(row.Offset),
+                Csv(row.CaptureAValue),
+                Csv(row.CaptureBValue),
+                Csv(row.ChangedBits),
+                Csv(row.ChangedBitCount.ToString(CultureInfo.InvariantCulture)),
+                Csv(row.CandidateScore.ToString(CultureInfo.InvariantCulture)),
+                Csv(row.Confidence),
+                Csv(row.GroupName),
+                Csv(row.Reasons));
+        }
+    }
+
+    private static IEnumerable<string> CreateQuestItemsCandidateGroupsCsvLines(QuestItemsCandidateGroupsExport export)
+    {
+        yield return "Group,Offset Range,Count,Highest Candidate Score,Reasons";
+        foreach (var group in export.Groups)
+        {
+            yield return string.Join(
+                ",",
+                Csv(group.GroupName),
+                Csv(group.OffsetRange),
+                Csv(group.Count.ToString(CultureInfo.InvariantCulture)),
+                Csv(group.HighestCandidateScore.ToString(CultureInfo.InvariantCulture)),
+                Csv(group.Reasons));
+        }
+    }
+
+    private void LoadQuestItemsMultiCaptures()
+    {
+        var dialog = new OpenFileDialog
+        {
+            Title = "Load Quest Items progression captures",
+            Filter = "Quest Items captures (*.json)|*.json|All files (*.*)|*.*",
+            FileName = "quest-capture_*.json",
+            Multiselect = true
+        };
+
+        if (Directory.Exists(QuestSearchDirectory))
+        {
+            dialog.InitialDirectory = QuestSearchDirectory;
+        }
+
+        if (dialog.ShowDialog(this) != true)
+        {
+            return;
+        }
+
+        LoadQuestItemsMultiCapturesFromPaths(dialog.FileNames, "load-multi-captures");
+    }
+
+    private void LoadAllQuestItemsCapturesFromSearchFolder()
+    {
+        Directory.CreateDirectory(QuestSearchDirectory);
+        var paths = Directory
+            .EnumerateFiles(QuestSearchDirectory, "quest-capture_*.json")
+            .OrderBy(path => path)
+            .ToList();
+        if (paths.Count == 0)
+        {
+            QuestItemsResearchStatusText.Text = "No Quest Items captures were found in logs/research/quest-search.";
+            SetStatus("No Quest Items captures found.", StatusKind.Neutral);
+            return;
+        }
+
+        LoadQuestItemsMultiCapturesFromPaths(paths, "load-all-multi-captures");
+    }
+
+    private void LoadQuestItemsMultiCapturesFromPaths(IEnumerable<string> paths, string action)
+    {
+        var loadedCaptures = new List<QuestItemsLoadedCapture>();
+        foreach (var path in paths)
+        {
+            if (TryLoadQuestItemsCaptureFromPath(path, out var capture, out var bytes, out var loadedPath))
+            {
+                loadedCaptures.Add(new QuestItemsLoadedCapture(loadedPath, capture, bytes));
+            }
+        }
+
+        _questItemsMultiCaptures.Clear();
+        _questItemsMultiCaptures.AddRange(loadedCaptures
+            .OrderBy(capture => GetQuestItemsCaptureTypeOrder(capture.Document.CaptureType))
+            .ThenBy(capture => capture.Document.Timestamp));
+        QuestItemsMultiCaptureRows.Clear();
+        _lastQuestItemsMultiCaptureAnalysisExport = null;
+
+        QuestItemsResearchStatusText.Text =
+            $"Loaded {_questItemsMultiCaptures.Count} Quest Items progression capture(s) for multi-capture analysis.";
+        AppendQuestItemsResearchLog(
+            $"action={action} count={_questItemsMultiCaptures.Count} files=\"{string.Join("; ", _questItemsMultiCaptures.Select(capture => capture.Path))}\"");
+        SetStatus("Quest Items multi-captures loaded.", StatusKind.Connected);
+    }
+
+    private void AnalyzeQuestItemsMultiCaptures()
+    {
+        if (_questItemsMultiCaptures.Count < 2)
+        {
+            QuestItemsResearchStatusText.Text = "Load at least two Quest Items captures before multi-capture analysis.";
+            SetStatus("Load Quest Items multi-captures first.", StatusKind.Neutral);
+            return;
+        }
+
+        var first = _questItemsMultiCaptures[0];
+        if (_questItemsMultiCaptures.Any(capture =>
+                capture.Document.StartOffset != first.Document.StartOffset ||
+                capture.Bytes.Length != first.Bytes.Length))
+        {
+            QuestItemsResearchStatusText.Text = "All Quest Items multi-captures must use the same start offset and length.";
+            SetStatus("Quest Items multi-capture ranges do not match.", StatusKind.Warning);
+            return;
+        }
+
+        QuestItemsMultiCaptureRows.Clear();
+        _questItemsMultiAppearanceCounts.Clear();
+        for (var index = 0; index < first.Bytes.Length; index++)
+        {
+            var offset = first.Document.StartOffset + (uint)index;
+            var values = _questItemsMultiCaptures.Select(capture => capture.Bytes[index]).ToList();
+            var appearances = CountQuestItemsValueChanges(values);
+            if (appearances == 0)
+            {
+                continue;
+            }
+
+            var analysis = ScoreQuestItemsMultiCaptureCandidate(values, appearances);
+            _questItemsMultiAppearanceCounts[offset] = appearances;
+            QuestItemsMultiCaptureRows.Add(new QuestItemsMultiCaptureRowViewModel(
+                offset,
+                string.Join(" -> ", values.Select(value => $"0x{value:X2}")),
+                appearances,
+                analysis.Score,
+                GetQuestItemsConfidence(analysis.Score),
+                string.Join("; ", analysis.Reasons)));
+        }
+
+        var sortedRows = QuestItemsMultiCaptureRows
+            .OrderByDescending(row => row.CandidateScore)
+            .ThenBy(row => row.OffsetValue)
+            .ToList();
+        QuestItemsMultiCaptureRows.Clear();
+        foreach (var row in sortedRows)
+        {
+            QuestItemsMultiCaptureRows.Add(row);
+        }
+
+        _lastQuestItemsMultiCaptureAnalysisExport = CreateQuestItemsMultiCaptureAnalysisExport();
+        if (QuestItemsResearchRows.Count > 0)
+        {
+            BuildQuestItemsCandidateAnalysis("multi-capture-correlation");
+        }
+
+        QuestItemsResearchStatusText.Text =
+            $"Analyzed {_questItemsMultiCaptures.Count} Quest Items captures. Ranked candidates: {QuestItemsMultiCaptureRows.Count}.";
+        AppendQuestItemsResearchLog(
+            $"action=analyze-multi-captures captures={_questItemsMultiCaptures.Count} rows={QuestItemsMultiCaptureRows.Count}");
+        SetStatus("Quest Items multi-capture analysis complete.", StatusKind.Connected);
+    }
+
+    private static int CountQuestItemsValueChanges(IReadOnlyList<byte> values)
+    {
+        var changes = 0;
+        for (var index = 1; index < values.Count; index++)
+        {
+            if (values[index] != values[index - 1])
+            {
+                changes++;
+            }
+        }
+
+        return changes;
+    }
+
+    private static (int Score, List<string> Reasons) ScoreQuestItemsMultiCaptureCandidate(
+        IReadOnlyList<byte> values,
+        int appearances)
+    {
+        var score = appearances * 2;
+        var reasons = new List<string> { $"Changed in {appearances} transition(s)" };
+        var onlyIncreases = true;
+        var bitCountsOnlyIncrease = true;
+        var largestDelta = 0;
+        for (var index = 1; index < values.Count; index++)
+        {
+            if (values[index] < values[index - 1])
+            {
+                onlyIncreases = false;
+            }
+
+            if (CountSetBits(values[index]) < CountSetBits(values[index - 1]))
+            {
+                bitCountsOnlyIncrease = false;
+            }
+
+            largestDelta = Math.Max(largestDelta, Math.Abs(values[index] - values[index - 1]));
+        }
+
+        if (onlyIncreases)
+        {
+            score += 4;
+            reasons.Add("Only ever increases");
+        }
+
+        if (bitCountsOnlyIncrease)
+        {
+            score += 3;
+            reasons.Add("Set-bit count only increases");
+        }
+
+        if (values.Distinct().Count() > 1 && onlyIncreases && largestDelta <= 8)
+        {
+            score += 3;
+            reasons.Add("Value increases in small steps");
+        }
+
+        if (HasFlagAppearsOnceAndRemainsSet(values))
+        {
+            score += 5;
+            reasons.Add("Flag appears once and remains set");
+        }
+
+        if (largestDelta > 64)
+        {
+            score -= 3;
+            reasons.Add("Large noisy value change");
+        }
+
+        if (appearances >= Math.Max(3, values.Count - 1) && largestDelta > 8)
+        {
+            score -= 3;
+            reasons.Add("Possible frequently changing counter");
+        }
+
+        return (Math.Max(0, score), reasons);
+    }
+
+    private static bool HasFlagAppearsOnceAndRemainsSet(IReadOnlyList<byte> values)
+    {
+        for (var bit = 0; bit < 8; bit++)
+        {
+            var mask = (byte)(1 << bit);
+            var firstSetIndex = -1;
+            for (var index = 0; index < values.Count; index++)
+            {
+                if ((values[index] & mask) != 0)
+                {
+                    firstSetIndex = index;
+                    break;
+                }
+            }
+
+            if (firstSetIndex <= 0)
+            {
+                continue;
+            }
+
+            var wasUnsetBefore = values.Take(firstSetIndex).All(value => (value & mask) == 0);
+            var remainsSet = values.Skip(firstSetIndex).All(value => (value & mask) != 0);
+            if (wasUnsetBefore && remainsSet)
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private static int CountSetBits(byte value)
+    {
+        var count = 0;
+        var remaining = value;
+        while (remaining != 0)
+        {
+            count += remaining & 1;
+            remaining >>= 1;
+        }
+
+        return count;
+    }
+
+    private static int GetQuestItemsCaptureTypeOrder(string captureType)
+    {
+        var index = QuestItemsCaptureTypes
+            .Select((type, typeIndex) => new { type, typeIndex })
+            .FirstOrDefault(item => string.Equals(item.type, captureType, StringComparison.OrdinalIgnoreCase))
+            ?.typeIndex;
+        return index ?? QuestItemsCaptureTypes.Count;
+    }
+
+    private QuestItemsMultiCaptureAnalysisExport CreateQuestItemsMultiCaptureAnalysisExport()
+    {
+        return new QuestItemsMultiCaptureAnalysisExport(
+            DateTimeOffset.Now,
+            _questItemsMultiCaptures.Select(capture => new QuestItemsMultiCaptureExportCapture(
+                capture.Document.Label,
+                capture.Document.CaptureType,
+                capture.Document.Timestamp,
+                capture.Document.StartOffset,
+                capture.Document.Length,
+                Path.GetFileName(capture.Path))).ToList(),
+            QuestItemsMultiCaptureRows.Select(row => new QuestItemsMultiCaptureAnalysisExportRow(
+                row.Offset,
+                row.ValueProgression,
+                row.AppearanceCount,
+                row.CandidateScore,
+                row.Confidence,
+                row.Reasons)).ToList());
+    }
+
+    private void ExportQuestItemsMultiCaptureAnalysis()
+    {
+        if (QuestItemsMultiCaptureRows.Count == 0)
+        {
+            QuestItemsResearchStatusText.Text = "Analyze Quest Items multi-captures before exporting.";
+            SetStatus("Analyze Quest Items multi-captures before exporting.", StatusKind.Neutral);
+            return;
+        }
+
+        try
+        {
+            Directory.CreateDirectory(QuestSearchDirectory);
+            _lastQuestItemsMultiCaptureAnalysisExport = CreateQuestItemsMultiCaptureAnalysisExport();
+            var jsonPath = Path.Combine(QuestSearchDirectory, "quest-multi-capture-analysis.json");
+            var csvPath = Path.Combine(QuestSearchDirectory, "quest-multi-capture-analysis.csv");
+            File.WriteAllText(jsonPath, JsonSerializer.Serialize(_lastQuestItemsMultiCaptureAnalysisExport, ExportJsonOptions));
+            File.WriteAllLines(csvPath, CreateQuestItemsMultiCaptureAnalysisCsvLines(_lastQuestItemsMultiCaptureAnalysisExport));
+            QuestItemsResearchStatusText.Text =
+                $"Exported Quest Items multi-capture analysis: {Path.GetFileName(jsonPath)} and {Path.GetFileName(csvPath)}.";
+            AppendQuestItemsResearchLog(
+                $"action=export-multi-capture-analysis json=\"{jsonPath}\" csv=\"{csvPath}\" rows={_lastQuestItemsMultiCaptureAnalysisExport.Rows.Count}");
+            SetStatus("Quest Items multi-capture analysis exported.", StatusKind.Connected);
+        }
+        catch (Exception ex)
+        {
+            QuestItemsResearchStatusText.Text = $"Quest Items multi-capture export failed: {ex.Message}";
+            SetStatus("Quest Items multi-capture export failed.", StatusKind.Warning);
+        }
+    }
+
+    private static IEnumerable<string> CreateQuestItemsMultiCaptureAnalysisCsvLines(
+        QuestItemsMultiCaptureAnalysisExport export)
+    {
+        yield return "Offset,Value Progression,Appearances,Score,Confidence,Reasons";
+        foreach (var row in export.Rows)
+        {
+            yield return string.Join(
+                ",",
+                Csv(row.Offset),
+                Csv(row.ValueProgression),
+                Csv(row.AppearanceCount.ToString(CultureInfo.InvariantCulture)),
+                Csv(row.CandidateScore.ToString(CultureInfo.InvariantCulture)),
+                Csv(row.Confidence),
+                Csv(row.Reasons));
         }
     }
 
@@ -7751,6 +8654,336 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         return HiddenSkillsCaptureLabelText.Text.Trim();
     }
 
+    private string GetQuestItemsCaptureLabel()
+    {
+        return QuestItemsCaptureLabelText.Text.Trim();
+    }
+
+    private string GetQuestItemsCaptureNotes()
+    {
+        return QuestItemsCaptureNotesText.Text.Trim();
+    }
+
+    private string GetQuestItemsCaptureType()
+    {
+        var selectedType = QuestItemsCaptureTypeComboBox.SelectedItem is ComboBoxItem item
+            ? item.Content?.ToString() ?? string.Empty
+            : string.Empty;
+        if (string.Equals(selectedType, "Custom", StringComparison.OrdinalIgnoreCase))
+        {
+            var customType = QuestItemsCustomCaptureTypeText.Text.Trim();
+            return string.IsNullOrWhiteSpace(customType) ? "Custom" : customType;
+        }
+
+        return string.IsNullOrWhiteSpace(selectedType) ? "Custom" : selectedType;
+    }
+
+    private string BuildQuestItemsCaptureLabel(string fallback)
+    {
+        var label = GetQuestItemsCaptureLabel();
+        return string.IsNullOrWhiteSpace(label) ? fallback : label;
+    }
+
+    private string GetQuestItemsCaptureALabel()
+    {
+        return string.IsNullOrWhiteSpace(_questItemsCaptureA?.Label)
+            ? "Capture A"
+            : _questItemsCaptureA.Label;
+    }
+
+    private string GetQuestItemsCaptureBLabel()
+    {
+        return string.IsNullOrWhiteSpace(_questItemsCaptureB?.Label)
+            ? "Capture B"
+            : _questItemsCaptureB.Label;
+    }
+
+    private void UpdateQuestItemsCaptureSummary()
+    {
+        QuestItemsCaptureAText.Text = FormatQuestItemsCaptureSummary(
+            "A",
+            _questItemsCaptureA,
+            _questItemsBeforeSnapshotBytes,
+            _questItemsBeforeSnapshotStart,
+            _questItemsCaptureAPath);
+        QuestItemsCaptureBText.Text = FormatQuestItemsCaptureSummary(
+            "B",
+            _questItemsCaptureB,
+            _questItemsAfterSnapshotBytes,
+            _questItemsAfterSnapshotStart,
+            _questItemsCaptureBPath);
+    }
+
+    private static string FormatQuestItemsCaptureSummary(
+        string slot,
+        QuestItemsCaptureDocument? capture,
+        byte[]? bytes,
+        uint startOffset,
+        string path)
+    {
+        if (bytes is null)
+        {
+            return $"Capture {slot}: not loaded";
+        }
+
+        var label = string.IsNullOrWhiteSpace(capture?.Label) ? $"Capture {slot}" : capture.Label;
+        var timestamp = capture?.Timestamp.ToString("yyyy-MM-dd HH:mm:ss", CultureInfo.InvariantCulture) ?? "-";
+        var source = string.IsNullOrWhiteSpace(path) ? "current session" : Path.GetFileName(path);
+        return $"Capture {slot}: {label} | start 0x{startOffset:X} | length 0x{bytes.Length:X} | {timestamp} | {source}";
+    }
+
+    private QuestItemsCaptureDocument CreateQuestItemsCaptureDocument(
+        DateTimeOffset timestamp,
+        string label,
+        uint startOffset,
+        byte[] bytes,
+        string notes)
+    {
+        return new QuestItemsCaptureDocument(
+            timestamp,
+            label,
+            startOffset,
+            bytes.Length,
+            bytes.Select(value => $"0x{value:X2}").ToList(),
+            notes,
+            GetQuestItemsCaptureType(),
+            Assembly.GetExecutingAssembly().GetName().Version?.ToString() ?? "unknown");
+    }
+
+    private string? TrySaveQuestItemsCapture(
+        string label,
+        uint startOffset,
+        byte[] bytes,
+        DateTimeOffset timestamp,
+        string notes)
+    {
+        try
+        {
+            Directory.CreateDirectory(QuestSearchDirectory);
+            var capture = CreateQuestItemsCaptureDocument(timestamp, label, startOffset, bytes, notes);
+            var fileName = CreateQuestItemsCaptureFileName(timestamp, label);
+            var path = Path.Combine(QuestSearchDirectory, fileName);
+            File.WriteAllText(path, JsonSerializer.Serialize(capture, ExportJsonOptions));
+            return path;
+        }
+        catch (Exception ex)
+        {
+            QuestItemsResearchStatusText.Text =
+                $"{QuestItemsResearchStatusText.Text} Capture save failed: {ex.Message}";
+            AppendQuestItemsResearchLog($"action=capture-save-failed label=\"{label}\" error=\"{ex.Message}\"");
+            SetStatus("Quest Items capture save failed.", StatusKind.Warning);
+            return null;
+        }
+    }
+
+    private void SaveQuestItemsCapturedSlot(
+        string slotName,
+        uint startOffset,
+        byte[]? bytes,
+        DateTimeOffset? capturedAt,
+        QuestItemsCaptureDocument? existingCapture)
+    {
+        if (bytes is null)
+        {
+            QuestItemsResearchStatusText.Text =
+                $"Capture {slotName} is empty. Capture or load it before saving.";
+            SetStatus("Quest Items capture is empty.", StatusKind.Neutral);
+            return;
+        }
+
+        var label = BuildQuestItemsCaptureLabel(existingCapture?.Label ?? $"Capture {slotName}");
+        var notes = GetQuestItemsCaptureNotes();
+        if (string.IsNullOrWhiteSpace(notes) && existingCapture is not null)
+        {
+            notes = existingCapture.Notes;
+        }
+
+        var path = TrySaveQuestItemsCapture(label, startOffset, bytes, capturedAt ?? DateTimeOffset.Now, notes);
+        if (string.IsNullOrWhiteSpace(path))
+        {
+            return;
+        }
+
+        if (slotName == "A")
+        {
+            _questItemsCaptureA = CreateQuestItemsCaptureDocument(capturedAt ?? DateTimeOffset.Now, label, startOffset, bytes, notes);
+            _questItemsCaptureAPath = path;
+        }
+        else
+        {
+            _questItemsCaptureB = CreateQuestItemsCaptureDocument(capturedAt ?? DateTimeOffset.Now, label, startOffset, bytes, notes);
+            _questItemsCaptureBPath = path;
+        }
+
+        UpdateQuestItemsCaptureSummary();
+        QuestItemsResearchStatusText.Text =
+            $"Saved Capture {slotName} \"{label}\" to {Path.GetFileName(path)}.";
+        AppendQuestItemsResearchLog(
+            $"action=save-capture-{slotName.ToLowerInvariant()} label=\"{label}\" path=\"{path}\" start=0x{startOffset:X} length=0x{bytes.Length:X}");
+        SetStatus("Quest Items capture saved.", StatusKind.Connected);
+    }
+
+    private bool TryLoadQuestItemsCapture(
+        string slotName,
+        out QuestItemsCaptureDocument capture,
+        out byte[] bytes,
+        out string path)
+    {
+        capture = new QuestItemsCaptureDocument(DateTimeOffset.MinValue, string.Empty, 0, 0, [], string.Empty, string.Empty, string.Empty);
+        bytes = [];
+        path = string.Empty;
+
+        var dialog = new OpenFileDialog
+        {
+            Title = $"Load Quest Items Capture {slotName}",
+            Filter = "Quest Items captures (*.json)|*.json|All files (*.*)|*.*",
+            FileName = "quest-capture_*.json"
+        };
+
+        if (Directory.Exists(QuestSearchDirectory))
+        {
+            dialog.InitialDirectory = QuestSearchDirectory;
+        }
+
+        if (dialog.ShowDialog(this) != true)
+        {
+            return false;
+        }
+
+        return TryLoadQuestItemsCaptureFromPath(dialog.FileName, out capture, out bytes, out path);
+    }
+
+    private bool TryLoadQuestItemsCaptureFromPath(
+        string filePath,
+        out QuestItemsCaptureDocument capture,
+        out byte[] bytes,
+        out string path)
+    {
+        capture = new QuestItemsCaptureDocument(DateTimeOffset.MinValue, string.Empty, 0, 0, [], string.Empty, string.Empty, string.Empty);
+        bytes = [];
+        path = filePath;
+
+        try
+        {
+            var loaded = JsonSerializer.Deserialize<QuestItemsCaptureDocument>(
+                File.ReadAllText(filePath),
+                ExportJsonOptions);
+            if (loaded is null)
+            {
+                QuestItemsResearchStatusText.Text = "Selected Quest Items capture could not be read.";
+                SetStatus("Quest Items capture load failed.", StatusKind.Warning);
+                return false;
+            }
+
+            if (!TryParseQuestItemsCaptureBytes(loaded, out bytes, out var error))
+            {
+                QuestItemsResearchStatusText.Text = error;
+                SetStatus("Quest Items capture load failed.", StatusKind.Warning);
+                return false;
+            }
+
+            capture = loaded;
+            return true;
+        }
+        catch (Exception ex)
+        {
+            QuestItemsResearchStatusText.Text = $"Quest Items capture load failed: {ex.Message}";
+            SetStatus("Quest Items capture load failed.", StatusKind.Warning);
+            return false;
+        }
+    }
+
+    private static bool TryParseQuestItemsCaptureBytes(
+        QuestItemsCaptureDocument capture,
+        out byte[] bytes,
+        out string error)
+    {
+        bytes = [];
+        error = string.Empty;
+
+        if (capture.RawBytes.Count != capture.Length)
+        {
+            error = $"Capture length mismatch: metadata says 0x{capture.Length:X}, file contains 0x{capture.RawBytes.Count:X} byte(s).";
+            return false;
+        }
+
+        var parsedBytes = new byte[capture.RawBytes.Count];
+        for (var index = 0; index < capture.RawBytes.Count; index++)
+        {
+            if (!TryParseCandidateValue(capture.RawBytes[index], out parsedBytes[index], out _))
+            {
+                error = $"Invalid byte value at capture index {index}: {capture.RawBytes[index]}";
+                return false;
+            }
+        }
+
+        bytes = parsedBytes;
+        return true;
+    }
+
+    private static string CreateQuestItemsCaptureFileName(DateTimeOffset timestamp, string label)
+    {
+        return $"quest-capture_{timestamp:yyyyMMdd_HHmmss}_{SanitizeFileName(label)}.json";
+    }
+
+    private string CreateQuestItemsReportBaseName()
+    {
+        var timestamp = _lastQuestItemsResearchExport?.Timestamp ?? DateTimeOffset.Now;
+        return $"quest-report_{timestamp:yyyyMMdd_HHmmss}_{SanitizeFileName(GetQuestItemsCaptureALabel())}_vs_{SanitizeFileName(GetQuestItemsCaptureBLabel())}";
+    }
+
+    private string WriteQuestItemsNamedJsonReport()
+    {
+        if (_lastQuestItemsResearchExport is null)
+        {
+            throw new InvalidOperationException("Compare Quest Items captures before exporting a report.");
+        }
+
+        Directory.CreateDirectory(QuestSearchDirectory);
+        var path = Path.Combine(QuestSearchDirectory, CreateQuestItemsReportBaseName() + ".json");
+        File.WriteAllText(path, JsonSerializer.Serialize(_lastQuestItemsResearchExport, ExportJsonOptions));
+        return path;
+    }
+
+    private string WriteQuestItemsNamedCsvReport()
+    {
+        if (_lastQuestItemsResearchExport is null)
+        {
+            throw new InvalidOperationException("Compare Quest Items captures before exporting a report.");
+        }
+
+        Directory.CreateDirectory(QuestSearchDirectory);
+        var path = Path.Combine(QuestSearchDirectory, CreateQuestItemsReportBaseName() + ".csv");
+        File.WriteAllLines(path, CreateQuestItemsResearchCsvLines(_lastQuestItemsResearchExport));
+        return path;
+    }
+
+    private void ExportQuestItemsNamedReport()
+    {
+        if (_lastQuestItemsResearchExport is null)
+        {
+            QuestItemsResearchStatusText.Text = "Compare Quest Items captures before exporting a report.";
+            SetStatus("Compare Quest Items captures before exporting.", StatusKind.Neutral);
+            return;
+        }
+
+        try
+        {
+            var jsonPath = WriteQuestItemsNamedJsonReport();
+            var csvPath = WriteQuestItemsNamedCsvReport();
+            QuestItemsResearchStatusText.Text =
+                $"Exported Quest Items report: {Path.GetFileName(jsonPath)} and {Path.GetFileName(csvPath)}.";
+            AppendQuestItemsResearchLog(
+                $"action=export-report json=\"{jsonPath}\" csv=\"{csvPath}\" rows={_lastQuestItemsResearchExport.Rows.Count}");
+            SetStatus("Quest Items report exported.", StatusKind.Connected);
+        }
+        catch (Exception ex)
+        {
+            QuestItemsResearchStatusText.Text = $"Quest Items report export failed: {ex.Message}";
+            SetStatus("Quest Items report export failed.", StatusKind.Warning);
+        }
+    }
+
     private void TryWriteQuestItemsSnapshotExport(
         string fileName,
         string label,
@@ -7761,12 +8994,12 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         try
         {
             Directory.CreateDirectory(ResearchSnapshotStore.ExportDirectory);
-            var snapshot = new QuestItemsCaptureDocument(
+            var snapshot = CreateQuestItemsCaptureDocument(
                 capturedAt ?? DateTimeOffset.Now,
+                label,
                 startOffset,
-                bytes.Length,
-                bytes.Select(value => $"0x{value:X2}").ToList(),
-                label);
+                bytes,
+                GetQuestItemsCaptureNotes());
             var path = Path.Combine(ResearchSnapshotStore.ExportDirectory, fileName);
             File.WriteAllText(path, JsonSerializer.Serialize(snapshot, ExportJsonOptions));
         }
@@ -10117,17 +11350,30 @@ public partial class MainWindow : Window, INotifyPropertyChanged
 
     private sealed record QuestItemsCaptureDocument(
         DateTimeOffset Timestamp,
+        string Label,
         uint StartOffset,
         int Length,
         IReadOnlyList<string> RawBytes,
-        string Label);
+        string Notes,
+        string CaptureType,
+        string AppVersion);
+
+    private sealed record QuestItemsLoadedCapture(
+        string Path,
+        QuestItemsCaptureDocument Document,
+        byte[] Bytes);
 
     private sealed record QuestItemsResearchExport(
         DateTimeOffset Timestamp,
-        uint StartOffset,
-        int Length,
-        DateTimeOffset? BeforeCapturedAt,
-        DateTimeOffset? AfterCapturedAt,
+        string CaptureALabel,
+        string CaptureBLabel,
+        uint CaptureAStartOffset,
+        int CaptureALength,
+        DateTimeOffset? CaptureACapturedAt,
+        uint CaptureBStartOffset,
+        int CaptureBLength,
+        DateTimeOffset? CaptureBCapturedAt,
+        string RangeWarning,
         int ChangedByteCount,
         int ChangedBitCount,
         IReadOnlyList<QuestItemsResearchExportRow> Rows);
@@ -10143,6 +11389,57 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         bool Changed,
         int CandidateScore,
         string CandidateGroup);
+
+    private sealed record QuestItemsCandidateRankingExport(
+        DateTimeOffset Timestamp,
+        string CaptureALabel,
+        string CaptureBLabel,
+        IReadOnlyList<QuestItemsCandidateRankingExportRow> Rows);
+
+    private sealed record QuestItemsCandidateRankingExportRow(
+        string Offset,
+        string CaptureAValue,
+        string CaptureBValue,
+        string ChangedBits,
+        int ChangedBitCount,
+        int CandidateScore,
+        string Confidence,
+        string GroupName,
+        string Reasons);
+
+    private sealed record QuestItemsCandidateGroupsExport(
+        DateTimeOffset Timestamp,
+        string CaptureALabel,
+        string CaptureBLabel,
+        IReadOnlyList<QuestItemsCandidateGroupsExportRow> Groups);
+
+    private sealed record QuestItemsCandidateGroupsExportRow(
+        string GroupName,
+        string OffsetRange,
+        int Count,
+        int HighestCandidateScore,
+        string Reasons);
+
+    private sealed record QuestItemsMultiCaptureAnalysisExport(
+        DateTimeOffset Timestamp,
+        IReadOnlyList<QuestItemsMultiCaptureExportCapture> Captures,
+        IReadOnlyList<QuestItemsMultiCaptureAnalysisExportRow> Rows);
+
+    private sealed record QuestItemsMultiCaptureExportCapture(
+        string Label,
+        string CaptureType,
+        DateTimeOffset Timestamp,
+        uint StartOffset,
+        int Length,
+        string FileName);
+
+    private sealed record QuestItemsMultiCaptureAnalysisExportRow(
+        string Offset,
+        string ValueProgression,
+        int AppearanceCount,
+        int CandidateScore,
+        string Confidence,
+        string Reasons);
 
     private sealed record SupportSnapshotDocument(
         string ApplicationVersion,

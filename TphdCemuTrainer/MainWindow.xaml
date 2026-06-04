@@ -1379,6 +1379,106 @@
             </Border>
         </DataTemplate>
 
+        <DataTemplate x:Key="QuestItemsCandidateRowTemplate">
+            <Border BorderBrush="{DynamicResource BorderBrush}"
+                    BorderThickness="0,0,0,1"
+                    Padding="0,4">
+                <Border.Style>
+                    <Style TargetType="Border">
+                        <Setter Property="Background" Value="Transparent" />
+                        <Style.Triggers>
+                            <DataTrigger Binding="{Binding Confidence}" Value="High">
+                                <Setter Property="Background" Value="{DynamicResource StrongCandidateBackgroundBrush}" />
+                            </DataTrigger>
+                            <DataTrigger Binding="{Binding Confidence}" Value="Medium">
+                                <Setter Property="Background" Value="{DynamicResource ChangedRowBackgroundBrush}" />
+                            </DataTrigger>
+                        </Style.Triggers>
+                    </Style>
+                </Border.Style>
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="74" />
+                        <ColumnDefinition Width="74" />
+                        <ColumnDefinition Width="74" />
+                        <ColumnDefinition Width="112" />
+                        <ColumnDefinition Width="64" />
+                        <ColumnDefinition Width="84" />
+                        <ColumnDefinition Width="76" />
+                        <ColumnDefinition Width="*" MinWidth="300" />
+                    </Grid.ColumnDefinitions>
+
+                    <TextBlock Text="{Binding Offset}" FontFamily="Consolas" VerticalAlignment="Center" />
+                    <TextBlock Grid.Column="1" Text="{Binding BeforeHex}" FontFamily="Consolas" VerticalAlignment="Center" />
+                    <TextBlock Grid.Column="2" Text="{Binding AfterHex}" FontFamily="Consolas" VerticalAlignment="Center" />
+                    <TextBlock Grid.Column="3" Text="{Binding ChangedBits}" FontFamily="Consolas" VerticalAlignment="Center" />
+                    <TextBlock Grid.Column="4" Text="{Binding CandidateScore}" FontWeight="SemiBold" VerticalAlignment="Center" />
+                    <TextBlock Grid.Column="5" Text="{Binding Confidence}" VerticalAlignment="Center" />
+                    <TextBlock Grid.Column="6" Text="{Binding GroupName}" VerticalAlignment="Center" />
+                    <TextBlock Grid.Column="7" Text="{Binding Reasons}" TextWrapping="Wrap" VerticalAlignment="Center" />
+                </Grid>
+            </Border>
+        </DataTemplate>
+
+        <DataTemplate x:Key="QuestItemsCandidateGroupTemplate">
+            <Border BorderBrush="{DynamicResource BorderBrush}"
+                    BorderThickness="0,0,0,1"
+                    Padding="0,4">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="82" />
+                        <ColumnDefinition Width="126" />
+                        <ColumnDefinition Width="70" />
+                        <ColumnDefinition Width="88" />
+                        <ColumnDefinition Width="*" MinWidth="300" />
+                    </Grid.ColumnDefinitions>
+
+                    <TextBlock Text="{Binding GroupName}" VerticalAlignment="Center" />
+                    <TextBlock Grid.Column="1" Text="{Binding OffsetRange}" FontFamily="Consolas" VerticalAlignment="Center" />
+                    <TextBlock Grid.Column="2" Text="{Binding Count}" VerticalAlignment="Center" />
+                    <TextBlock Grid.Column="3" Text="{Binding HighestCandidateScore}" FontWeight="SemiBold" VerticalAlignment="Center" />
+                    <TextBlock Grid.Column="4" Text="{Binding Reasons}" TextWrapping="Wrap" VerticalAlignment="Center" />
+                </Grid>
+            </Border>
+        </DataTemplate>
+
+        <DataTemplate x:Key="QuestItemsMultiCaptureRowTemplate">
+            <Border BorderBrush="{DynamicResource BorderBrush}"
+                    BorderThickness="0,0,0,1"
+                    Padding="0,4">
+                <Border.Style>
+                    <Style TargetType="Border">
+                        <Setter Property="Background" Value="Transparent" />
+                        <Style.Triggers>
+                            <DataTrigger Binding="{Binding Confidence}" Value="High">
+                                <Setter Property="Background" Value="{DynamicResource StrongCandidateBackgroundBrush}" />
+                            </DataTrigger>
+                            <DataTrigger Binding="{Binding Confidence}" Value="Medium">
+                                <Setter Property="Background" Value="{DynamicResource ChangedRowBackgroundBrush}" />
+                            </DataTrigger>
+                        </Style.Triggers>
+                    </Style>
+                </Border.Style>
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="74" />
+                        <ColumnDefinition Width="*" MinWidth="260" />
+                        <ColumnDefinition Width="88" />
+                        <ColumnDefinition Width="64" />
+                        <ColumnDefinition Width="84" />
+                        <ColumnDefinition Width="*" MinWidth="260" />
+                    </Grid.ColumnDefinitions>
+
+                    <TextBlock Text="{Binding Offset}" FontFamily="Consolas" VerticalAlignment="Center" />
+                    <TextBlock Grid.Column="1" Text="{Binding ValueProgression}" FontFamily="Consolas" VerticalAlignment="Center" />
+                    <TextBlock Grid.Column="2" Text="{Binding AppearanceCount}" VerticalAlignment="Center" />
+                    <TextBlock Grid.Column="3" Text="{Binding CandidateScore}" FontWeight="SemiBold" VerticalAlignment="Center" />
+                    <TextBlock Grid.Column="4" Text="{Binding Confidence}" VerticalAlignment="Center" />
+                    <TextBlock Grid.Column="5" Text="{Binding Reasons}" TextWrapping="Wrap" VerticalAlignment="Center" />
+                </Grid>
+            </Border>
+        </DataTemplate>
+
         <DataTemplate x:Key="GoldenBugResearchRowTemplate">
             <Border BorderBrush="{DynamicResource BorderBrush}"
                     BorderThickness="0,0,0,1"
@@ -3205,6 +3305,72 @@
                                 <Grid Margin="0,0,0,8">
                                     <Grid.ColumnDefinitions>
                                         <ColumnDefinition Width="94" />
+                                        <ColumnDefinition Width="220" />
+                                        <ColumnDefinition Width="62" />
+                                        <ColumnDefinition Width="*" />
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Text="Capture Label"
+                                               VerticalAlignment="Center"
+                                               Margin="0,0,6,0" />
+                                    <TextBox Grid.Column="1"
+                                             x:Name="QuestItemsCaptureLabelText"
+                                             Margin="0,0,8,0"
+                                             ToolTip="Used in persistent quest-capture filenames and report names." />
+                                    <TextBlock Grid.Column="2"
+                                               Text="Notes"
+                                               VerticalAlignment="Center"
+                                               Margin="0,0,6,0" />
+                                    <TextBox Grid.Column="3"
+                                             x:Name="QuestItemsCaptureNotesText"
+                                             MinHeight="26"
+                                             TextWrapping="Wrap"
+                                             AcceptsReturn="True"
+                                             ToolTip="Optional notes saved with persistent Quest Items captures." />
+                                </Grid>
+
+                                <Grid Margin="0,0,0,8">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="94" />
+                                        <ColumnDefinition Width="180" />
+                                        <ColumnDefinition Width="86" />
+                                        <ColumnDefinition Width="180" />
+                                        <ColumnDefinition Width="*" />
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Text="Capture Type"
+                                               VerticalAlignment="Center"
+                                               Margin="0,0,6,0" />
+                                    <ComboBox Grid.Column="1"
+                                              x:Name="QuestItemsCaptureTypeComboBox"
+                                              SelectedIndex="0"
+                                              Margin="0,0,8,0">
+                                        <ComboBoxItem Content="Forest Temple" />
+                                        <ComboBoxItem Content="Goron Mines" />
+                                        <ComboBoxItem Content="Lakebed Temple" />
+                                        <ComboBoxItem Content="Arbiter's Grounds" />
+                                        <ComboBoxItem Content="Snowpeak Ruins" />
+                                        <ComboBoxItem Content="Temple of Time" />
+                                        <ComboBoxItem Content="City in the Sky" />
+                                        <ComboBoxItem Content="Palace of Twilight" />
+                                        <ComboBoxItem Content="Hyrule Castle" />
+                                        <ComboBoxItem Content="Custom" />
+                                    </ComboBox>
+                                    <TextBlock Grid.Column="2"
+                                               Text="Custom"
+                                               VerticalAlignment="Center"
+                                               Margin="0,0,6,0" />
+                                    <TextBox Grid.Column="3"
+                                             x:Name="QuestItemsCustomCaptureTypeText"
+                                             Margin="0,0,8,0" />
+                                    <TextBlock Grid.Column="4"
+                                               Text="Stored in persistent capture metadata for progression-chain analysis."
+                                               Foreground="{DynamicResource SecondaryTextBrush}"
+                                               TextWrapping="Wrap"
+                                               VerticalAlignment="Center" />
+                                </Grid>
+
+                                <Grid Margin="0,0,0,8">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="94" />
                                         <ColumnDefinition Width="110" />
                                         <ColumnDefinition Width="62" />
                                         <ColumnDefinition Width="90" />
@@ -3247,6 +3413,55 @@
                                             Click="QuestItemsExportCsv_Click" />
                                 </WrapPanel>
 
+                                <WrapPanel Margin="0,0,0,8">
+                                    <Button Content="Save Current Capture"
+                                            Click="QuestItemsSaveCurrentCapture_Click" />
+                                    <Button Content="Save Before Capture"
+                                            Click="QuestItemsSaveBeforeCapture_Click" />
+                                    <Button Content="Save After Capture"
+                                            Click="QuestItemsSaveAfterCapture_Click" />
+                                    <Button Content="Load Capture A"
+                                            Click="QuestItemsLoadCaptureA_Click" />
+                                    <Button Content="Load Capture B"
+                                            Click="QuestItemsLoadCaptureB_Click" />
+                                    <Button Content="Compare Loaded Captures"
+                                            Click="QuestItemsCompareLoadedCaptures_Click" />
+                                    <Button Content="Export Report"
+                                            Click="QuestItemsExportReport_Click" />
+                                    <Button Content="Open Quest Search Folder"
+                                            Click="QuestItemsOpenSearchFolder_Click" />
+                                </WrapPanel>
+
+                                <WrapPanel Margin="0,0,0,8">
+                                    <Button Content="Analyze Loaded Captures"
+                                            Click="QuestItemsAnalyzeLoadedCaptures_Click" />
+                                    <Button Content="Export Candidate Ranking"
+                                            Click="QuestItemsExportCandidateRanking_Click" />
+                                    <Button Content="Export Candidate Groups"
+                                            Click="QuestItemsExportCandidateGroups_Click" />
+                                    <Button Content="Load Multi-Captures"
+                                            Click="QuestItemsLoadMultiCaptures_Click" />
+                                    <Button Content="Load All Quest Captures"
+                                            Click="QuestItemsLoadAllCaptures_Click" />
+                                    <Button Content="Analyze Multi-Captures"
+                                            Click="QuestItemsAnalyzeMultiCaptures_Click" />
+                                    <Button Content="Export Multi-Capture Analysis"
+                                            Click="QuestItemsExportMultiCaptureAnalysis_Click" />
+                                </WrapPanel>
+
+                                <TextBox x:Name="QuestItemsCaptureAText"
+                                         Text="Capture A: not loaded"
+                                         IsReadOnly="True"
+                                         TextWrapping="Wrap"
+                                         Background="{DynamicResource ReadOnlyBackgroundBrush}"
+                                         Margin="0,0,0,4" />
+                                <TextBox x:Name="QuestItemsCaptureBText"
+                                         Text="Capture B: not loaded"
+                                         IsReadOnly="True"
+                                         TextWrapping="Wrap"
+                                         Background="{DynamicResource ReadOnlyBackgroundBrush}"
+                                         Margin="0,0,0,8" />
+
                                 <TextBox x:Name="QuestItemsResearchStatusText"
                                          Text="Ready. Capture Before and After snapshots, then compare."
                                          IsReadOnly="True"
@@ -3282,6 +3497,127 @@
                                     <ItemsControl ItemsSource="{Binding QuestItemsResearchRows}"
                                                   ItemTemplate="{StaticResource QuestItemsResearchRowTemplate}" />
                                 </ScrollViewer>
+
+                                <Expander Header="Candidate Ranking" IsExpanded="True" Margin="0,8,0,0">
+                                    <StackPanel>
+                                        <WrapPanel Margin="0,0,0,8">
+                                            <CheckBox x:Name="QuestItemsFilterChangedOnlyCheckBox"
+                                                      Content="Changed rows only"
+                                                      IsChecked="True"
+                                                      Checked="QuestItemsCandidateFilter_Changed"
+                                                      Unchecked="QuestItemsCandidateFilter_Changed" />
+                                            <CheckBox x:Name="QuestItemsFilterSingleBitOnlyCheckBox"
+                                                      Content="Single-bit only"
+                                                      Checked="QuestItemsCandidateFilter_Changed"
+                                                      Unchecked="QuestItemsCandidateFilter_Changed" />
+                                            <CheckBox x:Name="QuestItemsFilterGroupedOnlyCheckBox"
+                                                      Content="Grouped only"
+                                                      Checked="QuestItemsCandidateFilter_Changed"
+                                                      Unchecked="QuestItemsCandidateFilter_Changed" />
+                                            <CheckBox x:Name="QuestItemsFilterPersistedOnlyCheckBox"
+                                                      Content="Persisted only"
+                                                      Checked="QuestItemsCandidateFilter_Changed"
+                                                      Unchecked="QuestItemsCandidateFilter_Changed" />
+                                            <TextBlock Text="Min score"
+                                                       VerticalAlignment="Center"
+                                                       Margin="12,0,6,0" />
+                                            <TextBox x:Name="QuestItemsFilterMinimumScoreText"
+                                                     Text="0"
+                                                     Width="46"
+                                                     TextChanged="QuestItemsCandidateFilter_Changed" />
+                                        </WrapPanel>
+
+                                        <Grid Margin="0,0,0,4">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="74" />
+                                                <ColumnDefinition Width="74" />
+                                                <ColumnDefinition Width="74" />
+                                                <ColumnDefinition Width="112" />
+                                                <ColumnDefinition Width="64" />
+                                                <ColumnDefinition Width="84" />
+                                                <ColumnDefinition Width="76" />
+                                                <ColumnDefinition Width="*" MinWidth="300" />
+                                            </Grid.ColumnDefinitions>
+                                            <TextBlock Text="Offset" FontWeight="SemiBold" />
+                                            <TextBlock Grid.Column="1" Text="A" FontWeight="SemiBold" />
+                                            <TextBlock Grid.Column="2" Text="B" FontWeight="SemiBold" />
+                                            <TextBlock Grid.Column="3" Text="Bits" FontWeight="SemiBold" />
+                                            <TextBlock Grid.Column="4" Text="Score" FontWeight="SemiBold" />
+                                            <TextBlock Grid.Column="5" Text="Confidence" FontWeight="SemiBold" />
+                                            <TextBlock Grid.Column="6" Text="Group" FontWeight="SemiBold" />
+                                            <TextBlock Grid.Column="7" Text="Reasons" FontWeight="SemiBold" />
+                                        </Grid>
+
+                                        <ScrollViewer Height="220"
+                                                      VerticalScrollBarVisibility="Auto"
+                                                      HorizontalScrollBarVisibility="Auto"
+                                                      Background="{DynamicResource ReadOnlyBackgroundBrush}">
+                                            <ItemsControl ItemsSource="{Binding QuestItemsCandidateRows}"
+                                                          ItemTemplate="{StaticResource QuestItemsCandidateRowTemplate}" />
+                                        </ScrollViewer>
+                                    </StackPanel>
+                                </Expander>
+
+                                <Expander Header="Candidate Groups" IsExpanded="True" Margin="0,8,0,0">
+                                    <StackPanel>
+                                        <Grid Margin="0,0,0,4">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="82" />
+                                                <ColumnDefinition Width="126" />
+                                                <ColumnDefinition Width="70" />
+                                                <ColumnDefinition Width="88" />
+                                                <ColumnDefinition Width="*" MinWidth="300" />
+                                            </Grid.ColumnDefinitions>
+                                            <TextBlock Text="Group" FontWeight="SemiBold" />
+                                            <TextBlock Grid.Column="1" Text="Offset Range" FontWeight="SemiBold" />
+                                            <TextBlock Grid.Column="2" Text="Count" FontWeight="SemiBold" />
+                                            <TextBlock Grid.Column="3" Text="High Score" FontWeight="SemiBold" />
+                                            <TextBlock Grid.Column="4" Text="Reasons" FontWeight="SemiBold" />
+                                        </Grid>
+                                        <ScrollViewer Height="150"
+                                                      VerticalScrollBarVisibility="Auto"
+                                                      HorizontalScrollBarVisibility="Auto"
+                                                      Background="{DynamicResource ReadOnlyBackgroundBrush}">
+                                            <ItemsControl ItemsSource="{Binding QuestItemsCandidateGroups}"
+                                                          ItemTemplate="{StaticResource QuestItemsCandidateGroupTemplate}" />
+                                        </ScrollViewer>
+                                    </StackPanel>
+                                </Expander>
+
+                                <Expander Header="Multi-Capture Analysis" IsExpanded="False" Margin="0,8,0,0">
+                                    <StackPanel>
+                                        <TextBlock Text="Load multiple saved captures from logs/research/quest-search, then analyze the progression chain for bits that only increase, values that step upward, and flags that appear once and remain set."
+                                                   TextWrapping="Wrap"
+                                                   Foreground="{DynamicResource SecondaryTextBrush}"
+                                                   Margin="0,0,0,8" />
+                                        <Button Content="Analyze Multi-Captures"
+                                                HorizontalAlignment="Left"
+                                                Click="QuestItemsAnalyzeMultiCaptures_Click" />
+                                        <Grid Margin="0,8,0,4">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="74" />
+                                                <ColumnDefinition Width="*" MinWidth="260" />
+                                                <ColumnDefinition Width="88" />
+                                                <ColumnDefinition Width="64" />
+                                                <ColumnDefinition Width="84" />
+                                                <ColumnDefinition Width="*" MinWidth="260" />
+                                            </Grid.ColumnDefinitions>
+                                            <TextBlock Text="Offset" FontWeight="SemiBold" />
+                                            <TextBlock Grid.Column="1" Text="Value Progression" FontWeight="SemiBold" />
+                                            <TextBlock Grid.Column="2" Text="Appearances" FontWeight="SemiBold" />
+                                            <TextBlock Grid.Column="3" Text="Score" FontWeight="SemiBold" />
+                                            <TextBlock Grid.Column="4" Text="Confidence" FontWeight="SemiBold" />
+                                            <TextBlock Grid.Column="5" Text="Reasons" FontWeight="SemiBold" />
+                                        </Grid>
+                                        <ScrollViewer Height="220"
+                                                      VerticalScrollBarVisibility="Auto"
+                                                      HorizontalScrollBarVisibility="Auto"
+                                                      Background="{DynamicResource ReadOnlyBackgroundBrush}">
+                                            <ItemsControl ItemsSource="{Binding QuestItemsMultiCaptureRows}"
+                                                          ItemTemplate="{StaticResource QuestItemsMultiCaptureRowTemplate}" />
+                                        </ScrollViewer>
+                                    </StackPanel>
+                                </Expander>
                             </StackPanel>
                         </GroupBox>
                     </StackPanel>
