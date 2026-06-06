@@ -44,6 +44,7 @@ public sealed class InventoryOwnershipItemViewModel : ObservableObject
                 OnPropertyChanged(nameof(KnownSlotText));
                 OnPropertyChanged(nameof(CanExperimentalCheckboxWrite));
                 OnPropertyChanged(nameof(DesiredEditStateText));
+                OnPropertyChanged(nameof(FriendlyStatus));
             }
         }
     }
@@ -58,6 +59,7 @@ public sealed class InventoryOwnershipItemViewModel : ObservableObject
                 OnPropertyChanged(nameof(KnownItemText));
                 OnPropertyChanged(nameof(CanExperimentalCheckboxWrite));
                 OnPropertyChanged(nameof(DesiredEditStateText));
+                OnPropertyChanged(nameof(FriendlyStatus));
             }
         }
     }
@@ -90,7 +92,13 @@ public sealed class InventoryOwnershipItemViewModel : ObservableObject
     public string ExperimentalStatus
     {
         get => _experimentalStatus;
-        set => SetField(ref _experimentalStatus, value);
+        set
+        {
+            if (SetField(ref _experimentalStatus, value))
+            {
+                OnPropertyChanged(nameof(FriendlyStatus));
+            }
+        }
     }
 
     public string BackingValue
@@ -102,7 +110,14 @@ public sealed class InventoryOwnershipItemViewModel : ObservableObject
     public string CurrentDetectedState
     {
         get => _currentDetectedState;
-        private set => SetField(ref _currentDetectedState, value);
+        private set
+        {
+            if (SetField(ref _currentDetectedState, value))
+            {
+                OnPropertyChanged(nameof(FriendlyCurrentState));
+                OnPropertyChanged(nameof(FriendlyStatus));
+            }
+        }
     }
 
     public bool IsOwnedDetected
@@ -113,6 +128,7 @@ public sealed class InventoryOwnershipItemViewModel : ObservableObject
             if (SetField(ref _isOwnedDetected, value))
             {
                 OnPropertyChanged(nameof(IsDirty));
+                OnPropertyChanged(nameof(FriendlyCurrentState));
             }
         }
     }
@@ -131,6 +147,54 @@ public sealed class InventoryOwnershipItemViewModel : ObservableObject
     }
 
     public bool IsDirty => IsOwnedDesired != IsOwnedDetected;
+
+    public string FriendlyCurrentState
+    {
+        get
+        {
+            if (string.Equals(CurrentDetectedState, "Not read", StringComparison.OrdinalIgnoreCase))
+            {
+                return "Not read";
+            }
+
+            if (CurrentDetectedState.Contains("not initialized", StringComparison.OrdinalIgnoreCase))
+            {
+                return "Not ready";
+            }
+
+            return IsOwnedDetected ? "Present" : "Not present";
+        }
+    }
+
+    public string FriendlyStatus
+    {
+        get
+        {
+            if (string.Equals(CurrentDetectedState, "Not read", StringComparison.OrdinalIgnoreCase))
+            {
+                return "Not read";
+            }
+
+            if (ExperimentalStatus.Contains("failed", StringComparison.OrdinalIgnoreCase) ||
+                ExperimentalStatus.Contains("reverted", StringComparison.OrdinalIgnoreCase) ||
+                ExperimentalStatus.Contains("error", StringComparison.OrdinalIgnoreCase))
+            {
+                return "Failed";
+            }
+
+            if (ExperimentalStatus.Contains("memory changed", StringComparison.OrdinalIgnoreCase))
+            {
+                return "Applied";
+            }
+
+            if (CurrentDetectedState.Contains("not initialized", StringComparison.OrdinalIgnoreCase))
+            {
+                return "Requires story progress";
+            }
+
+            return CanExperimentalCheckboxWrite ? "Ready" : "Read only";
+        }
+    }
 
     public string DesiredEditStateText
     {
@@ -153,6 +217,7 @@ public sealed class InventoryOwnershipItemViewModel : ObservableObject
             if (SetField(ref _canEdit, value))
             {
                 OnPropertyChanged(nameof(DesiredEditStateText));
+                OnPropertyChanged(nameof(FriendlyStatus));
             }
         }
     }

@@ -4,7 +4,7 @@
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         mc:Ignorable="d"
-        Title="TPHD Cemu Trainer"
+        Title="TPHD Cemu Trainer v1.0"
         Height="760"
         MinHeight="680"
         Width="1120"
@@ -336,6 +336,28 @@
                 </Trigger>
             </Style.Triggers>
         </Style>
+        <Style TargetType="Menu">
+            <Setter Property="Background" Value="{DynamicResource PanelBackgroundBrush}" />
+            <Setter Property="Foreground" Value="{DynamicResource TextBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}" />
+            <Setter Property="BorderThickness" Value="1" />
+        </Style>
+        <Style TargetType="MenuItem">
+            <Setter Property="Background" Value="{DynamicResource PanelBackgroundBrush}" />
+            <Setter Property="Foreground" Value="{DynamicResource TextBrush}" />
+            <Setter Property="Padding" Value="8,4" />
+            <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}" />
+            <Style.Triggers>
+                <Trigger Property="IsHighlighted" Value="True">
+                    <Setter Property="Background" Value="{DynamicResource ControlHoverBackgroundBrush}" />
+                    <Setter Property="Foreground" Value="{DynamicResource TextBrush}" />
+                </Trigger>
+                <Trigger Property="IsEnabled" Value="False">
+                    <Setter Property="Background" Value="{DynamicResource PanelBackgroundBrush}" />
+                    <Setter Property="Foreground" Value="{DynamicResource DisabledTextBrush}" />
+                </Trigger>
+            </Style.Triggers>
+        </Style>
         <Style TargetType="GroupBox">
             <Setter Property="Margin" Value="7" />
             <Setter Property="Padding" Value="9" />
@@ -571,6 +593,65 @@
                        Foreground="{DynamicResource SecondaryTextBrush}" />
         </DataTemplate>
 
+        <DataTemplate x:Key="InventoryFriendlyItemTemplate">
+            <Border BorderBrush="{DynamicResource BorderBrush}"
+                    BorderThickness="0,0,0,1"
+                    Padding="4,6">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" MinWidth="190" />
+                        <ColumnDefinition Width="150" />
+                        <ColumnDefinition Width="110" />
+                        <ColumnDefinition Width="170" />
+                    </Grid.ColumnDefinitions>
+
+                    <TextBlock Text="{Binding Name}"
+                               FontWeight="SemiBold"
+                               VerticalAlignment="Center" />
+                    <TextBlock Grid.Column="1"
+                               Text="{Binding FriendlyCurrentState, Mode=OneWay}"
+                               VerticalAlignment="Center"
+                               Margin="8,0" />
+                    <Grid Grid.Column="2"
+                          HorizontalAlignment="Center"
+                          VerticalAlignment="Center">
+                        <CheckBox IsChecked="{Binding IsOwnedDesired, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                  IsEnabled="{Binding CanEdit}"
+                                  ToolTip="Choose whether this item should be present.">
+                            <CheckBox.Style>
+                                <Style TargetType="{x:Type CheckBox}" BasedOn="{StaticResource {x:Type CheckBox}}">
+                                    <Style.Triggers>
+                                        <Trigger Property="IsEnabled" Value="False">
+                                            <Setter Property="Visibility" Value="Collapsed" />
+                                        </Trigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </CheckBox.Style>
+                        </CheckBox>
+                        <TextBlock Text="{Binding DesiredEditStateText, Mode=OneWay}"
+                                   Foreground="{DynamicResource SecondaryTextBrush}"
+                                   HorizontalAlignment="Center"
+                                   VerticalAlignment="Center">
+                            <TextBlock.Style>
+                                <Style TargetType="{x:Type TextBlock}" BasedOn="{StaticResource {x:Type TextBlock}}">
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding CanEdit}" Value="True">
+                                            <Setter Property="Visibility" Value="Collapsed" />
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </TextBlock.Style>
+                        </TextBlock>
+                    </Grid>
+                    <TextBlock Grid.Column="3"
+                               Text="{Binding FriendlyStatus, Mode=OneWay}"
+                               Foreground="{DynamicResource SecondaryTextBrush}"
+                               VerticalAlignment="Center"
+                               Margin="8,0" />
+                </Grid>
+            </Border>
+        </DataTemplate>
+
         <DataTemplate x:Key="InventoryOwnershipItemTemplate">
             <Border BorderBrush="{DynamicResource BorderBrush}"
                     BorderThickness="0,0,0,1"
@@ -580,12 +661,12 @@
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="140" />
                         <ColumnDefinition Width="210" />
-                        <ColumnDefinition Width="70" />
+                        <ColumnDefinition Width="Auto" />
                         <ColumnDefinition Width="74" />
                         <ColumnDefinition Width="54" />
-                        <ColumnDefinition Width="150" />
+                        <ColumnDefinition Width="Auto" />
                         <ColumnDefinition Width="170" />
-                        <ColumnDefinition Width="150" />
+                        <ColumnDefinition Width="Auto" />
                         <ColumnDefinition Width="190" />
                         <ColumnDefinition Width="*" MinWidth="220" />
                     </Grid.ColumnDefinitions>
@@ -599,6 +680,7 @@
                                Margin="6,0" />
                     <TextBlock Grid.Column="2"
                                Text="{Binding IsOwnedDetected, Mode=OneWay}"
+                               Visibility="{Binding DataContext.DeveloperToolsVisibility, RelativeSource={RelativeSource AncestorType=Window}}"
                                VerticalAlignment="Center"
                                Margin="6,0" />
                     <Grid Grid.Column="3"
@@ -637,6 +719,7 @@
                                VerticalAlignment="Center" />
                     <TextBlock Grid.Column="5"
                                Text="{Binding FlagLocation}"
+                               Visibility="{Binding DataContext.DeveloperToolsVisibility, RelativeSource={RelativeSource AncestorType=Window}}"
                                Foreground="{DynamicResource WarningTextBrush}"
                                VerticalAlignment="Center"
                                Margin="6,0" />
@@ -649,6 +732,7 @@
                                Margin="6,0" />
                     <TextBlock Grid.Column="7"
                                Text="{Binding KnownSlotText}"
+                               Visibility="{Binding DataContext.DeveloperToolsVisibility, RelativeSource={RelativeSource AncestorType=Window}}"
                                TextTrimming="CharacterEllipsis"
                                VerticalAlignment="Center"
                                Margin="6,0" />
@@ -973,8 +1057,8 @@
                 <Grid>
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="150" />
-                        <ColumnDefinition Width="76" />
-                        <ColumnDefinition Width="78" />
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="Auto" />
                         <ColumnDefinition Width="*" MinWidth="150" />
                     </Grid.ColumnDefinitions>
 
@@ -983,9 +1067,13 @@
                     <TextBlock Grid.Column="1"
                                Text="{Binding Offset}"
                                FontFamily="Consolas"
+                               Visibility="{Binding DataContext.DeveloperToolsVisibility, RelativeSource={RelativeSource AncestorType=Window}}"
+                               Margin="0,0,12,0"
                                VerticalAlignment="Center" />
                     <TextBlock Grid.Column="2"
                                Text="{Binding CurrentValue, Mode=OneWay}"
+                               Visibility="{Binding DataContext.DeveloperToolsVisibility, RelativeSource={RelativeSource AncestorType=Window}}"
+                               Margin="0,0,12,0"
                                VerticalAlignment="Center" />
                     <TextBlock Grid.Column="3"
                                Text="{Binding CurrentName, Mode=OneWay}"
@@ -1004,9 +1092,9 @@
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="*" MinWidth="180" />
                         <ColumnDefinition Width="70" />
-                        <ColumnDefinition Width="76" />
-                        <ColumnDefinition Width="58" />
-                        <ColumnDefinition Width="90" />
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="Auto" />
                         <ColumnDefinition Width="52" />
                     </Grid.ColumnDefinitions>
 
@@ -1020,13 +1108,19 @@
                     <TextBlock Grid.Column="2"
                                Text="{Binding Offset}"
                                FontFamily="Consolas"
+                               Visibility="{Binding DataContext.DeveloperToolsVisibility, RelativeSource={RelativeSource AncestorType=Window}}"
+                               Margin="0,0,12,0"
                                VerticalAlignment="Center" />
                     <TextBlock Grid.Column="3"
                                Text="{Binding Bit}"
+                               Visibility="{Binding DataContext.DeveloperToolsVisibility, RelativeSource={RelativeSource AncestorType=Window}}"
+                               Margin="0,0,12,0"
                                VerticalAlignment="Center" />
                     <TextBlock Grid.Column="4"
                                Text="{Binding BackingValue, Mode=OneWay}"
                                FontFamily="Consolas"
+                               Visibility="{Binding DataContext.DeveloperToolsVisibility, RelativeSource={RelativeSource AncestorType=Window}}"
+                               Margin="0,0,12,0"
                                VerticalAlignment="Center" />
                     <TextBlock Grid.Column="5"
                                Text="{Binding IsDirty, Mode=OneWay}"
@@ -1044,8 +1138,8 @@
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="*" MinWidth="150" />
                         <ColumnDefinition Width="96" />
-                        <ColumnDefinition Width="76" />
-                        <ColumnDefinition Width="52" />
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="Auto" />
                         <ColumnDefinition Width="72" />
                         <ColumnDefinition Width="52" />
                         <ColumnDefinition Width="*" MinWidth="160" />
@@ -1062,9 +1156,13 @@
                     <TextBlock Grid.Column="2"
                                Text="{Binding Offset}"
                                FontFamily="Consolas"
+                               Visibility="{Binding DataContext.DeveloperToolsVisibility, RelativeSource={RelativeSource AncestorType=Window}}"
+                               Margin="0,0,12,0"
                                VerticalAlignment="Center" />
                     <TextBlock Grid.Column="3"
                                Text="{Binding Bit}"
+                               Visibility="{Binding DataContext.DeveloperToolsVisibility, RelativeSource={RelativeSource AncestorType=Window}}"
+                               Margin="0,0,12,0"
                                VerticalAlignment="Center" />
                     <TextBlock Grid.Column="4"
                                Text="{Binding IsDirty, Mode=OneWay}"
@@ -1482,11 +1580,11 @@
                 <Grid>
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="76" />
-                        <ColumnDefinition Width="74" />
-                        <ColumnDefinition Width="106" />
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="Auto" />
                         <ColumnDefinition Width="*" MinWidth="150" />
                         <ColumnDefinition Width="210" />
-                        <ColumnDefinition Width="92" />
+                        <ColumnDefinition Width="Auto" />
                         <ColumnDefinition Width="*" MinWidth="150" />
                         <ColumnDefinition Width="66" />
                     </Grid.ColumnDefinitions>
@@ -1496,10 +1594,14 @@
                     <TextBlock Grid.Column="1"
                                Text="{Binding Offset}"
                                FontFamily="Consolas"
+                               Visibility="{Binding DataContext.DeveloperToolsVisibility, RelativeSource={RelativeSource AncestorType=Window}}"
+                               Margin="0,0,12,0"
                                VerticalAlignment="Center" />
                     <TextBlock Grid.Column="2"
                                Text="{Binding CurrentRawValue}"
                                FontFamily="Consolas"
+                               Visibility="{Binding DataContext.DeveloperToolsVisibility, RelativeSource={RelativeSource AncestorType=Window}}"
+                               Margin="0,0,12,0"
                                VerticalAlignment="Center" />
                     <TextBlock Grid.Column="3"
                                Text="{Binding CurrentDecodedContent}"
@@ -1514,6 +1616,8 @@
                     <TextBlock Grid.Column="5"
                                Text="{Binding PreviousRawValue}"
                                FontFamily="Consolas"
+                               Visibility="{Binding DataContext.DeveloperToolsVisibility, RelativeSource={RelativeSource AncestorType=Window}}"
+                               Margin="0,0,12,0"
                                VerticalAlignment="Center" />
                     <TextBlock Grid.Column="6"
                                Text="{Binding Status}"
@@ -1568,7 +1672,7 @@
                         <ColumnDefinition Width="260" />
                         <ColumnDefinition Width="150" />
                         <ColumnDefinition Width="220" />
-                        <ColumnDefinition Width="*" MinWidth="220" />
+                        <ColumnDefinition Width="Auto" />
                         <ColumnDefinition Width="70" />
                     </Grid.ColumnDefinitions>
 
@@ -1587,6 +1691,7 @@
                     <TextBlock Grid.Column="3"
                                Text="{Binding LastVerificationResult, Mode=OneWay}"
                                TextTrimming="CharacterEllipsis"
+                               Visibility="{Binding DataContext.DeveloperToolsVisibility, RelativeSource={RelativeSource AncestorType=Window}}"
                                VerticalAlignment="Center"
                                Margin="6,0" />
                     <Button Grid.Column="4"
@@ -1900,8 +2005,8 @@
                 <Grid>
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="190" />
-                        <ColumnDefinition Width="74" />
-                        <ColumnDefinition Width="48" />
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="Auto" />
                         <ColumnDefinition Width="96" />
                         <ColumnDefinition Width="74" />
                         <ColumnDefinition Width="70" />
@@ -1913,9 +2018,13 @@
                     <TextBlock Grid.Column="1"
                                Text="{Binding Offset}"
                                FontFamily="Consolas"
+                               Visibility="{Binding DataContext.DeveloperToolsVisibility, RelativeSource={RelativeSource AncestorType=Window}}"
+                               Margin="0,0,12,0"
                                VerticalAlignment="Center" />
                     <TextBlock Grid.Column="2"
                                Text="{Binding Bit}"
+                               Visibility="{Binding DataContext.DeveloperToolsVisibility, RelativeSource={RelativeSource AncestorType=Window}}"
+                               Margin="0,0,12,0"
                                VerticalAlignment="Center" />
                     <TextBlock Grid.Column="3"
                                Text="{Binding CurrentState}"
@@ -2105,10 +2214,73 @@
     <Grid Margin="10">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
             <RowDefinition Height="*" />
         </Grid.RowDefinitions>
 
-        <Border Grid.Row="0"
+        <Menu Grid.Row="0"
+              Margin="0,0,0,6">
+            <MenuItem Header="_File">
+                <MenuItem Header="Attach / Rescan"
+                          Click="AttachButton_Click" />
+                <MenuItem Header="Detach"
+                          IsEnabled="{Binding ElementName=DetachButton, Path=IsEnabled}"
+                          Click="DetachButton_Click" />
+                <MenuItem Header="Exit"
+                          Click="ExitMenuItem_Click" />
+            </MenuItem>
+            <MenuItem Header="_Options">
+                <MenuItem Header="Dark Mode"
+                          IsCheckable="True"
+                          IsChecked="{Binding IsDarkMode, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+                <MenuItem Header="Developer Mode"
+                          IsCheckable="True"
+                          IsChecked="{Binding IsDeveloperMode, Mode=OneWay}"
+                          Click="DeveloperModeToggle_Click" />
+                <MenuItem Header="Backup Reminder / Save Safety"
+                          Click="BackupSaveWarningMenuItem_Click" />
+            </MenuItem>
+            <MenuItem Header="_Tools">
+                <MenuItem Header="Open Logs Folder"
+                          Click="OpenLogsFolderMenuItem_Click" />
+                <MenuItem Header="Open App Folder"
+                          Click="OpenAppFolderMenuItem_Click" />
+                <MenuItem Header="Research"
+                          Tag="Research"
+                          Visibility="{Binding DeveloperToolsVisibility}"
+                          Click="OpenDeveloperToolMenuItem_Click" />
+                <MenuItem Header="Debug"
+                          Tag="Debug"
+                          Visibility="{Binding DeveloperToolsVisibility}"
+                          Click="OpenDeveloperToolMenuItem_Click" />
+                <MenuItem Header="Live Capture"
+                          Tag="Live Capture"
+                          Visibility="{Binding DeveloperToolsVisibility}"
+                          Click="OpenDeveloperToolMenuItem_Click" />
+                <MenuItem Header="Snapshot Diff"
+                          Tag="Snapshot Diff"
+                          Visibility="{Binding DeveloperToolsVisibility}"
+                          Click="OpenDeveloperToolMenuItem_Click" />
+                <MenuItem Header="Candidate Tester"
+                          Tag="Candidate Tester"
+                          Visibility="{Binding DeveloperToolsVisibility}"
+                          Click="OpenDeveloperToolMenuItem_Click" />
+                <MenuItem Header="Analysis Reports"
+                          Tag="Analysis Reports"
+                          Visibility="{Binding DeveloperToolsVisibility}"
+                          Click="OpenDeveloperToolMenuItem_Click" />
+            </MenuItem>
+            <MenuItem Header="_Help">
+                <MenuItem Header="README / Documentation"
+                          Click="OpenDocumentationMenuItem_Click" />
+                <MenuItem Header="Backup Save Warning"
+                          Click="BackupSaveWarningMenuItem_Click" />
+                <MenuItem Header="About"
+                          Click="AboutMenuItem_Click" />
+            </MenuItem>
+        </Menu>
+
+        <Border Grid.Row="1"
                 BorderBrush="{DynamicResource BorderBrush}"
                 BorderThickness="1"
                 Background="{DynamicResource PanelBackgroundBrush}"
@@ -2166,30 +2338,54 @@
                                    Text="Unknown"
                                    FontWeight="SemiBold" />
                     </StackPanel>
+                    <TextBlock Text="Back up your save before using this trainer."
+                               Foreground="{DynamicResource WarningTextBrush}"
+                               FontWeight="SemiBold"
+                               Margin="18,4,0,0" />
                 </StackPanel>
 
                 <StackPanel Grid.Column="2"
-                            Orientation="Horizontal"
                             VerticalAlignment="Center">
-                    <CheckBox Content="Dark Mode"
-                              IsChecked="{Binding IsDarkMode, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                              VerticalAlignment="Center"
-                              Margin="0,0,16,0" />
-                    <TextBlock Text="PID:" Margin="0,0,4,0" />
-                    <TextBlock x:Name="PidText"
-                               Text="-"
+                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                        <TextBlock Text="TPHD Cemu Trainer v1.0"
+                                   FontWeight="SemiBold"
+                                   VerticalAlignment="Center"
+                                   Margin="0,0,16,0" />
+                        <CheckBox Content="Dark Mode"
+                                  IsChecked="{Binding IsDarkMode, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                  VerticalAlignment="Center"
+                                  Margin="0,0,16,0" />
+                        <CheckBox Content="Developer Mode"
+                                  IsChecked="{Binding IsDeveloperMode, Mode=OneWay}"
+                                  Click="DeveloperModeToggle_Click"
+                                  VerticalAlignment="Center" />
+                    </StackPanel>
+                    <TextBlock Text="Developer Mode Enabled"
+                               Visibility="{Binding DeveloperToolsVisibility}"
+                               Foreground="{DynamicResource WarningTextBrush}"
                                FontWeight="SemiBold"
-                               Margin="0,0,16,0" />
-                    <TextBlock Text="Player base:" Margin="0,0,4,0" />
-                    <TextBlock x:Name="PlayerBaseText"
-                               Text="-"
-                               FontFamily="Consolas"
-                               FontWeight="SemiBold" />
+                               HorizontalAlignment="Right"
+                               Margin="0,4,0,0" />
+                    <StackPanel Orientation="Horizontal"
+                                HorizontalAlignment="Right"
+                                Visibility="{Binding DeveloperToolsVisibility}"
+                                Margin="0,4,0,0">
+                        <TextBlock Text="PID:" Margin="0,0,4,0" />
+                        <TextBlock x:Name="PidText"
+                                   Text="-"
+                                   FontWeight="SemiBold"
+                                   Margin="0,0,16,0" />
+                        <TextBlock Text="Player base:" Margin="0,0,4,0" />
+                        <TextBlock x:Name="PlayerBaseText"
+                                   Text="-"
+                                   FontFamily="Consolas"
+                                   FontWeight="SemiBold" />
+                    </StackPanel>
                 </StackPanel>
             </Grid>
         </Border>
 
-        <TabControl Grid.Row="1"
+        <TabControl Grid.Row="2"
                     x:Name="TrainerTabs"
                     Background="{DynamicResource AppBackgroundBrush}">
             <TabItem Header="General">
@@ -2274,6 +2470,26 @@
                                        Foreground="{DynamicResource SecondaryTextBrush}"
                                        Text="Capacity-limited edits are clamped to the selected capacity before writing. If player data is not found, load into gameplay and rescan." />
                         </GroupBox>
+
+                        <GroupBox Header="About">
+                            <StackPanel>
+                                <TextBlock Text="TPHD Cemu Trainer v1.0"
+                                           FontWeight="SemiBold"
+                                           Margin="0,0,0,4" />
+                                <TextBlock Text="For The Legend of Zelda: Twilight Princess HD on Cemu."
+                                           TextWrapping="Wrap"
+                                           Foreground="{DynamicResource SecondaryTextBrush}"
+                                           Margin="0,0,0,4" />
+                                <TextBlock Text="Back up your save before using this trainer."
+                                           TextWrapping="Wrap"
+                                           Foreground="{DynamicResource WarningTextBrush}"
+                                           FontWeight="SemiBold"
+                                           Margin="0,0,0,4" />
+                                <TextBlock Text="Experimental research tools are available only in Developer Mode."
+                                           TextWrapping="Wrap"
+                                           Foreground="{DynamicResource SecondaryTextBrush}" />
+                            </StackPanel>
+                        </GroupBox>
                     </UniformGrid>
                 </ScrollViewer>
             </TabItem>
@@ -2281,7 +2497,80 @@
             <TabItem Header="Inventory">
                 <ScrollViewer VerticalScrollBarVisibility="Auto">
                     <StackPanel Margin="6">
-                        <GroupBox Header="Owned / Unlocked Inventory Items">
+                        <StackPanel>
+                            <GroupBox Header="Quick Actions / Status">
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="*" />
+                                    </Grid.ColumnDefinitions>
+
+                                    <Button Content="Refresh Inventory"
+                                            Click="RefreshInventoryButton_Click" />
+                                    <CheckBox Grid.Column="1"
+                                              Content="Enable item changes"
+                                              IsChecked="{Binding EnableExperimentalInventoryCheckboxWrites, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                              VerticalAlignment="Center"
+                                              Margin="14,0,0,0" />
+                                    <Button Grid.Column="2"
+                                            x:Name="ApplyInventoryCheckboxTestingButton"
+                                            Content="Apply Changes"
+                                            Click="ApplyInventoryCheckboxTesting_Click"
+                                            Margin="12,0,0,0" />
+                                    <StackPanel Grid.Column="3"
+                                                Orientation="Horizontal"
+                                                HorizontalAlignment="Right"
+                                                VerticalAlignment="Center">
+                                        <TextBlock Text="Inventory:"
+                                                   Foreground="{DynamicResource SecondaryTextBrush}"
+                                                   Margin="0,0,6,0" />
+                                        <TextBlock Text="{Binding ElementName=InventoryStateText, Path=Text, Mode=OneWay}"
+                                                   FontWeight="SemiBold" />
+                                    </StackPanel>
+                                </Grid>
+                            </GroupBox>
+
+                            <GroupBox Header="Items">
+                                <StackPanel>
+                                    <Grid Margin="4,0,4,4">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*" MinWidth="190" />
+                                            <ColumnDefinition Width="150" />
+                                            <ColumnDefinition Width="110" />
+                                            <ColumnDefinition Width="170" />
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock Text="Item" FontWeight="SemiBold" />
+                                        <TextBlock Grid.Column="1" Text="Current" FontWeight="SemiBold" Margin="8,0" />
+                                        <TextBlock Grid.Column="2" Text="Desired" FontWeight="SemiBold" HorizontalAlignment="Center" />
+                                        <TextBlock Grid.Column="3" Text="Status" FontWeight="SemiBold" Margin="8,0" />
+                                    </Grid>
+
+                                    <ScrollViewer Height="390"
+                                                  VerticalScrollBarVisibility="Auto"
+                                                  HorizontalScrollBarVisibility="Disabled"
+                                                  Background="{DynamicResource ReadOnlyBackgroundBrush}">
+                                        <ItemsControl ItemsSource="{Binding InventoryOwnershipItems}"
+                                                      ItemTemplate="{StaticResource InventoryFriendlyItemTemplate}" />
+                                    </ScrollViewer>
+                                </StackPanel>
+                            </GroupBox>
+
+                            <Border BorderBrush="{DynamicResource WarningBorderBrush}"
+                                    BorderThickness="1"
+                                    Background="{DynamicResource WarningBackgroundBrush}"
+                                    Padding="8"
+                                    Margin="7">
+                                <TextBlock TextWrapping="Wrap"
+                                           Foreground="{DynamicResource WarningTextBrush}"
+                                           Text="Some items may require story progress before they work correctly in-game. Back up your save before editing. Close and reopen the in-game inventory menu after applying changes." />
+                            </Border>
+                        </StackPanel>
+
+                        <Expander Header="Developer / Research Details"
+                                  IsExpanded="False"
+                                  Visibility="{Binding DeveloperToolsVisibility}">
                             <StackPanel>
                                 <TextBlock TextWrapping="Wrap"
                                            Foreground="{DynamicResource WarningTextBrush}"
@@ -2341,6 +2630,7 @@
                                             Click="RefreshInventoryButton_Click" />
                                     <Button x:Name="ApplyInventoryOwnershipButton"
                                             Content="Apply Inventory Ownership Changes"
+                                            Visibility="{Binding DeveloperToolsVisibility}"
                                             Click="ApplyInventoryOwnership_Click"
                                             Margin="12,0,0,0" />
                                     <TextBlock Text="Visible inventory slots are game-managed and read-only."
@@ -2382,8 +2672,8 @@
                                                       IsChecked="{Binding EnableExperimentalInventoryCheckboxWrites, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                                                       VerticalAlignment="Center"
                                                       Margin="0,0,12,0" />
-                                            <Button x:Name="ApplyInventoryCheckboxTestingButton"
-                                                    Content="Apply Fixed-Slot Inventory Changes"
+                                            <Button Content="Apply Fixed-Slot Inventory Changes"
+                                                    IsEnabled="{Binding ElementName=ApplyInventoryCheckboxTestingButton, Path=IsEnabled}"
                                                     Click="ApplyInventoryCheckboxTesting_Click" />
                                         </StackPanel>
                                     </StackPanel>
@@ -2393,23 +2683,35 @@
                                     <Grid.ColumnDefinitions>
                                         <ColumnDefinition Width="140" />
                                         <ColumnDefinition Width="210" />
-                                        <ColumnDefinition Width="70" />
+                                        <ColumnDefinition Width="Auto" />
                                         <ColumnDefinition Width="74" />
                                         <ColumnDefinition Width="54" />
-                                        <ColumnDefinition Width="150" />
+                                        <ColumnDefinition Width="Auto" />
                                         <ColumnDefinition Width="170" />
-                                        <ColumnDefinition Width="150" />
+                                        <ColumnDefinition Width="Auto" />
                                         <ColumnDefinition Width="190" />
                                         <ColumnDefinition Width="*" MinWidth="220" />
                                     </Grid.ColumnDefinitions>
                                     <TextBlock Text="Item" FontWeight="SemiBold" />
                                     <TextBlock Grid.Column="1" Text="Current detected state" FontWeight="SemiBold" Margin="6,0" />
-                                    <TextBlock Grid.Column="2" Text="Detected" FontWeight="SemiBold" Margin="6,0" />
+                                    <TextBlock Grid.Column="2"
+                                               Text="Detected"
+                                               FontWeight="SemiBold"
+                                               Visibility="{Binding DeveloperToolsVisibility}"
+                                               Margin="6,0" />
                                     <TextBlock Grid.Column="3" Text="Desired edit" FontWeight="SemiBold" HorizontalAlignment="Center" />
                                     <TextBlock Grid.Column="4" Text="Dirty" FontWeight="SemiBold" />
-                                    <TextBlock Grid.Column="5" Text="Ownership flag" FontWeight="SemiBold" Margin="6,0" />
+                                    <TextBlock Grid.Column="5"
+                                               Text="Ownership flag"
+                                               FontWeight="SemiBold"
+                                               Visibility="{Binding DeveloperToolsVisibility}"
+                                               Margin="6,0" />
                                     <TextBlock Grid.Column="6" Text="Fixed-slot status" FontWeight="SemiBold" Margin="6,0" />
-                                    <TextBlock Grid.Column="7" Text="Known slot" FontWeight="SemiBold" Margin="6,0" />
+                                    <TextBlock Grid.Column="7"
+                                               Text="Known slot"
+                                               FontWeight="SemiBold"
+                                               Visibility="{Binding DeveloperToolsVisibility}"
+                                               Margin="6,0" />
                                     <TextBlock Grid.Column="8" Text="Write status" FontWeight="SemiBold" Margin="6,0" />
                                     <TextBlock Grid.Column="9" Text="Notes" FontWeight="SemiBold" Margin="6,0" />
                                 </Grid>
@@ -2417,9 +2719,10 @@
                                 <ItemsControl ItemsSource="{Binding InventoryOwnershipItems}"
                                               ItemTemplate="{StaticResource InventoryOwnershipItemTemplate}" />
                             </StackPanel>
-                        </GroupBox>
+                        </Expander>
 
-                        <GroupBox Header="Current Inventory Slots (Read Only)">
+                        <GroupBox Header="Current Inventory Slots (Read Only)"
+                                  Visibility="{Binding DeveloperToolsVisibility}">
                             <StackPanel>
                                 <TextBlock TextWrapping="Wrap"
                                            Foreground="{DynamicResource SecondaryTextBrush}"
@@ -2448,7 +2751,8 @@
                             </StackPanel>
                         </GroupBox>
 
-                        <GroupBox Header="Bottle Editor / Experimental">
+                        <GroupBox Header="Bottle Editor / Experimental"
+                                  Visibility="{Binding DeveloperToolsVisibility}">
                             <StackPanel>
                                 <Border BorderBrush="{DynamicResource WarningBorderBrush}"
                                         BorderThickness="1"
@@ -2491,7 +2795,9 @@
                             </StackPanel>
                         </GroupBox>
 
-                        <Expander Header="Inventory Mapping Mode (Research Only)" IsExpanded="False">
+                        <Expander Header="Inventory Mapping Mode (Research Only)"
+                                  IsExpanded="False"
+                                  Visibility="{Binding DeveloperToolsVisibility}">
                             <GroupBox Header="Inventory Mapping Mode">
                                 <StackPanel>
                                     <TextBlock TextWrapping="Wrap"
@@ -2537,7 +2843,9 @@
                             </GroupBox>
                         </Expander>
 
-                        <Expander Header="Advanced / Inventory Removal Testing (Unsafe)" IsExpanded="False">
+                        <Expander Header="Advanced / Inventory Removal Testing (Unsafe)"
+                                  IsExpanded="False"
+                                  Visibility="{Binding DeveloperToolsVisibility}">
                             <GroupBox Header="Inventory Removal Tester">
                                 <StackPanel>
                                     <Border BorderBrush="{DynamicResource WarningBorderBrush}"
@@ -2592,7 +2900,9 @@
                             </GroupBox>
                         </Expander>
 
-                        <Expander Header="Advanced / Raw Inventory Writes (Unsafe)" IsExpanded="False">
+                        <Expander Header="Advanced / Raw Inventory Writes (Unsafe)"
+                                  IsExpanded="False"
+                                  Visibility="{Binding DeveloperToolsVisibility}">
                             <GroupBox Header="Unsafe Raw Inventory Writes">
                                 <StackPanel>
                                     <Border BorderBrush="{DynamicResource WarningBorderBrush}"
@@ -2709,6 +3019,7 @@
                                     <CheckBox Content="Allow editing uninitialized equipment"
                                               IsChecked="{Binding AllowEditingUninitializedEquipment, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                                               ToolTip="Allows ownership flag writes while the CT equipment bytes appear uninitialized."
+                                              Visibility="{Binding DeveloperToolsVisibility}"
                                               VerticalAlignment="Center"
                                               Margin="12,0,0,0" />
                                     <Button x:Name="ApplyEquipmentOwnershipButton"
@@ -2721,7 +3032,8 @@
                                                Foreground="{DynamicResource SecondaryTextBrush}" />
                                 </StackPanel>
 
-                                <WrapPanel Margin="0,0,0,8">
+                                <WrapPanel Margin="0,0,0,8"
+                                           Visibility="{Binding DeveloperToolsVisibility}">
                                     <CheckBox Content="I am past the Ordon Village intro arc"
                                               IsChecked="{Binding UserConfirmedPastIntroArc, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                                               ToolTip="Uses a manual override for the ownership-edit acceptance heuristic."
@@ -2768,13 +3080,21 @@
                                 <Grid Margin="0,0,0,4">
                                     <Grid.ColumnDefinitions>
                                         <ColumnDefinition Width="150" />
-                                        <ColumnDefinition Width="76" />
-                                        <ColumnDefinition Width="78" />
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="Auto" />
                                         <ColumnDefinition Width="*" MinWidth="150" />
                                     </Grid.ColumnDefinitions>
                                     <TextBlock Text="Slot" FontWeight="SemiBold" />
-                                    <TextBlock Grid.Column="1" Text="Offset" FontWeight="SemiBold" />
-                                    <TextBlock Grid.Column="2" Text="Value" FontWeight="SemiBold" />
+                                    <TextBlock Grid.Column="1"
+                                               Text="Offset"
+                                               Visibility="{Binding DeveloperToolsVisibility}"
+                                               Margin="0,0,12,0"
+                                               FontWeight="SemiBold" />
+                                    <TextBlock Grid.Column="2"
+                                               Text="Value"
+                                               Visibility="{Binding DeveloperToolsVisibility}"
+                                               Margin="0,0,12,0"
+                                               FontWeight="SemiBold" />
                                     <TextBlock Grid.Column="3" Text="Current" FontWeight="SemiBold" />
                                 </Grid>
 
@@ -2818,7 +3138,8 @@
                                                     ContentTemplate="{StaticResource CapacityTemplate}" />
                                     <ContentControl Content="{Binding BombSlot1}"
                                                     ContentTemplate="{StaticResource EditableValueTemplate}" />
-                                    <Grid Margin="0,8,0,0">
+                                    <Grid Margin="0,8,0,0"
+                                          Visibility="{Binding DeveloperToolsVisibility}">
                                         <Grid.ColumnDefinitions>
                                             <ColumnDefinition Width="96" />
                                             <ColumnDefinition Width="120" />
@@ -2879,7 +3200,8 @@
                                                     ContentTemplate="{StaticResource CapacityTemplate}" />
                                     <ContentControl Content="{Binding BombSlot2}"
                                                     ContentTemplate="{StaticResource EditableValueTemplate}" />
-                                    <Grid Margin="0,8,0,0">
+                                    <Grid Margin="0,8,0,0"
+                                          Visibility="{Binding DeveloperToolsVisibility}">
                                         <Grid.ColumnDefinitions>
                                             <ColumnDefinition Width="96" />
                                             <ColumnDefinition Width="120" />
@@ -2940,7 +3262,8 @@
                                                     ContentTemplate="{StaticResource CapacityTemplate}" />
                                     <ContentControl Content="{Binding BombSlot3}"
                                                     ContentTemplate="{StaticResource EditableValueTemplate}" />
-                                    <Grid Margin="0,8,0,0">
+                                    <Grid Margin="0,8,0,0"
+                                          Visibility="{Binding DeveloperToolsVisibility}">
                                         <Grid.ColumnDefinitions>
                                             <ColumnDefinition Width="96" />
                                             <ColumnDefinition Width="120" />
@@ -3011,13 +3334,14 @@
                                     <TextBlock TextWrapping="Wrap"
                                                Foreground="{DynamicResource WarningTextBrush}"
                                                FontWeight="SemiBold"
-                                               Text="Confirmed Bomb Slot content editor. This writes only _playerbase+0x267 through _playerbase+0x269 and exposes only Normal Bombs, Water Bombs, and Bomblings. Count/capacity controls above remain CT-backed diagnostics." />
+                                               Text="Confirmed Bomb Slot content editor. Choose Normal Bombs, Water Bombs, or Bomblings for each visible slot. Count and capacity controls above remain separate." />
                                 </Border>
 
                                 <TextBlock TextWrapping="Wrap"
                                            Foreground="{DynamicResource SecondaryTextBrush}"
                                            Margin="0,0,0,8"
-                                           Text="Confirmed values: 0x70 Normal Bombs, 0x71 Water Bombs, 0x72 Bomblings. 0x50 is a known glitched/empty icon value and is intentionally not exposed." />
+                                           Visibility="{Binding DeveloperToolsVisibility}"
+                                           Text="Confirmed raw values: 0x70 Normal Bombs, 0x71 Water Bombs, 0x72 Bomblings. 0x50 is a known glitched/empty icon value and is intentionally not exposed." />
 
                                 <WrapPanel Margin="0,0,0,8">
                                     <Button Content="Refresh Bomb Slots"
@@ -3038,20 +3362,32 @@
                                 <Grid Margin="0,0,0,4">
                                     <Grid.ColumnDefinitions>
                                         <ColumnDefinition Width="76" />
-                                        <ColumnDefinition Width="74" />
-                                        <ColumnDefinition Width="106" />
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="Auto" />
                                         <ColumnDefinition Width="*" MinWidth="150" />
                                         <ColumnDefinition Width="210" />
-                                        <ColumnDefinition Width="92" />
+                                        <ColumnDefinition Width="Auto" />
                                         <ColumnDefinition Width="*" MinWidth="150" />
                                         <ColumnDefinition Width="66" />
                                     </Grid.ColumnDefinitions>
                                     <TextBlock Text="Slot" FontWeight="SemiBold" />
-                                    <TextBlock Grid.Column="1" Text="Offset" FontWeight="SemiBold" />
-                                    <TextBlock Grid.Column="2" Text="Current raw" FontWeight="SemiBold" />
+                                    <TextBlock Grid.Column="1"
+                                               Text="Offset"
+                                               Visibility="{Binding DeveloperToolsVisibility}"
+                                               Margin="0,0,12,0"
+                                               FontWeight="SemiBold" />
+                                    <TextBlock Grid.Column="2"
+                                               Text="Current raw"
+                                               Visibility="{Binding DeveloperToolsVisibility}"
+                                               Margin="0,0,12,0"
+                                               FontWeight="SemiBold" />
                                     <TextBlock Grid.Column="3" Text="Current type" FontWeight="SemiBold" />
                                     <TextBlock Grid.Column="4" Text="Desired type" FontWeight="SemiBold" Margin="6,0" />
-                                    <TextBlock Grid.Column="5" Text="Previous" FontWeight="SemiBold" />
+                                    <TextBlock Grid.Column="5"
+                                               Text="Previous"
+                                               Visibility="{Binding DeveloperToolsVisibility}"
+                                               Margin="0,0,12,0"
+                                               FontWeight="SemiBold" />
                                     <TextBlock Grid.Column="6" Text="Status" FontWeight="SemiBold" Margin="6,0" />
                                     <TextBlock Grid.Column="7" Text="Dirty" FontWeight="SemiBold" />
                                 </Grid>
@@ -3073,7 +3409,7 @@
                                 <TextBlock TextWrapping="Wrap"
                                            Foreground="{DynamicResource SecondaryTextBrush}"
                                            Margin="0,0,0,8"
-                                           Text="CT-backed editable byte at _playerbase+0x2C8. Values are clamped to 0-60 and verified after writing." />
+                                           Text="Poe Souls are clamped to 0-60 and verified after writing." />
                                 <ContentControl Content="{Binding PoeSouls}"
                                                 ContentTemplate="{StaticResource PoeSoulsValueTemplate}" />
                             </StackPanel>
@@ -3149,8 +3485,8 @@
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="150" />
                                     <ColumnDefinition Width="120" />
-                                    <ColumnDefinition Width="150" />
-                                    <ColumnDefinition Width="180" />
+                                    <ColumnDefinition Width="Auto" />
+                                    <ColumnDefinition Width="Auto" />
                                     <ColumnDefinition Width="*" />
                                 </Grid.ColumnDefinitions>
                                 <TextBlock Text="Owned count"
@@ -3162,11 +3498,13 @@
                                          Background="{DynamicResource ReadOnlyBackgroundBrush}" />
                                 <TextBlock Grid.Column="2"
                                            Text="Raw 0x2A1-0x2A3"
+                                           Visibility="{Binding DeveloperToolsVisibility}"
                                            VerticalAlignment="Center"
                                            Margin="12,0,0,0" />
                                 <TextBox Grid.Column="3"
                                          x:Name="GoldenBugsEditorRawBytesText"
                                          Text="Not read"
+                                         Visibility="{Binding DeveloperToolsVisibility}"
                                          IsReadOnly="True"
                                          FontFamily="Consolas"
                                          Background="{DynamicResource ReadOnlyBackgroundBrush}" />
@@ -3195,15 +3533,23 @@
                             <Grid Margin="0,0,0,4">
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="190" />
-                                    <ColumnDefinition Width="74" />
-                                    <ColumnDefinition Width="48" />
+                                    <ColumnDefinition Width="Auto" />
+                                    <ColumnDefinition Width="Auto" />
                                     <ColumnDefinition Width="96" />
                                     <ColumnDefinition Width="74" />
                                     <ColumnDefinition Width="70" />
                                 </Grid.ColumnDefinitions>
                                 <TextBlock Text="Bug" FontWeight="SemiBold" />
-                                <TextBlock Grid.Column="1" Text="Offset" FontWeight="SemiBold" />
-                                <TextBlock Grid.Column="2" Text="Bit" FontWeight="SemiBold" />
+                                <TextBlock Grid.Column="1"
+                                           Text="Offset"
+                                           Visibility="{Binding DeveloperToolsVisibility}"
+                                           Margin="0,0,12,0"
+                                           FontWeight="SemiBold" />
+                                <TextBlock Grid.Column="2"
+                                           Text="Bit"
+                                           Visibility="{Binding DeveloperToolsVisibility}"
+                                           Margin="0,0,12,0"
+                                           FontWeight="SemiBold" />
                                 <TextBlock Grid.Column="3" Text="Current" FontWeight="SemiBold" />
                                 <TextBlock Grid.Column="4" Text="Desired" FontWeight="SemiBold" />
                                 <TextBlock Grid.Column="5" Text="Dirty" FontWeight="SemiBold" />
@@ -3212,7 +3558,10 @@
                             <ItemsControl ItemsSource="{Binding GoldenBugsEditorRows}"
                                           ItemTemplate="{StaticResource GoldenBugEditorRowTemplate}" />
 
-                            <Expander Header="Golden Bugs Editor Diagnostics" IsExpanded="False" Margin="0,8,0,0">
+                            <Expander Header="Golden Bugs Editor Diagnostics"
+                                      IsExpanded="False"
+                                      Visibility="{Binding DeveloperToolsVisibility}"
+                                      Margin="0,8,0,0">
                                 <ScrollViewer Height="140"
                                               VerticalScrollBarVisibility="Auto"
                                               HorizontalScrollBarVisibility="Auto"
@@ -3233,7 +3582,8 @@
                         </StackPanel>
                     </GroupBox>
 
-                    <GroupBox Header="Advanced / Golden Bugs Research">
+                    <GroupBox Header="Advanced / Golden Bugs Research"
+                              Visibility="{Binding DeveloperToolsVisibility}">
                         <StackPanel>
                     <GroupBox Header="Golden Bugs Research">
                         <StackPanel>
@@ -3492,7 +3842,7 @@
                                 <TextBlock TextWrapping="Wrap"
                                            Foreground="{DynamicResource SecondaryTextBrush}"
                                            Margin="0,0,0,8"
-                                           Text="Enabling a skill automatically enables earlier prerequisites; disabling a skill automatically disables later dependent skills. Writes only confirmed bits at _playerbase+0x3D5 and _playerbase+0x3D6. This editor does not touch 0x238 or lesson-state flags." />
+                                           Text="Enabling a skill automatically enables earlier prerequisites; disabling a skill automatically disables later dependent skills. Only confirmed skill ownership is changed; lesson-state flags are left untouched." />
 
                                 <TextBlock x:Name="HiddenSkillsInconsistentWarningText"
                                            Foreground="{DynamicResource WarningTextBrush}"
@@ -3501,7 +3851,7 @@
                                            Padding="6"
                                            Margin="0,0,0,8"
                                            Visibility="Collapsed"
-                                           Text="Save contains inconsistent Hidden Skill flags." />
+                                           Text="Hidden Skill progression appears non-standard. This may happen on edited or imported saves." />
 
                                 <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
                                     <Button Content="Refresh Hidden Skills"
@@ -3520,7 +3870,8 @@
                                             Margin="6,0,0,0" />
                                 </StackPanel>
 
-                                <Grid Margin="0,0,0,8">
+                                <Grid Margin="0,0,0,8"
+                                      Visibility="{Binding DeveloperToolsVisibility}">
                                     <Grid.ColumnDefinitions>
                                         <ColumnDefinition Width="90" />
                                         <ColumnDefinition Width="*" />
@@ -3561,8 +3912,8 @@
                                     <Grid.ColumnDefinitions>
                                         <ColumnDefinition Width="*" MinWidth="150" />
                                         <ColumnDefinition Width="96" />
-                                        <ColumnDefinition Width="76" />
-                                        <ColumnDefinition Width="52" />
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="Auto" />
                                         <ColumnDefinition Width="72" />
                                         <ColumnDefinition Width="52" />
                                         <ColumnDefinition Width="*" MinWidth="160" />
@@ -3570,8 +3921,16 @@
                                     </Grid.ColumnDefinitions>
                                     <TextBlock Text="Skill" FontWeight="SemiBold" />
                                     <TextBlock Grid.Column="1" Text="Current" FontWeight="SemiBold" />
-                                    <TextBlock Grid.Column="2" Text="Offset" FontWeight="SemiBold" />
-                                    <TextBlock Grid.Column="3" Text="Bit" FontWeight="SemiBold" />
+                                    <TextBlock Grid.Column="2"
+                                               Text="Offset"
+                                               Visibility="{Binding DeveloperToolsVisibility}"
+                                               Margin="0,0,12,0"
+                                               FontWeight="SemiBold" />
+                                    <TextBlock Grid.Column="3"
+                                               Text="Bit"
+                                               Visibility="{Binding DeveloperToolsVisibility}"
+                                               Margin="0,0,12,0"
+                                               FontWeight="SemiBold" />
                                     <TextBlock Grid.Column="4" Text="Dirty" FontWeight="SemiBold" />
                                     <TextBlock Grid.Column="5" Text="Edit" FontWeight="SemiBold" />
                                     <TextBlock Grid.Column="6" Text="Last write" FontWeight="SemiBold" Margin="6,0" />
@@ -3612,7 +3971,8 @@
                                            Margin="0,0,0,8"
                                            Text="Generic Quest Slot / Bottom-Right Quest Slot is advanced / experimental-safe because its intended story item is still unknown. Ancient Sky Book requires the Ooccoo slot to be empty." />
 
-                                <WrapPanel Margin="0,0,0,8">
+                                <WrapPanel Margin="0,0,0,8"
+                                           Visibility="{Binding DeveloperToolsVisibility}">
                                     <Button Content="Refresh Quest / Special Items"
                                             Click="RefreshQuestSpecialEditors_Click" />
                                 </WrapPanel>
@@ -3622,13 +3982,17 @@
                                         <ColumnDefinition Width="260" />
                                         <ColumnDefinition Width="150" />
                                         <ColumnDefinition Width="220" />
-                                        <ColumnDefinition Width="*" MinWidth="220" />
+                                        <ColumnDefinition Width="Auto" />
                                         <ColumnDefinition Width="70" />
                                     </Grid.ColumnDefinitions>
                                     <TextBlock Text="Item" FontWeight="SemiBold" />
                                     <TextBlock Grid.Column="1" Text="Current" FontWeight="SemiBold" />
                                     <TextBlock Grid.Column="2" Text="Set To" FontWeight="SemiBold" Margin="6,0" />
-                                    <TextBlock Grid.Column="3" Text="Status" FontWeight="SemiBold" Margin="6,0" />
+                                    <TextBlock Grid.Column="3"
+                                               Text="Technical status"
+                                               Visibility="{Binding DeveloperToolsVisibility}"
+                                               FontWeight="SemiBold"
+                                               Margin="6,0" />
                                     <TextBlock Grid.Column="4" Text="Write" FontWeight="SemiBold" />
                                 </Grid>
 
@@ -3676,7 +4040,8 @@
                             </StackPanel>
                         </GroupBox>
 
-                        <GroupBox Header="Quest Items Research / Experimental">
+                        <GroupBox Header="Quest Items Research / Experimental"
+                                  Visibility="{Binding DeveloperToolsVisibility}">
                             <StackPanel>
                                 <TextBlock TextWrapping="Wrap"
                                            Foreground="{DynamicResource SecondaryTextBrush}"
@@ -4020,10 +4385,13 @@
                 </ScrollViewer>
             </TabItem>
 
-            <TabItem Header="Research">
+            <TabItem x:Name="ResearchTopTab"
+                     Header="Research"
+                     Visibility="{Binding DeveloperToolsVisibility}">
                 <Grid Margin="6">
-                    <TabControl>
-                        <TabItem Header="Live Capture">
+                    <TabControl x:Name="ResearchWorkspaceTabs">
+                        <TabItem x:Name="LiveCaptureResearchTab"
+                                 Header="Live Capture">
                             <Grid Margin="6">
                                 <Grid.RowDefinitions>
                                     <RowDefinition Height="Auto" />
@@ -4216,7 +4584,8 @@
                             </Grid>
                         </TabItem>
 
-                        <TabItem Header="Snapshot Diff">
+                        <TabItem x:Name="SnapshotDiffResearchTab"
+                                 Header="Snapshot Diff">
                             <Grid Margin="6">
                                 <Grid.RowDefinitions>
                                     <RowDefinition Height="Auto" />
@@ -4315,7 +4684,8 @@
                             </Grid>
                         </TabItem>
 
-                        <TabItem Header="Candidate Tester">
+                        <TabItem x:Name="CandidateTesterResearchTab"
+                                 Header="Candidate Tester">
                             <Grid Margin="6">
                                 <Grid.RowDefinitions>
                                     <RowDefinition Height="Auto" />
@@ -4419,7 +4789,8 @@
                             </Grid>
                         </TabItem>
 
-                        <TabItem Header="Analysis Reports">
+                        <TabItem x:Name="AnalysisReportsResearchTab"
+                                 Header="Analysis Reports">
                             <Grid Margin="6">
                                 <Grid.RowDefinitions>
                                     <RowDefinition Height="Auto" />
@@ -4557,7 +4928,9 @@
                 </Grid>
             </TabItem>
 
-            <TabItem Header="Debug">
+            <TabItem x:Name="DebugTopTab"
+                     Header="Debug"
+                     Visibility="{Binding DeveloperToolsVisibility}">
                 <ScrollViewer VerticalScrollBarVisibility="Auto">
                     <UniformGrid Columns="2" Margin="6">
                         <GroupBox Header="Current Player Base">

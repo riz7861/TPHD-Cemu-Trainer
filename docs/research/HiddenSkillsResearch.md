@@ -11,6 +11,8 @@ The trainer includes a read-only **Hidden Skills Research** workflow in the Debu
 
 Before and After captures are persisted immediately so the trainer and Cemu can be closed between save states.
 
+Hidden Skills research and raw diagnostics require Developer Mode in v1.0. The confirmed dependency-safe progression editor remains available in the normal Hidden Skills tab.
+
 The Hidden Skills tab includes a confirmed progression editor for the seven ownership bits listed below. Research tools remain available for mapping related lesson, wolf, Hero's Shade, and menu refresh state.
 
 The top-level **Research** tab includes generic Live Capture and Snapshot Diff workflows for broader continuous monitoring. The Hidden Skills-specific research tools remain useful when you need persisted Hidden Skills captures, pinned candidates, region analysis, or the six-capture skill-count analyzer.
@@ -24,7 +26,7 @@ Current findings:
 - Hidden Skills should be edited sequentially. Some moves require prerequisite flags for combat usability.
 - The in-game Skills menu may show progression slots rather than exact isolated bit state, so menu display is not reliable for isolated flag testing.
 - Unrelated bits in `0x3D5` and `0x3D6` are ignored for normal ownership checkboxes. Raw diagnostics still show the full bytes.
-- If confirmed bits contain a later skill without its prerequisites, the editor warns that the save contains inconsistent Hidden Skill flags but does not auto-write fixes on refresh.
+- If confirmed bits contain a later skill without its prerequisites, the editor warns: **Hidden Skill progression appears non-standard. This may happen on edited or imported saves.** It does not auto-write fixes on refresh.
 - Hidden Skills still likely involve additional progression states, such as wolf/howling interactions, Hero's Shade lesson state, tutorial completion, and final menu visibility.
 - Live Memory Watch was added for direct observation while triggering Howling Stones, Golden Wolves, Hero's Shade lessons, and menu updates.
 

@@ -6,6 +6,8 @@ Limited confirmed editor plus research notes.
 
 The trainer exposes only the confirmed active/current dungeon item ownership byte. It is not Forest Temple-specific. Dungeon-specific events, key shards, chest history, and other progression state remain research-only.
 
+The confirmed Current Dungeon Items editor remains available in the normal v1.0 interface. Raw diagnostics and research-only dungeon candidates require Developer Mode.
+
 ## Confirmed Current Dungeon Items
 
 Current dungeon item ownership is stored at:

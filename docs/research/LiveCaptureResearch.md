@@ -6,6 +6,8 @@ Research only. Live Capture is read-only and does not write memory.
 
 The goal is to observe TPHD memory continuously while the player performs an event, then rank offsets that look like persistent progression, collectible, quest, inventory, or event flags.
 
+Live Capture and the top-level Research tab are hidden by default in v1.0 and become available after the user explicitly enables Developer Mode.
+
 ## UI Location
 
 The top-level **Research** tab includes:

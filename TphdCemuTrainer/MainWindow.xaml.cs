@@ -46,6 +46,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     private bool _inventoryInitialized;
     private bool _equipmentInitialized;
     private bool _isDarkMode;
+    private bool _isDeveloperMode;
     private bool _suppressHiddenSkillDependencyEnforcement;
     private byte? _researchSnapshotValue;
     private uint? _researchSnapshotOffset;
@@ -311,6 +312,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         };
         _liveCaptureTimer.Tick += LiveCaptureTimer_Tick;
 
+        SetDeveloperMode(LoadDeveloperModePreference(), persist: false);
         RefreshResearchReports();
         RefreshResearchLogViewer();
     }
@@ -424,6 +426,9 @@ public partial class MainWindow : Window, INotifyPropertyChanged
 
     private static string ThemePreferencePath =>
         Path.Combine(UserSettingsDirectory, "theme.txt");
+
+    private static string DeveloperModePreferencePath =>
+        Path.Combine(UserSettingsDirectory, "developer-mode.txt");
 
     public TrainerValueViewModel CurrentHealth => _values[CheatId.CurrentHealth];
 
@@ -708,6 +713,25 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         }
     }
 
+    public bool IsDeveloperMode
+    {
+        get => _isDeveloperMode;
+        private set
+        {
+            if (_isDeveloperMode == value)
+            {
+                return;
+            }
+
+            _isDeveloperMode = value;
+            OnPropertyChanged();
+            OnPropertyChanged(nameof(DeveloperToolsVisibility));
+        }
+    }
+
+    public Visibility DeveloperToolsVisibility =>
+        IsDeveloperMode ? Visibility.Visible : Visibility.Collapsed;
+
     public ObservableCollection<FutureFeatureViewModel> Weapons { get; }
 
     public ObservableCollection<FutureFeatureViewModel> Shields { get; }
@@ -750,6 +774,199 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         return EquipmentFlags.Where(flag => idSet.Contains(flag.Definition.Id));
     }
 
+    private void DeveloperModeToggle_Click(object sender, RoutedEventArgs e)
+    {
+        if (IsDeveloperMode)
+        {
+            SetDeveloperMode(false, persist: true);
+            SetStatus("Developer Mode disabled. Confirmed editors remain available.", StatusKind.Neutral);
+            return;
+        }
+
+        const string warning = """
+            Developer Mode enables experimental memory and research tools.
+
+            These tools can break progression, corrupt saves, or cause data loss.
+            Always back up your save before using them.
+
+            Continue?
+            """;
+        var result = MessageBox.Show(
+            this,
+            warning,
+            "Enable Developer Mode",
+            MessageBoxButton.YesNo,
+            MessageBoxImage.Warning,
+            MessageBoxResult.No);
+
+        if (result != MessageBoxResult.Yes)
+        {
+            OnPropertyChanged(nameof(IsDeveloperMode));
+            return;
+        }
+
+        SetDeveloperMode(true, persist: true);
+        SetStatus("Developer Mode enabled. Experimental tools are now visible.", StatusKind.Warning);
+    }
+
+    private void SetDeveloperMode(bool enabled, bool persist)
+    {
+        IsDeveloperMode = enabled;
+
+        if (!enabled)
+        {
+            if (TrainerTabs.SelectedItem is TabItem selectedTab &&
+                selectedTab.Header is string selectedHeader &&
+                (selectedHeader == "Research" || selectedHeader == "Debug"))
+            {
+                TrainerTabs.SelectedIndex = 0;
+            }
+
+            StopHiddenSkillsLiveWatch("Hidden Skills live watch stopped because Developer Mode was disabled.");
+            StopLiveCapture("Live Capture stopped because Developer Mode was disabled.");
+            AllowUnsafeRawInventoryWrites = false;
+            HoldInventoryValueAfterApply = false;
+            AllowEditingUninitializedInventory = false;
+        }
+
+        if (persist)
+        {
+            SaveDeveloperModePreference(enabled);
+        }
+    }
+
+    private void ExitMenuItem_Click(object sender, RoutedEventArgs e)
+    {
+        Close();
+    }
+
+    private void OpenLogsFolderMenuItem_Click(object sender, RoutedEventArgs e)
+    {
+        var logsDirectory = Path.Combine(AppContext.BaseDirectory, "logs");
+        Directory.CreateDirectory(logsDirectory);
+        OpenMenuPath(logsDirectory, "Opened logs folder.");
+    }
+
+    private void OpenAppFolderMenuItem_Click(object sender, RoutedEventArgs e)
+    {
+        OpenMenuPath(AppContext.BaseDirectory, "Opened app folder.");
+    }
+
+    private void OpenDocumentationMenuItem_Click(object sender, RoutedEventArgs e)
+    {
+        var readmePath = FindFileNearApplication("README.md");
+        if (readmePath is null)
+        {
+            MessageBox.Show(
+                this,
+                "README.md could not be found near the application folder.",
+                "Documentation",
+                MessageBoxButton.OK,
+                MessageBoxImage.Information);
+            SetStatus("README.md was not found near the app folder.", StatusKind.Neutral);
+            return;
+        }
+
+        OpenMenuPath(readmePath, "Opened README documentation.");
+    }
+
+    private void BackupSaveWarningMenuItem_Click(object sender, RoutedEventArgs e)
+    {
+        MessageBox.Show(
+            this,
+            """
+            Back up your Twilight Princess HD save before editing.
+
+            Use copied saves or save states when testing Developer Mode and research tools. Some item and progression changes may not be reversible in-game.
+            """,
+            "Backup Save Warning",
+            MessageBoxButton.OK,
+            MessageBoxImage.Warning);
+    }
+
+    private void AboutMenuItem_Click(object sender, RoutedEventArgs e)
+    {
+        var version = Assembly.GetExecutingAssembly().GetName().Version?.ToString(3) ?? "1.0.0";
+        MessageBox.Show(
+            this,
+            $"""
+            TPHD Cemu Trainer v{version}
+
+            External WPF trainer for The Legend of Zelda: Twilight Princess HD running in Cemu.
+
+            Uses external process-memory reads and writes. It does not modify Cemu or game files.
+
+            Cheat Engine table research credited to toto621.
+            """,
+            "About TPHD Cemu Trainer",
+            MessageBoxButton.OK,
+            MessageBoxImage.Information);
+    }
+
+    private void OpenDeveloperToolMenuItem_Click(object sender, RoutedEventArgs e)
+    {
+        if (!IsDeveloperMode || (sender as FrameworkElement)?.Tag is not string destination)
+        {
+            return;
+        }
+
+        if (destination == "Debug")
+        {
+            TrainerTabs.SelectedItem = DebugTopTab;
+            return;
+        }
+
+        TrainerTabs.SelectedItem = ResearchTopTab;
+        ResearchWorkspaceTabs.SelectedItem = destination switch
+        {
+            "Live Capture" => LiveCaptureResearchTab,
+            "Snapshot Diff" => SnapshotDiffResearchTab,
+            "Candidate Tester" => CandidateTesterResearchTab,
+            "Analysis Reports" => AnalysisReportsResearchTab,
+            _ => ResearchWorkspaceTabs.SelectedItem
+        };
+    }
+
+    private void OpenMenuPath(string path, string successMessage)
+    {
+        try
+        {
+            Process.Start(new ProcessStartInfo
+            {
+                FileName = path,
+                UseShellExecute = true
+            });
+            SetStatus(successMessage, StatusKind.Connected);
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show(
+                this,
+                $"Unable to open the requested location.\n\n{ex.Message}",
+                "Open Failed",
+                MessageBoxButton.OK,
+                MessageBoxImage.Warning);
+            SetStatus("Unable to open the requested location.", StatusKind.Warning);
+        }
+    }
+
+    private static string? FindFileNearApplication(string fileName)
+    {
+        var directory = new DirectoryInfo(AppContext.BaseDirectory);
+        while (directory is not null)
+        {
+            var candidate = Path.Combine(directory.FullName, fileName);
+            if (File.Exists(candidate))
+            {
+                return candidate;
+            }
+
+            directory = directory.Parent;
+        }
+
+        return null;
+    }
+
     private async void AttachButton_Click(object sender, RoutedEventArgs e)
     {
         if (_isAttaching)
@@ -780,7 +997,8 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             var scanner = new AobScanner();
             var progress = new Progress<AobScanProgress>(scanProgress =>
             {
-                SetStatus(
+                SetDeveloperAwareStatus(
+                    "Scanning for player data...",
                     $"Scanning region {scanProgress.CurrentRegion}/{scanProgress.TotalRegions} " +
                     $"({FormatAddress(scanProgress.Region.BaseAddress)}, {FormatByteCount(scanProgress.Region.Size)})...",
                     StatusKind.Working);
@@ -841,7 +1059,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             }
             else
             {
-                SetStatus("Player data found. Game loaded.", StatusKind.Connected);
+                SetStatus("Attached to Cemu. Player data ready. Save backup recommended.", StatusKind.Connected);
             }
 
             AppendProgressionDiagnostic();
@@ -850,7 +1068,10 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         catch (Exception ex)
         {
             Detach(clearStatus: false);
-            SetStatus($"Attach failed: {ex.Message}", StatusKind.Warning);
+            SetDeveloperAwareStatus(
+                "Attach failed. Check that Cemu is running, load into gameplay, then rescan.",
+                $"Attach failed: {ex.Message}",
+                StatusKind.Warning);
         }
         finally
         {
@@ -4649,9 +4870,10 @@ public partial class MainWindow : Window, INotifyPropertyChanged
                 status = "write-failed";
                 slot.LastWriteResult = $"Write failed at _playerbase+0x{slot.OffsetValue:X} for 0x{desiredValue:X2}";
                 slot.LastVerificationResult = "Write did not complete";
-                QuestSpecialEditorStatusText.Text =
-                    $"{slot.Name} write failed at _playerbase+0x{slot.OffsetValue:X} for value 0x{desiredValue:X2}.";
-                SetStatus(QuestSpecialEditorStatusText.Text, StatusKind.Warning);
+                SetQuestSpecialEditorStatus(
+                    $"{slot.Name} write failed.",
+                    $"{slot.Name} write failed at _playerbase+0x{slot.OffsetValue:X} for value 0x{desiredValue:X2}.",
+                    StatusKind.Warning);
                 AppendQuestSpecialEditorDiagnostic(
                     "slot-write-failed",
                     slot.Name,
@@ -4675,9 +4897,10 @@ public partial class MainWindow : Window, INotifyPropertyChanged
                 status = "immediate-readback-failed";
                 slot.LastWriteResult = $"Wrote _playerbase+0x{slot.OffsetValue:X} = 0x{desiredValue:X2}";
                 slot.LastVerificationResult = $"Immediate readback failed at _playerbase+0x{slot.OffsetValue:X}";
-                QuestSpecialEditorStatusText.Text =
-                    $"{slot.Name} wrote _playerbase+0x{slot.OffsetValue:X} = 0x{desiredValue:X2}, but verification failed.";
-                SetStatus(QuestSpecialEditorStatusText.Text, StatusKind.Warning);
+                SetQuestSpecialEditorStatus(
+                    $"{slot.Name} was written, but verification failed.",
+                    $"{slot.Name} wrote _playerbase+0x{slot.OffsetValue:X} = 0x{desiredValue:X2}, but verification failed.",
+                    StatusKind.Warning);
                 AppendQuestSpecialEditorDiagnostic(
                     "slot-write-immediate-readback-failed",
                     slot.Name,
@@ -4698,18 +4921,20 @@ public partial class MainWindow : Window, INotifyPropertyChanged
                 status = "immediate-mismatch";
                 slot.LastVerificationResult =
                     $"Expected 0x{desiredValue:X2}; read 0x{readback:X2} at _playerbase+0x{slot.OffsetValue:X}";
-                QuestSpecialEditorStatusText.Text =
-                    $"{slot.Name} verification failed at _playerbase+0x{slot.OffsetValue:X}: expected 0x{desiredValue:X2}, read 0x{readback:X2}.";
-                SetStatus(QuestSpecialEditorStatusText.Text, StatusKind.Warning);
+                SetQuestSpecialEditorStatus(
+                    $"{slot.Name} write verification failed.",
+                    $"{slot.Name} verification failed at _playerbase+0x{slot.OffsetValue:X}: expected 0x{desiredValue:X2}, read 0x{readback:X2}.",
+                    StatusKind.Warning);
                 return false;
             }
 
             status = "verified";
             slot.LastVerificationResult =
                 $"Verified _playerbase+0x{slot.OffsetValue:X} = 0x{readback:X2}";
-            QuestSpecialEditorStatusText.Text =
-                $"{slot.Name} set to {slot.SelectedOption.Name}. Verified _playerbase+0x{slot.OffsetValue:X} = 0x{readback:X2}.";
-            SetStatus(QuestSpecialEditorStatusText.Text, StatusKind.Connected);
+            SetQuestSpecialEditorStatus(
+                $"{slot.Name} set to {slot.SelectedOption.Name}. Write verified.",
+                $"{slot.Name} set to {slot.SelectedOption.Name}. Verified _playerbase+0x{slot.OffsetValue:X} = 0x{readback:X2}.",
+                StatusKind.Connected);
             return true;
         }
         finally
@@ -4786,9 +5011,10 @@ public partial class MainWindow : Window, INotifyPropertyChanged
                 flag.LastWriteResult = "No change";
                 flag.LastVerificationResult =
                     $"Already matched at _playerbase+0x{flag.OffsetValue:X} = 0x{currentValue:X2}";
-                QuestSpecialEditorStatusText.Text =
-                    $"{flag.Name} already matched the desired state at _playerbase+0x{flag.OffsetValue:X} = 0x{currentValue:X2}.";
-                SetStatus(QuestSpecialEditorStatusText.Text, StatusKind.Neutral);
+                SetQuestSpecialEditorStatus(
+                    $"{flag.Name} already matches the desired state.",
+                    $"{flag.Name} already matched the desired state at _playerbase+0x{flag.OffsetValue:X} = 0x{currentValue:X2}.",
+                    StatusKind.Neutral);
                 status = "no-change";
                 readbackValue = currentValue;
                 return true;
@@ -4799,9 +5025,10 @@ public partial class MainWindow : Window, INotifyPropertyChanged
                 status = "write-failed";
                 flag.LastWriteResult = $"Write failed at _playerbase+0x{flag.OffsetValue:X} for 0x{nextValue:X2}";
                 flag.LastVerificationResult = "Write did not complete";
-                QuestSpecialEditorStatusText.Text =
-                    $"{flag.Name} write failed at _playerbase+0x{flag.OffsetValue:X} for value 0x{nextValue:X2}.";
-                SetStatus(QuestSpecialEditorStatusText.Text, StatusKind.Warning);
+                SetQuestSpecialEditorStatus(
+                    $"{flag.Name} write failed.",
+                    $"{flag.Name} write failed at _playerbase+0x{flag.OffsetValue:X} for value 0x{nextValue:X2}.",
+                    StatusKind.Warning);
                 AppendQuestSpecialEditorDiagnostic(
                     $"{action}-write-failed",
                     flag.Name,
@@ -4825,9 +5052,10 @@ public partial class MainWindow : Window, INotifyPropertyChanged
                 status = "immediate-readback-failed";
                 flag.LastWriteResult = $"Wrote _playerbase+0x{flag.OffsetValue:X} = 0x{nextValue:X2}";
                 flag.LastVerificationResult = $"Immediate readback failed at _playerbase+0x{flag.OffsetValue:X}";
-                QuestSpecialEditorStatusText.Text =
-                    $"{flag.Name} wrote _playerbase+0x{flag.OffsetValue:X} = 0x{nextValue:X2}, but verification failed.";
-                SetStatus(QuestSpecialEditorStatusText.Text, StatusKind.Warning);
+                SetQuestSpecialEditorStatus(
+                    $"{flag.Name} was written, but verification failed.",
+                    $"{flag.Name} wrote _playerbase+0x{flag.OffsetValue:X} = 0x{nextValue:X2}, but verification failed.",
+                    StatusKind.Warning);
                 AppendQuestSpecialEditorDiagnostic(
                     $"{action}-immediate-readback-failed",
                     flag.Name,
@@ -4852,9 +5080,10 @@ public partial class MainWindow : Window, INotifyPropertyChanged
                 status = "immediate-mismatch";
                 flag.LastVerificationResult =
                     $"Expected target bit {(desiredState ? "set" : "clear")}; read 0x{readback:X2} at _playerbase+0x{flag.OffsetValue:X}";
-                QuestSpecialEditorStatusText.Text =
-                    $"{flag.Name} verification failed at _playerbase+0x{flag.OffsetValue:X}: wrote 0x{nextValue:X2}, read 0x{readback:X2}.";
-                SetStatus(QuestSpecialEditorStatusText.Text, StatusKind.Warning);
+                SetQuestSpecialEditorStatus(
+                    $"{flag.Name} write verification failed.",
+                    $"{flag.Name} verification failed at _playerbase+0x{flag.OffsetValue:X}: wrote 0x{nextValue:X2}, read 0x{readback:X2}.",
+                    StatusKind.Warning);
                 return false;
             }
 
@@ -4862,9 +5091,12 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             flag.LastVerificationResult = preservedUnrelatedBits
                 ? $"Verified _playerbase+0x{flag.OffsetValue:X} = 0x{readback:X2}; unrelated bits preserved"
                 : $"Verified target bit at _playerbase+0x{flag.OffsetValue:X} = 0x{readback:X2}; another bit changed";
-            QuestSpecialEditorStatusText.Text =
-                $"{successMessage} Verified _playerbase+0x{flag.OffsetValue:X} = 0x{readback:X2}.";
-            SetStatus(QuestSpecialEditorStatusText.Text, preservedUnrelatedBits ? StatusKind.Connected : StatusKind.Warning);
+            SetQuestSpecialEditorStatus(
+                preservedUnrelatedBits
+                    ? $"{successMessage} Write verified."
+                    : $"{successMessage} Another game-managed bit also changed.",
+                $"{successMessage} Verified _playerbase+0x{flag.OffsetValue:X} = 0x{readback:X2}.",
+                preservedUnrelatedBits ? StatusKind.Connected : StatusKind.Warning);
             return preservedUnrelatedBits;
         }
         finally
@@ -4956,9 +5188,10 @@ public partial class MainWindow : Window, INotifyPropertyChanged
                         $"Already matched at _playerbase+0x{offset:X} = 0x{currentValue:X2}";
                 }
 
-                QuestSpecialEditorStatusText.Text =
-                    $"Current Dungeon Items already matched the desired state at _playerbase+0x{offset:X} = 0x{currentValue:X2}.";
-                SetStatus(QuestSpecialEditorStatusText.Text, StatusKind.Neutral);
+                SetQuestSpecialEditorStatus(
+                    "Current Dungeon Items already match the desired state.",
+                    $"Current Dungeon Items already matched the desired state at _playerbase+0x{offset:X} = 0x{currentValue:X2}.",
+                    StatusKind.Neutral);
                 status = "no-change";
                 readbackValue = currentValue;
                 return true;
@@ -4973,9 +5206,10 @@ public partial class MainWindow : Window, INotifyPropertyChanged
                     flag.LastVerificationResult = "Write did not complete";
                 }
 
-                QuestSpecialEditorStatusText.Text =
-                    $"Current Dungeon Items write failed at _playerbase+0x{offset:X} for value 0x{nextValue:X2}.";
-                SetStatus(QuestSpecialEditorStatusText.Text, StatusKind.Warning);
+                SetQuestSpecialEditorStatus(
+                    "Current Dungeon Items write failed.",
+                    $"Current Dungeon Items write failed at _playerbase+0x{offset:X} for value 0x{nextValue:X2}.",
+                    StatusKind.Warning);
                 AppendQuestSpecialEditorDiagnostic(
                     "current-dungeon-items-write-failed",
                     "Current Dungeon Items",
@@ -5003,9 +5237,10 @@ public partial class MainWindow : Window, INotifyPropertyChanged
                     flag.LastVerificationResult = $"Immediate readback failed at _playerbase+0x{offset:X}";
                 }
 
-                QuestSpecialEditorStatusText.Text =
-                    $"Current Dungeon Items wrote _playerbase+0x{offset:X} = 0x{nextValue:X2}, but verification failed.";
-                SetStatus(QuestSpecialEditorStatusText.Text, StatusKind.Warning);
+                SetQuestSpecialEditorStatus(
+                    "Current Dungeon Items were written, but verification failed.",
+                    $"Current Dungeon Items wrote _playerbase+0x{offset:X} = 0x{nextValue:X2}, but verification failed.",
+                    StatusKind.Warning);
                 AppendQuestSpecialEditorDiagnostic(
                     "current-dungeon-items-immediate-readback-failed",
                     "Current Dungeon Items",
@@ -5040,17 +5275,22 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             if (!editableBitsMatch)
             {
                 status = "immediate-mismatch";
-                QuestSpecialEditorStatusText.Text =
-                    $"Current Dungeon Items verification failed at _playerbase+0x{offset:X}: wrote 0x{nextValue:X2}, read 0x{readback:X2}.";
-                SetStatus(QuestSpecialEditorStatusText.Text, StatusKind.Warning);
+                SetQuestSpecialEditorStatus(
+                    "Current Dungeon Items write verification failed.",
+                    $"Current Dungeon Items verification failed at _playerbase+0x{offset:X}: wrote 0x{nextValue:X2}, read 0x{readback:X2}.",
+                    StatusKind.Warning);
                 return false;
             }
 
             status = preservedUnrelatedBits ? "verified" : "verified-unrelated-bits-changed";
-            QuestSpecialEditorStatusText.Text = preservedUnrelatedBits
-                ? $"Current Dungeon Items updated. Verified _playerbase+0x{offset:X} = 0x{readback:X2}; bits 3-7 preserved."
-                : $"Current Dungeon Items target bits updated at _playerbase+0x{offset:X} = 0x{readback:X2}, but another bit changed.";
-            SetStatus(QuestSpecialEditorStatusText.Text, preservedUnrelatedBits ? StatusKind.Connected : StatusKind.Warning);
+            SetQuestSpecialEditorStatus(
+                preservedUnrelatedBits
+                    ? "Current Dungeon Items updated. Write verified."
+                    : "Current Dungeon Items updated, but another game-managed bit also changed.",
+                preservedUnrelatedBits
+                    ? $"Current Dungeon Items updated. Verified _playerbase+0x{offset:X} = 0x{readback:X2}; bits 3-7 preserved."
+                    : $"Current Dungeon Items target bits updated at _playerbase+0x{offset:X} = 0x{readback:X2}, but another bit changed.",
+                preservedUnrelatedBits ? StatusKind.Connected : StatusKind.Warning);
             return preservedUnrelatedBits;
         }
         finally
@@ -5937,7 +6177,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
 
         if (!BombSlotDefinitions.IsConfirmedContent(desiredValue))
         {
-            BombSlotEditorStatusText.Text = $"Unsupported Bomb Slot value 0x{desiredValue:X2}.";
+            BombSlotEditorStatusText.Text = "Unsupported Bomb Slot value.";
             SetStatus("Unsupported Bomb Slot value.", StatusKind.Warning);
             return false;
         }
@@ -7503,8 +7743,9 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             : Visibility.Collapsed;
         if (hasInconsistentFlags)
         {
-            HiddenSkillsEditorStatusText.Text = "Save contains inconsistent Hidden Skill flags.";
-            SetStatus("Save contains inconsistent Hidden Skill flags.", StatusKind.Warning);
+            HiddenSkillsEditorStatusText.Text =
+                "Hidden Skill progression appears non-standard. This may happen on edited or imported saves.";
+            SetStatus(HiddenSkillsEditorStatusText.Text, StatusKind.Warning);
         }
 
         if (showStatus)
@@ -7512,7 +7753,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             if (hasInconsistentFlags)
             {
                 HiddenSkillsEditorStatusText.Text =
-                    "Save contains inconsistent Hidden Skill flags. No fixes were written; press Apply to normalize desired dependencies.";
+                    "Hidden Skill progression appears non-standard. This may happen on edited or imported saves. No changes were written; press Apply to normalize the progression chain.";
             }
             else
             {
@@ -7605,7 +7846,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
                 if (!memory.TryWriteBytes(absoluteAddress + (uint)index, [desiredBytes[index]], out var writeError))
                 {
                     status = $"write-failed-index-{index}: {writeError}";
-                    GoldenBugsEditorStatusText.Text = $"Golden Bugs write failed at 0x{GoldenBugsDefinitions.FirstOffset + (uint)index:X}: {writeError}";
+                    GoldenBugsEditorStatusText.Text = "Golden Bugs write failed. Detailed diagnostics were logged.";
                     SetStatus("Golden Bugs write failed.", StatusKind.Warning);
                     return false;
                 }
@@ -7730,9 +7971,9 @@ public partial class MainWindow : Window, INotifyPropertyChanged
                 {
                     status = $"write-failed-index-{index}: {writeError}";
                     HiddenSkillsEditorStatusText.Text =
-                        $"Hidden Skills write failed at 0x{HiddenSkillsDefinitions.FirstOffset + (uint)index:X}: {writeError}";
+                        "Hidden Skills write failed. Detailed diagnostics were logged.";
                     SetStatus("Hidden Skills write failed.", StatusKind.Warning);
-                    SetHiddenSkillsRowWriteStatuses(desiredBytes, "Write failed", status);
+                    SetHiddenSkillsRowWriteStatuses(desiredBytes, "Write failed", "Write did not complete");
                     return false;
                 }
             }
@@ -13451,6 +13692,35 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         }
     }
 
+    private static bool LoadDeveloperModePreference()
+    {
+        try
+        {
+            return File.Exists(DeveloperModePreferencePath) &&
+                string.Equals(
+                    File.ReadAllText(DeveloperModePreferencePath).Trim(),
+                    "enabled",
+                    StringComparison.OrdinalIgnoreCase);
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    private static void SaveDeveloperModePreference(bool enabled)
+    {
+        try
+        {
+            Directory.CreateDirectory(UserSettingsDirectory);
+            File.WriteAllText(DeveloperModePreferencePath, enabled ? "enabled" : "disabled");
+        }
+        catch
+        {
+            // Developer Mode persistence must never interfere with trainer startup.
+        }
+    }
+
     private void SetStatus(string message, StatusKind kind)
     {
         StatusText.Text = message;
@@ -13462,6 +13732,21 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             StatusKind.Working => new SolidColorBrush(Color.FromRgb(45, 112, 179)),
             _ => new SolidColorBrush(Color.FromRgb(128, 128, 128))
         };
+    }
+
+    private void SetDeveloperAwareStatus(string friendlyMessage, string developerMessage, StatusKind kind)
+    {
+        SetStatus(IsDeveloperMode ? developerMessage : friendlyMessage, kind);
+    }
+
+    private void SetQuestSpecialEditorStatus(
+        string friendlyMessage,
+        string developerMessage,
+        StatusKind kind)
+    {
+        var message = IsDeveloperMode ? developerMessage : friendlyMessage;
+        QuestSpecialEditorStatusText.Text = message;
+        SetStatus(message, kind);
     }
 
     protected override void OnClosed(EventArgs e)

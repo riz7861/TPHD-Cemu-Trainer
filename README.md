@@ -1,8 +1,10 @@
-# TPHD Cemu Trainer
+# TPHD Cemu Trainer v1.0
 
 A Windows WPF trainer for **The Legend of Zelda: Twilight Princess HD** running in **Cemu**. It attaches to `Cemu.exe`, scans for the player data block using the Cheat Engine table AOB, and edits selected values through external process memory reads and writes.
 
 This trainer is external only. It does not inject DLLs, install drivers, hook emulator code, bypass anti-cheat systems, or modify Cemu or game files.
+
+> **Back up your save before using this trainer.** Confirmed editors preserve unrelated bits and verify writes, but game progression can still react differently on edited or imported saves.
 
 ## Supported Game / Emulator
 
@@ -16,17 +18,24 @@ This trainer is external only. It does not inject DLLs, install drivers, hook em
 The UI is organized as a tabbed trainer/save-editor hybrid so new systems can be added without crowding one large grid.
 
 - **General**: health, max health, heart container summary, lantern oil, wallet, rupees, Poe Souls, Golden Bugs count
-- **Inventory**: ownership-first item detection, fixed-slot experimental grant/remove for mapped visible slots, Bottle Editor v1, read-only current slot view, mapping research, unsafe removal testing, and unsafe raw CT writes for research
+- **Inventory**: item detection and confirmed fixed-slot grant/remove for mapped visible slots
 - **Equipment**: ownership flag editor with read-only current equipped armor/sword/shield diagnostics
 - **Ammo & Upgrades**: wallet, quiver, bomb slot count/capacity diagnostics, confirmed Bomb Slot Editor, and seed capacity-aware edits
-- **Collectibles**: verified Poe Souls editing, full Golden Bugs ownership editor, Golden Bugs research tools, and health/heart summaries
+- **Collectibles**: verified Poe Souls editing, full Golden Bugs ownership editor, and health/heart summaries
 - **Story Flags**: reserved progression flags
-- **Hidden Skills**: confirmed ownership editor plus advanced research tools
-- **Quest Items**: confirmed Quest / Special item controls, Dominion Rod restoration, current dungeon item bits, plus Quest Items Research snapshots
-- **Research**: compact Live Capture, Snapshot Diff, Candidate Tester, Analysis Reports, and Logs workspace
-- **Debug**: player base, AOB pattern, progression diagnostics, legacy/specialized research tools, support snapshots, raw CT-backed values, and future memory tools
+- **Hidden Skills**: confirmed dependency-safe progression editor
+- **Quest Items**: confirmed Quest / Special item controls, Dominion Rod restoration, and current dungeon item bits
+- **Developer Mode**: optional Research and Debug workspaces, experimental tools, raw values, diagnostics, and unsafe research editors
 
-The top bar includes a **Dark Mode** toggle. The app defaults to Light mode and stores the local preference under the user's AppData folder when possible. Theme styles cover tabs, panels, text inputs, dropdowns, data grids, buttons, and checkboxes.
+The traditional WPF menu provides File actions for attach/detach/exit, Options for Dark Mode, Developer Mode, and the backup reminder, Tools for logs and Developer Mode workspaces, and Help links for documentation and About information. The existing top bar remains available for quick attach/detach and status checks.
+
+The app defaults to Light mode with Developer Mode off and stores both preferences locally under the user's AppData folder when possible.
+
+## Developer Mode
+
+Developer Mode is off by default so the public v1.0 interface stays focused on confirmed editors. Enabling it requires accepting a warning and reveals the Research tab, Debug tab, raw addresses, detailed diagnostics, experimental candidate tools, Bottle Editor, inventory removal/raw writes, and embedded research panels.
+
+Developer Mode never writes its preference to TPHD memory or save data. Disabling it hides the research tools again and stops active live-memory watches. A visible **Developer Mode Enabled** indicator remains in the top bar while it is active.
 
 ## Implemented Memory Edits
 
@@ -119,7 +128,7 @@ The **Current Dungeon Items** editor uses `_playerbase+0xFD1` as the active/curr
 
 Useful low-bit values are `0x00` None, `0x01` Map, `0x02` Compass, `0x04` Boss Key / Large Key, and `0x07` all three. Writes only modify bits 0-2 and preserve bits 3-7. The dungeon editor does not expose `0xC7`, edit key shards, touch `_playerbase+0x28F`, or claim to control dungeon-specific quest items. Goron Mines key shard progression appears to be separate from these bits.
 
-The Quest Items tab includes **Quest Items Research / Experimental**. It is read-only and is intended to help identify quest-item and progression bytes without promoting unconfirmed offsets into an editor.
+With Developer Mode enabled, the Quest Items tab includes **Quest Items Research / Experimental**. It is read-only and is intended to help identify quest-item and progression bytes without promoting unconfirmed offsets into an editor.
 
 The tool captures Before and After snapshots of a configurable `_playerbase`-relative range. The recommended broad scan defaults to start `0x200` and length `0x400`; quick buttons also cover `0x200-0x2FF`, `0x200-0x3FF`, `0x000-0x3FF`, and `0x000-0x7FF`. Compare shows offset, before/after byte, before/after binary, changed bits, candidate score, and nearby candidate group.
 
@@ -156,7 +165,7 @@ Research activity is logged to `logs/quest-items-research.log`. Quest / Special 
 
 ## Research Workspace
 
-The **Research** tab is a compact WPF workspace for continuous memory analysis and report review. It is designed to reduce long Debug-tab scrolling while preserving the existing Quest Items, Hidden Skills, Ownership Discovery, and support snapshot tools.
+With Developer Mode enabled, the **Research** tab is a compact WPF workspace for continuous memory analysis and report review. It is designed to reduce long Debug-tab scrolling while preserving the existing Quest Items, Hidden Skills, Ownership Discovery, and support snapshot tools.
 
 Sub-tabs:
 
@@ -245,6 +254,8 @@ The Ownership Diff Report shows offset, before value, after value, changed statu
 ## Inventory Editor
 
 The Inventory tab reads the 24 CT-backed visible inventory bytes from `_playerbase+0x258` through `_playerbase+0x26F`. Research indicates these bytes are game-managed display/current-state fields, not arbitrary bag slots. TPHD may rebuild them from authoritative ownership or progression flags and may immediately revert direct writes.
+
+In the default v1.0 interface, Inventory uses a compact editor with quick actions, item name, friendly current state, desired checkbox, and a short status. Raw offsets, slot IDs, ownership/progression research notes, write diagnostics, unsafe controls, and the full technical table are hidden by default. Enable Developer Mode and expand **Developer / Research Details** to inspect those fields without changing the normal editor workflow.
 
 The normal **Owned / Unlocked Inventory Items** section is ownership-first, but the checked CT source still does not identify authoritative inventory ownership/progression flags:
 
@@ -396,7 +407,7 @@ The Hidden Skills tab includes a confirmed progression editor for all seven Hidd
 
 Enabling a skill automatically enables all earlier prerequisites. Disabling a skill automatically disables all later dependent skills. The in-game Skills menu may show progression slots rather than exact isolated bit state, and some moves require prerequisite flags for combat usability. Treat combat usability as the real validation signal when testing copied saves.
 
-The editor shows detected state, desired state, dirty state, mapping offset/bit, and last write/verification status. It interprets only confirmed ownership bits in `0x3D5` bits `0-3` and `0x3D6` bits `5-7`; unrelated bits remain visible in raw diagnostics only. If detected ownership has a later skill without prerequisites, the editor shows **Save contains inconsistent Hidden Skill flags** and does not write fixes until Apply is clicked. It supports refresh, apply changed skills, add all, clear all, and session-only restore of the previous two-byte state. Writes preserve unrelated bits in `0x3D5` and `0x3D6`, verify immediate/250ms/1000ms readbacks, and log to `logs/hidden-skills-editor.log`.
+The editor shows detected state, desired state, dirty state, and last write/verification status. It interprets only confirmed ownership bits in `0x3D5` bits `0-3` and `0x3D6` bits `5-7`; unrelated bits remain visible in Developer Mode diagnostics only. If detected ownership has a later skill without prerequisites, the editor shows **Hidden Skill progression appears non-standard. This may happen on edited or imported saves.** and does not write fixes until Apply is clicked. It supports refresh, apply changed skills, add all, clear all, and session-only restore of the previous two-byte state. Writes preserve unrelated bits in `0x3D5` and `0x3D6`, verify immediate/250ms/1000ms readbacks, and log to `logs/hidden-skills-editor.log`.
 
 Hidden Skill bits affect both menu ownership and Hero's Shade/wolf progression. Removing a learned skill may cause the wolf/Hero's Shade encounter to become available again after area reload. Use copied saves first.
 
@@ -455,7 +466,7 @@ The first player-base scan may take longer because the trainer must enumerate Ce
 
 Later **Attach / Rescan** attempts validate the cached player base first, then scan the cached region before falling back to the filtered full scan. The scanner only considers committed readable memory, skips `PAGE_NOACCESS` and `PAGE_GUARD`, prefers private/mapped data regions, and avoids image/code regions where possible.
 
-Scan diagnostics are shown in the Debug tab and written to `logs/scan.log`, including process discovery time, handle-open time, region enumeration time, scan time, regions scanned/skipped, bytes scanned, cache status, and match address.
+Scan diagnostics are shown in the Developer Mode Debug tab and written to `logs/scan.log`, including process discovery time, handle-open time, region enumeration time, scan time, regions scanned/skipped, bytes scanned, cache status, and match address.
 
 ## Requirements
 
@@ -485,7 +496,7 @@ Start Cemu, load Twilight Princess HD, and load into gameplay before attaching. 
 dotnet run --project TphdCemuTrainer\TphdCemuTrainer.csproj
 ```
 
-In the app, click **Attach / Rescan**. If the AOB scan succeeds, the trainer shows the Cemu process ID and the resolved player base address.
+In the app, click **Attach / Rescan**. If the AOB scan succeeds, the trainer reports that player data is ready. Developer Mode also shows the Cemu process ID, resolved player base address, and detailed scan diagnostics.
 
 ## How the CT File Is Used
 
@@ -532,6 +543,10 @@ The app does not parse or execute Cheat Engine scripts at runtime. The relevant 
 - The first scan can still be slower than later rescans because no cache has been validated yet.
 - Missing player data is handled as a rescan state, not an application failure.
 - Broader story flags and many quest progression fields are still research-only. Only the confirmed Quest / Special item slots, Dominion Rod restoration bit, and current dungeon Map/Boss Key/Compass bits are exposed as editors.
+- Heart piece ownership/counter and stamp ownership/counter are not fully mapped.
+- Goron Mines key shard count is not fully mapped.
+- Some quest items remain unknown until natural playthrough captures identify their authoritative state.
+- Developer Mode tools are experimental and hidden by default.
 - Hidden Skills ownership is mapped and editable, but related Hero's Shade/wolf lesson progression state is not fully mapped. Clearing learned skills may affect encounter availability after area reload.
 - Inventory ownership editing uses detected/desired/apply where real flags are mapped. Current listed inventory ownership flags are not identified yet.
 - Bottle Editor v1 edits visible bottle-content slots only; bottle ownership and unconfirmed bottled item raw values are still being researched.
@@ -604,7 +619,7 @@ Run the trainer with the same privilege level as Cemu. If Cemu is elevated, the 
 
 ## Safety / Legal Note
 
-This project is intended for personal offline emulator use only. Do not use it with online services, shared competitive environments, or software you do not have permission to inspect or modify in memory.
+Back up your save before editing. This project is intended for personal offline emulator use only. Do not use it with online services, shared competitive environments, or software you do not have permission to inspect or modify in memory.
 
 ## Credits
 

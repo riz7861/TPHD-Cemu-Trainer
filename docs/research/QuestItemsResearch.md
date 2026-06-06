@@ -6,6 +6,8 @@ Mixed confirmed editor plus research tooling.
 
 The trainer now exposes a compact editor only for live-confirmed Quest / Special fields. Broader quest-item, event, and progression candidates remain research-only until confirmed.
 
+The confirmed editor remains visible in the public v1.0 interface. **Quest Items Research / Experimental** is preserved behind Developer Mode so unconfirmed candidates are not presented as normal editor options.
+
 ## Confirmed Quest / Special Editor
 
 The Quest Items tab includes **Quest / Special Item Editor**.
