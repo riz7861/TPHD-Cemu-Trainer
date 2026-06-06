@@ -2,6 +2,7 @@ namespace TphdCemuTrainer.Cheats;
 
 public static class CheatCatalog
 {
+    public const int MaxSupportedHealthCapacity = 1000;
     public const string WalletCapacityId = "wallet";
     public const string QuiverCapacityId = "quiver";
     public const string BombBagCapacityId = "bomb-bag";
@@ -18,7 +19,7 @@ public static class CheatCatalog
             "Maximum health (quarters)",
             0x1BE,
             CheatValueKind.UInt16BigEndian,
-            80,
+            MaxSupportedHealthCapacity,
             true,
             "CT ID 134/216: _playerbase+1BE, 2 Byte Big Endian; +1BF stores the all-hearts byte"),
 
@@ -27,9 +28,18 @@ public static class CheatCatalog
             "Current health (quarters)",
             0x1C0,
             CheatValueKind.UInt16BigEndian,
-            80,
+            MaxSupportedHealthCapacity,
             true,
             "CT ID 71: _playerbase+1C0, 2 Byte Big Endian"),
+
+        new(
+            CheatId.HeartProgress,
+            "Heart piece progress",
+            0x1BF,
+            CheatValueKind.Byte,
+            byte.MaxValue,
+            false,
+            "Live-confirmed total heart-piece / heart-container progress counter"),
 
         new(
             CheatId.LanternOil,
@@ -102,7 +112,7 @@ public static class CheatCatalog
 
         new(
             CheatId.PoeSouls,
-            "Poe souls",
+            "Poe Souls Collected",
             0x2C8,
             CheatValueKind.Byte,
             60,
@@ -116,7 +126,25 @@ public static class CheatCatalog
             CheatValueKind.UInt32BigEndian,
             int.MaxValue,
             false,
-            "CT ID 208: _playerbase+2A1, 4 Byte Big Endian bitfield")
+            "CT ID 208: _playerbase+2A1, 4 Byte Big Endian bitfield"),
+
+        new(
+            CheatId.CurrentDungeonSmallKeys,
+            "Small Keys (current dungeon)",
+            0xFD0,
+            CheatValueKind.Byte,
+            9,
+            false,
+            "Live-confirmed current/active dungeon small key count"),
+
+        new(
+            CheatId.GoronMinesKeyShardState,
+            "Goron Mines key-shard state",
+            0x2A4,
+            CheatValueKind.Byte,
+            byte.MaxValue,
+            false,
+            "Live-confirmed Goron Mines key-shard completion state")
     ];
 
     // Capacity options use real TPHD capacities. Stored values match the CT table where an offset exists.
@@ -128,10 +156,10 @@ public static class CheatCatalog
             0x1D7,
             CheatValueKind.Byte,
             [
-                new CapacityOption("500", 500, 0),
-                new CapacityOption("1000", 1000, 1),
-                new CapacityOption("2000", 2000, 2),
-                new CapacityOption("9999", 9999, 3)
+                new CapacityOption("500 Rupees", 500, 0),
+                new CapacityOption("1,000 Rupees", 1000, 1),
+                new CapacityOption("2,000 Rupees", 2000, 2),
+                new CapacityOption("9,999 Rupees", 9999, 3)
             ],
             "CT ID 111: _playerbase+1D7, Byte wallet tier",
             500),
@@ -142,9 +170,9 @@ public static class CheatCatalog
             0x2B4,
             CheatValueKind.Byte,
             [
-                new CapacityOption("30", 30, 30),
-                new CapacityOption("60", 60, 60),
-                new CapacityOption("100", 100, 100)
+                new CapacityOption("30 Arrows", 30, 30),
+                new CapacityOption("60 Arrows", 60, 60),
+                new CapacityOption("100 Arrows", 100, 100)
             ],
             "CT ID 204: _playerbase+2B4, Byte capacity",
             30),
@@ -155,8 +183,8 @@ public static class CheatCatalog
             0x2B5,
             CheatValueKind.Byte,
             [
-                new CapacityOption("30", 30, 30),
-                new CapacityOption("60", 60, 60)
+                new CapacityOption("30 Bombs", 30, 30),
+                new CapacityOption("60 Bombs", 60, 60)
             ],
             "CT ID 206: _playerbase+2B5, Byte capacity shared by bomb slots in the CT",
             30),
@@ -167,7 +195,7 @@ public static class CheatCatalog
             null,
             null,
             [
-                new CapacityOption("50", 50, 50)
+                new CapacityOption("50 Seeds", 50, 50)
             ],
             "Fixed TPHD seed bag capacity; no separate CT capacity offset is exposed",
             50)

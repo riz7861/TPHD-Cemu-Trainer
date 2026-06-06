@@ -42,6 +42,7 @@ public sealed class GoldenBugBitViewModel : ObservableObject
             if (SetField(ref _isSetDetected, value))
             {
                 OnPropertyChanged(nameof(CurrentState));
+                OnPropertyChanged(nameof(CurrentCollectionStatus));
                 OnPropertyChanged(nameof(IsDirty));
             }
         }
@@ -61,6 +62,10 @@ public sealed class GoldenBugBitViewModel : ObservableObject
 
     public string CurrentState => IsSetDetected.HasValue
         ? IsSetDetected.Value ? "Set" : "Clear"
+        : "Not read";
+
+    public string CurrentCollectionStatus => IsSetDetected.HasValue
+        ? IsSetDetected.Value ? "Collected" : "Not collected"
         : "Not read";
 
     public bool IsDirty => IsSetDetected.HasValue && IsSetDesired != IsSetDetected.Value;

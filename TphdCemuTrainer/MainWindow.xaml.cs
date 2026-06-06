@@ -47,6 +47,8 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     private bool _equipmentInitialized;
     private bool _isDarkMode;
     private bool _isDeveloperMode;
+    private bool _suppressQuestSpecialItemExclusivity;
+    private HeartProgressOption _selectedHeartProgressOption = null!;
     private bool _suppressHiddenSkillDependencyEnforcement;
     private byte? _researchSnapshotValue;
     private uint? _researchSnapshotOffset;
@@ -179,6 +181,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
 
     public MainWindow()
     {
+        _selectedHeartProgressOption = HeartProgressOptions[0];
         _capacities = CheatCatalog.Capacities
             .Select(definition => new CapacitySelectorViewModel(definition))
             .ToDictionary(capacity => capacity.Definition.Id);
@@ -226,6 +229,12 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         QuestItemsMultiCaptureRows = [];
         QuestSpecialSlots = new ObservableCollection<QuestSpecialSlotViewModel>(
             QuestSpecialDefinitions.Slots.Select(slot => new QuestSpecialSlotViewModel(slot)));
+        QuestSpecialItems = new ObservableCollection<QuestSpecialItemViewModel>(
+            QuestSpecialDefinitions.ConfirmedItems.Select(item => new QuestSpecialItemViewModel(item)));
+        foreach (var item in QuestSpecialItems)
+        {
+            item.PropertyChanged += QuestSpecialItem_PropertyChanged;
+        }
         DominionRodRestorationFlag = new QuestBitFlagViewModel(QuestSpecialDefinitions.DominionRodRestoration);
         CurrentDungeonItems = new ObservableCollection<QuestBitFlagViewModel>(
             QuestSpecialDefinitions.CurrentDungeonItems.Select(flag => new QuestBitFlagViewModel(flag)));
@@ -345,6 +354,32 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         EnforceHiddenSkillProgressionFrom(skill);
     }
 
+    private void QuestSpecialItem_PropertyChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (_suppressQuestSpecialItemExclusivity ||
+            e.PropertyName != nameof(QuestSpecialItemViewModel.IsOwnedDesired) ||
+            sender is not QuestSpecialItemViewModel changedItem ||
+            !changedItem.IsOwnedDesired)
+        {
+            return;
+        }
+
+        _suppressQuestSpecialItemExclusivity = true;
+        try
+        {
+            foreach (var sibling in QuestSpecialItems.Where(item =>
+                         item.Definition.SlotId == changedItem.Definition.SlotId &&
+                         !ReferenceEquals(item, changedItem)))
+            {
+                sibling.IsOwnedDesired = false;
+            }
+        }
+        finally
+        {
+            _suppressQuestSpecialItemExclusivity = false;
+        }
+    }
+
     public event PropertyChangedEventHandler? PropertyChanged;
 
     private static string InventoryLogPath =>
@@ -434,6 +469,8 @@ public partial class MainWindow : Window, INotifyPropertyChanged
 
     public TrainerValueViewModel MaximumHealth => _values[CheatId.MaximumHealth];
 
+    public TrainerValueViewModel HeartProgress => _values[CheatId.HeartProgress];
+
     public TrainerValueViewModel LanternOil => _values[CheatId.LanternOil];
 
     public TrainerValueViewModel Rupees => _values[CheatId.Rupees];
@@ -451,6 +488,24 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     public TrainerValueViewModel PoeSouls => _values[CheatId.PoeSouls];
 
     public TrainerValueViewModel GoldenBugsFlags => _values[CheatId.GoldenBugsFlags];
+
+    public TrainerValueViewModel CurrentDungeonSmallKeys => _values[CheatId.CurrentDungeonSmallKeys];
+
+    public TrainerValueViewModel GoronMinesKeyShardState => _values[CheatId.GoronMinesKeyShardState];
+
+    public IReadOnlyList<HeartProgressOption> HeartProgressOptions { get; } =
+    [
+        new(1, "1 / 5 pieces"),
+        new(2, "2 / 5 pieces"),
+        new(3, "3 / 5 pieces"),
+        new(4, "4 / 5 pieces")
+    ];
+
+    public HeartProgressOption SelectedHeartProgressOption
+    {
+        get => _selectedHeartProgressOption;
+        set => SetMainProperty(ref _selectedHeartProgressOption, value);
+    }
 
     public CapacitySelectorViewModel WalletCapacity => _capacities[CheatCatalog.WalletCapacityId];
 
@@ -511,6 +566,8 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     public ObservableCollection<QuestItemsMultiCaptureRowViewModel> QuestItemsMultiCaptureRows { get; }
 
     public ObservableCollection<QuestSpecialSlotViewModel> QuestSpecialSlots { get; }
+
+    public ObservableCollection<QuestSpecialItemViewModel> QuestSpecialItems { get; }
 
     public QuestBitFlagViewModel DominionRodRestorationFlag { get; }
 
@@ -726,11 +783,15 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             _isDeveloperMode = value;
             OnPropertyChanged();
             OnPropertyChanged(nameof(DeveloperToolsVisibility));
+            OnPropertyChanged(nameof(NormalModeVisibility));
         }
     }
 
     public Visibility DeveloperToolsVisibility =>
         IsDeveloperMode ? Visibility.Visible : Visibility.Collapsed;
+
+    public Visibility NormalModeVisibility =>
+        IsDeveloperMode ? Visibility.Collapsed : Visibility.Visible;
 
     public ObservableCollection<FutureFeatureViewModel> Weapons { get; }
 
@@ -1089,6 +1150,26 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     {
         if ((sender as FrameworkElement)?.Tag is TrainerValueViewModel value)
         {
+            if (value.Definition.Id is CheatId.CurrentHealth or CheatId.MaximumHealth)
+            {
+                if (!value.TryGetHealthTargetQuarters(
+                        out var quarters,
+                        out var wasClamped,
+                        out var validationError))
+                {
+                    SetStatus(validationError, StatusKind.Warning);
+                    return;
+                }
+
+                value.SetTargetValue(quarters);
+                if (wasClamped)
+                {
+                    SetStatus(
+                        $"{value.FriendlyHealthName} was limited to {value.TargetHearts} hearts.",
+                        StatusKind.Warning);
+                }
+            }
+
             WriteRequestedValue(value);
         }
     }
@@ -1102,6 +1183,61 @@ public partial class MainWindow : Window, INotifyPropertyChanged
 
         value.SetTargetValue(value.EffectiveMaximum);
         WriteRequestedValue(value);
+    }
+
+    private void ApplyHeartProgress_Click(object sender, RoutedEventArgs e)
+    {
+        if (_memory is null || !_playerBaseAddress.HasValue)
+        {
+            HeartProgressStatusText.Text = "Attach to Cemu and rescan before editing heart progress.";
+            SetStatus(HeartProgressStatusText.Text, StatusKind.Neutral);
+            return;
+        }
+
+        if (!TryReadIntValue(HeartProgress.Definition, out var currentValue, out var readError))
+        {
+            HeartProgressStatusText.Text = $"Could not read heart progress: {readError}";
+            SetStatus("Could not read heart progress. Load into gameplay and rescan.", StatusKind.Warning);
+            return;
+        }
+
+        var partialPieces = SelectedHeartProgressOption.PartialPieces;
+        var cycleBase = currentValue - (currentValue % 5);
+        var desiredValue = cycleBase + partialPieces;
+        if (desiredValue > byte.MaxValue)
+        {
+            HeartProgressStatusText.Text =
+                "Heart progress is too close to the byte limit to safely set this partial value.";
+            SetStatus(HeartProgressStatusText.Text, StatusKind.Warning);
+            return;
+        }
+
+        var writeSucceeded = WriteValue(HeartProgress, desiredValue, quiet: true);
+        int? readbackValue = null;
+        var diagnosticStatus = "write-failed";
+        if (writeSucceeded &&
+            TryReadIntValue(HeartProgress.Definition, out var readback, out _))
+        {
+            readbackValue = readback;
+            HeartProgress.SetCurrentValue(readback, initializeTarget: false);
+            diagnosticStatus = readback == desiredValue ? "verified" : "readback-mismatch";
+        }
+
+        AppendCollectiblesDiagnostic(
+            HeartProgress.Name,
+            currentValue,
+            desiredValue,
+            readbackValue,
+            diagnosticStatus,
+            HeartProgress);
+
+        HeartProgressStatusText.Text = diagnosticStatus == "verified"
+            ? $"Heart progress set to {partialPieces} / 5 within the current cycle."
+            : "Heart progress write could not be verified.";
+        SetStatus(
+            HeartProgressStatusText.Text,
+            diagnosticStatus == "verified" ? StatusKind.Connected : StatusKind.Warning);
+        UpdateDerivedDisplays();
     }
 
     private void SetPoeSouls_Click(object sender, RoutedEventArgs e)
@@ -2452,7 +2588,9 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         RefreshGoldenBugsBitfieldFromMemory(preserveDirty: !verified);
         GoldenBugsEditorStatusText.Text = verified
             ? $"Applied {dirtyBits.Count} Golden Bug change(s)."
-            : "Golden Bugs write did not fully verify. Check diagnostics.";
+            : IsDeveloperMode
+                ? "Golden Bugs write did not fully verify. Check diagnostics."
+                : "Some Golden Bug changes could not be applied.";
         SetStatus(
             GoldenBugsEditorStatusText.Text,
             verified ? StatusKind.Connected : StatusKind.Warning);
@@ -2480,7 +2618,9 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         RefreshGoldenBugsBitfieldFromMemory(preserveDirty: !verified);
         GoldenBugsEditorStatusText.Text = verified
             ? "Added all Golden Bugs."
-            : "Add All did not fully verify. Check diagnostics.";
+            : IsDeveloperMode
+                ? "Add All did not fully verify. Check diagnostics."
+                : "Some Golden Bugs could not be added.";
         SetStatus(
             GoldenBugsEditorStatusText.Text,
             verified ? StatusKind.Connected : StatusKind.Warning);
@@ -2508,7 +2648,9 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         RefreshGoldenBugsBitfieldFromMemory(preserveDirty: !verified);
         GoldenBugsEditorStatusText.Text = verified
             ? "Cleared all Golden Bugs."
-            : "Clear All did not fully verify. Check diagnostics.";
+            : IsDeveloperMode
+                ? "Clear All did not fully verify. Check diagnostics."
+                : "Some Golden Bugs could not be removed.";
         SetStatus(
             GoldenBugsEditorStatusText.Text,
             verified ? StatusKind.Connected : StatusKind.Warning);
@@ -3110,6 +3252,54 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         }
     }
 
+    private void RefreshGoldenBugs_Click(object sender, RoutedEventArgs e)
+    {
+        if (!HasPlayerData)
+        {
+            GoldenBugsEditorStatusText.Text = "Load into gameplay and rescan before refreshing Golden Bugs.";
+            SetStatus(GoldenBugsEditorStatusText.Text, StatusKind.Neutral);
+            return;
+        }
+
+        RefreshGoldenBugsBitfieldFromMemory(preserveDirty: false);
+        GoldenBugsEditorStatusText.Text = "Golden Bugs refreshed.";
+        SetStatus(GoldenBugsEditorStatusText.Text, StatusKind.Connected);
+    }
+
+    private void ApplyQuestSpecialItems_Click(object sender, RoutedEventArgs e)
+    {
+        var changedGroups = QuestSpecialItems
+            .GroupBy(item => item.Definition.SlotId)
+            .Where(group => group.Any(item => item.IsDirty))
+            .ToList();
+
+        if (changedGroups.Count == 0)
+        {
+            SetQuestSpecialEditorStatus(
+                "No Quest Item changes are pending.",
+                "No confirmed Quest / Special item toggle changes are pending.",
+                StatusKind.Neutral);
+            return;
+        }
+
+        foreach (var group in changedGroups)
+        {
+            var slot = QuestSpecialSlots.First(item => item.Definition.Id == group.Key);
+            var desiredItem = group.FirstOrDefault(item => item.IsOwnedDesired);
+            var desiredValue = desiredItem?.Definition.Value ?? InventoryDefinitions.EmptyItemId;
+            var option = slot.Options.First(item => item.Value == desiredValue);
+            slot.SelectedOption = option;
+
+            if (!WriteQuestSpecialSlotWithVerification(slot))
+            {
+                RefreshQuestSpecialItemToggles(preserveDirty: true);
+                return;
+            }
+        }
+
+        RefreshQuestSpecialItemToggles(preserveDirty: false);
+    }
+
     private void ApplyDominionRodRestoration_Click(object sender, RoutedEventArgs e)
     {
         WriteQuestBitFlagWithVerification(
@@ -3121,6 +3311,38 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     private void ApplyCurrentDungeonItems_Click(object sender, RoutedEventArgs e)
     {
         WriteCurrentDungeonItemsWithVerification();
+    }
+
+    private void ApplyCurrentDungeonSmallKeys_Click(object sender, RoutedEventArgs e)
+    {
+        if (!CurrentDungeonSmallKeys.TryGetClampedTarget(
+                out var target,
+                out var wasClamped,
+                out var validationError))
+        {
+            SetQuestSpecialEditorStatus(validationError, validationError, StatusKind.Warning);
+            return;
+        }
+
+        if (wasClamped)
+        {
+            CurrentDungeonSmallKeys.SetTargetValue(target);
+        }
+
+        WriteQuestByteValueWithVerification(
+            CurrentDungeonSmallKeys,
+            target,
+            "current-dungeon-small-keys",
+            $"Small Keys for the current dungeon set to {target}.");
+    }
+
+    private void CompleteGoronMinesKeyShards_Click(object sender, RoutedEventArgs e)
+    {
+        WriteQuestByteValueWithVerification(
+            GoronMinesKeyShardState,
+            QuestSpecialDefinitions.GoronMinesCompletedKeyShardState,
+            "goron-mines-key-shards-complete",
+            "Goron Mines key shards completed and Big Key state formed.");
     }
 
     private async void ApplyBombSlotChanges_Click(object sender, RoutedEventArgs e)
@@ -3135,8 +3357,8 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             .ToList();
         if (changedSlots.Count == 0)
         {
-            BombSlotEditorStatusText.Text = "No Bomb Slot changes to apply.";
-            SetStatus("No Bomb Slot changes to apply.", StatusKind.Neutral);
+            BombSlotEditorStatusText.Text = "No Bomb Bag type changes to apply.";
+            SetStatus(BombSlotEditorStatusText.Text, StatusKind.Neutral);
             return;
         }
 
@@ -3147,7 +3369,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
                 slot,
                 slot.SelectedContent.Value,
                 "apply",
-                $"Bomb Slot {slot.SlotNumber} changed to {slot.SelectedContent.Name}.");
+                $"Bomb Bag {slot.SlotNumber} changed to {slot.SelectedContent.Name}.");
             if (verified)
             {
                 verifiedCount++;
@@ -3157,8 +3379,8 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         RefreshBombSlots(showStatus: false);
         BombSlotEditorStatusText.Text =
             verifiedCount == changedSlots.Count
-                ? $"Verification succeeded. Applied {verifiedCount} Bomb Slot change(s)."
-                : $"Verification failed for {changedSlots.Count - verifiedCount} of {changedSlots.Count} Bomb Slot change(s).";
+                ? $"Applied {verifiedCount} Bomb Bag type change(s)."
+                : $"{changedSlots.Count - verifiedCount} Bomb Bag type change(s) could not be applied.";
         SetStatus(BombSlotEditorStatusText.Text, verifiedCount == changedSlots.Count ? StatusKind.Connected : StatusKind.Warning);
     }
 
@@ -4386,6 +4608,11 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         }
 
         value.SetCurrentValue(currentValue, initializeTarget: true);
+        if (_isAttaching && value.Definition.Id == CheatId.MaximumHealth)
+        {
+            value.SetTargetValue(currentValue);
+        }
+
         return true;
     }
 
@@ -4666,6 +4893,8 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             slot.LastVerificationResult = "Read current value";
         }
 
+        RefreshQuestSpecialItemToggles(preserveDirty: true);
+
         if (!RefreshQuestBitFlag(DominionRodRestorationFlag))
         {
             readFailed = true;
@@ -4778,6 +5007,11 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             slot.MarkNotRead();
         }
 
+        foreach (var item in QuestSpecialItems)
+        {
+            item.MarkNotRead();
+        }
+
         DominionRodRestorationFlag.MarkNotRead();
         foreach (var flag in CurrentDungeonItems)
         {
@@ -4787,6 +5021,32 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         if (IsLoaded)
         {
             QuestSpecialEditorStatusText.Text = "Attach to Cemu and rescan to read confirmed Quest / Special values.";
+        }
+    }
+
+    private void RefreshQuestSpecialItemToggles(bool preserveDirty)
+    {
+        _suppressQuestSpecialItemExclusivity = true;
+        try
+        {
+            foreach (var item in QuestSpecialItems)
+            {
+                var slot = QuestSpecialSlots.First(slot => slot.Definition.Id == item.Definition.SlotId);
+                if (!slot.CurrentValue.HasValue)
+                {
+                    item.MarkNotRead();
+                    continue;
+                }
+
+                item.SetDetected(
+                    item.Definition.DetectedValues.Contains(slot.CurrentValue.Value),
+                    preserveDirty);
+                item.CanEdit = slot.CanEdit;
+            }
+        }
+        finally
+        {
+            _suppressQuestSpecialItemExclusivity = false;
         }
     }
 
@@ -5302,6 +5562,89 @@ public partial class MainWindow : Window, INotifyPropertyChanged
                 absoluteAddress,
                 beforeValue,
                 desiredValue,
+                readbackValue,
+                status);
+        }
+    }
+
+    private bool WriteQuestByteValueWithVerification(
+        TrainerValueViewModel value,
+        int desiredValue,
+        string action,
+        string successMessage)
+    {
+        if (_memory is null || !_playerBaseAddress.HasValue)
+        {
+            SetQuestSpecialEditorStatus(
+                "Not attached. Attach to Cemu and rescan first.",
+                $"Not attached. Cannot write _playerbase+0x{value.Definition.Offset:X}.",
+                StatusKind.Neutral);
+            return false;
+        }
+
+        var absoluteAddress = _playerBaseAddress.Value + value.Definition.Offset;
+        byte? beforeValue = null;
+        byte? readbackValue = null;
+        var status = "started";
+
+        try
+        {
+            if (!TryReadIntValue(value.Definition, out var currentValue, out var readError))
+            {
+                status = $"before-read-failed: {readError}";
+                SetQuestSpecialEditorStatus(
+                    $"Could not read {value.Name}. Load into gameplay and rescan.",
+                    $"Could not read {value.Name} at _playerbase+0x{value.Definition.Offset:X}: {readError}",
+                    StatusKind.Warning);
+                return false;
+            }
+
+            beforeValue = (byte)currentValue;
+            if (!WriteValue(value, desiredValue, quiet: true))
+            {
+                status = "write-failed";
+                return false;
+            }
+
+            if (!TryReadIntValue(value.Definition, out var readback, out var verifyError))
+            {
+                status = $"readback-failed: {verifyError}";
+                SetQuestSpecialEditorStatus(
+                    $"{value.Name} was written, but verification failed.",
+                    $"{value.Name} wrote _playerbase+0x{value.Definition.Offset:X} = 0x{desiredValue:X2}, but readback failed: {verifyError}",
+                    StatusKind.Warning);
+                return false;
+            }
+
+            readbackValue = (byte)readback;
+            value.SetCurrentValue(readback, initializeTarget: false);
+            if (readback != desiredValue)
+            {
+                status = "readback-mismatch";
+                SetQuestSpecialEditorStatus(
+                    $"{value.Name} write verification failed.",
+                    $"{value.Name} expected 0x{desiredValue:X2} at _playerbase+0x{value.Definition.Offset:X}, but read 0x{readback:X2}.",
+                    StatusKind.Warning);
+                return false;
+            }
+
+            status = "verified";
+            SetQuestSpecialEditorStatus(
+                successMessage,
+                $"{successMessage} Verified _playerbase+0x{value.Definition.Offset:X} = 0x{readback:X2}.",
+                StatusKind.Connected);
+            UpdateDerivedDisplays();
+            return true;
+        }
+        finally
+        {
+            AppendQuestSpecialEditorDiagnostic(
+                action,
+                value.Name,
+                value.Definition.Offset,
+                absoluteAddress,
+                beforeValue,
+                (byte)desiredValue,
                 readbackValue,
                 status);
         }
@@ -6146,15 +6489,15 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     {
         if (_memory is null || !_playerBaseAddress.HasValue)
         {
-            BombSlotEditorStatusText.Text = "Not attached. Attach to Cemu and rescan before editing Bomb Slots.";
-            SetStatus("Not attached. Attach to Cemu and rescan before editing Bomb Slots.", StatusKind.Neutral);
+            BombSlotEditorStatusText.Text = "Not attached. Attach to Cemu and rescan before editing Bomb Bags.";
+            SetStatus(BombSlotEditorStatusText.Text, StatusKind.Neutral);
             return false;
         }
 
         if (!HasPlayerData)
         {
-            BombSlotEditorStatusText.Text = "Player data is not available. Load into gameplay and rescan before editing Bomb Slots.";
-            SetStatus("Player data is not available. Load into gameplay and rescan before editing Bomb Slots.", StatusKind.Warning);
+            BombSlotEditorStatusText.Text = "Player data is not available. Load into gameplay and rescan before editing Bomb Bags.";
+            SetStatus(BombSlotEditorStatusText.Text, StatusKind.Warning);
             return false;
         }
 
@@ -6170,15 +6513,15 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         var memory = _memory;
         if (memory is null || !_playerBaseAddress.HasValue)
         {
-            BombSlotEditorStatusText.Text = "Not attached. Attach to Cemu and rescan before editing Bomb Slots.";
-            SetStatus("Not attached. Attach to Cemu and rescan before editing Bomb Slots.", StatusKind.Neutral);
+            BombSlotEditorStatusText.Text = "Not attached. Attach to Cemu and rescan before editing Bomb Bags.";
+            SetStatus(BombSlotEditorStatusText.Text, StatusKind.Neutral);
             return false;
         }
 
         if (!BombSlotDefinitions.IsConfirmedContent(desiredValue))
         {
-            BombSlotEditorStatusText.Text = "Unsupported Bomb Slot value.";
-            SetStatus("Unsupported Bomb Slot value.", StatusKind.Warning);
+            BombSlotEditorStatusText.Text = "Choose a supported bomb type.";
+            SetStatus(BombSlotEditorStatusText.Text, StatusKind.Warning);
             return false;
         }
 
@@ -6286,7 +6629,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
                 diagnosticStatus = "verification-failed";
                 slot.Status = "Verification failed.";
                 slot.LastVerificationResult = "Immediate readback matched, but delayed verification changed.";
-                BombSlotEditorStatusText.Text = $"Bomb Slot {slot.SlotNumber}: Verification failed.";
+                BombSlotEditorStatusText.Text = $"Bomb Bag {slot.SlotNumber} changed back before the update could be confirmed.";
                 SetStatus(BombSlotEditorStatusText.Text, StatusKind.Warning);
             }
             else
@@ -7172,13 +7515,15 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         int? previousValue,
         int desiredValue,
         int? readbackValue,
-        string diagnosticStatus)
+        string diagnosticStatus,
+        TrainerValueViewModel? value = null)
     {
+        var diagnosticValue = value ?? PoeSouls;
         var addressText = _playerBaseAddress.HasValue
-            ? $"0x{_playerBaseAddress.Value + PoeSouls.Definition.Offset:X}"
+            ? $"0x{_playerBaseAddress.Value + diagnosticValue.Definition.Offset:X}"
             : "n/a";
         var entry =
-            $"{DateTimeOffset.Now:O} kind=collectible name=\"{name}\" offset=0x{PoeSouls.Definition.Offset:X} " +
+            $"{DateTimeOffset.Now:O} kind=collectible name=\"{name}\" offset=0x{diagnosticValue.Definition.Offset:X} " +
             $"address={addressText} previous={FormatNullableInt(previousValue)} desired={desiredValue} " +
             $"readback={FormatNullableInt(readbackValue)} status={diagnosticStatus}";
 
@@ -7744,7 +8089,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         if (hasInconsistentFlags)
         {
             HiddenSkillsEditorStatusText.Text =
-                "Hidden Skill progression appears non-standard. This may happen on edited or imported saves.";
+                "Hidden Skill progression appears non-standard. This can happen on edited or imported saves.";
             SetStatus(HiddenSkillsEditorStatusText.Text, StatusKind.Warning);
         }
 
@@ -7753,7 +8098,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             if (hasInconsistentFlags)
             {
                 HiddenSkillsEditorStatusText.Text =
-                    "Hidden Skill progression appears non-standard. This may happen on edited or imported saves. No changes were written; press Apply to normalize the progression chain.";
+                    "Hidden Skill progression appears non-standard. This can happen on edited or imported saves. No changes were written; press Apply to normalize the progression chain.";
             }
             else
             {
@@ -13018,7 +13363,36 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             ? (maximumHealth.Value / 4).ToString(CultureInfo.InvariantCulture)
             : "Not read";
 
-        TotalHeartPiecesText.Text = "Not mapped in CT";
+        var heartProgress = HeartProgress.CurrentNumericValue;
+        if (heartProgress.HasValue)
+        {
+            var partialPieces = heartProgress.Value % 5;
+            var completedUpgrades = heartProgress.Value / 5;
+            HeartProgressPartialText.Text = partialPieces == 0
+                ? "0 / 5 (cycle complete)"
+                : $"{partialPieces} / 5";
+            HeartProgressCompletedText.Text = completedUpgrades.ToString(CultureInfo.InvariantCulture);
+            HeartProgressRawText.Text = $"{heartProgress.Value} / 0x{heartProgress.Value:X2}";
+            TotalHeartPiecesText.Text = heartProgress.Value.ToString(CultureInfo.InvariantCulture);
+        }
+        else
+        {
+            HeartProgressPartialText.Text = "Not read";
+            HeartProgressCompletedText.Text = "Not read";
+            HeartProgressRawText.Text = "Not read";
+            TotalHeartPiecesText.Text = "Not read";
+        }
+
+        var goronMinesState = GoronMinesKeyShardState.CurrentNumericValue;
+        GoronMinesKeyShardStateText.Text = goronMinesState.HasValue
+            ? goronMinesState.Value == QuestSpecialDefinitions.GoronMinesCompletedKeyShardState
+                ? "Completed"
+                : "Not completed"
+            : "Not read";
+        GoronMinesKeyShardRawText.Text = goronMinesState.HasValue
+            ? $"{goronMinesState.Value} / 0x{goronMinesState.Value:X2}"
+            : "Not read";
+
         CollectiblesHeartContainersText.Text = HeartContainersText.Text;
         UpdateBombSlotDiagnostics();
     }

@@ -11,7 +11,10 @@ public static class QuestSpecialDefinitions
     public const uint SkyBookSlotOffset = 0x26E;
     public const uint DominionRodRestorationOffset = 0x3D1;
     public const int DominionRodRestorationBit = 7;
+    public const uint CurrentDungeonSmallKeysOffset = 0xFD0;
     public const uint CurrentDungeonItemsOffset = 0xFD1;
+    public const uint GoronMinesKeyShardStateOffset = 0x2A4;
+    public const byte GoronMinesCompletedKeyShardState = 0x6E;
 
     public const byte AncientSkyBookValue = 0xE9;
 
@@ -73,6 +76,16 @@ public static class QuestSpecialDefinitions
                 EmptyOption,
                 new(AncientSkyBookValue, "Ancient Sky Book", "Confirmed Ancient Sky Book value")
             ])
+    ];
+
+    public static IReadOnlyList<QuestSpecialItemDefinition> ConfirmedItems { get; } =
+    [
+        new("ooccoo-item", "Ooccoo", OoccooSlotId, 0x25, [0x25]),
+        new("ooccoo-jr-item", "Ooccoo Jr.", OoccooSlotId, 0x27, [0x27]),
+        new("fishing-rod-item", "Fishing Rod", "fishing-rod", 0x4A, [0x4A, 0x5C]),
+        new("ilias-charm-item", "Ilia's Charm", "companion-item", 0x83, [0x83]),
+        new("horse-call-item", "Horse Call", "companion-item", 0x84, [0x84]),
+        new("ancient-sky-book-item", "Ancient Sky Book", SkyBookSlotId, AncientSkyBookValue, [AncientSkyBookValue])
     ];
 
     public static QuestBitFlagDefinition DominionRodRestoration { get; } =

@@ -1,6 +1,9 @@
 namespace TphdCemuTrainer.Cheats;
 
-public sealed record CapacityOption(string Label, int Capacity, int StoredValue);
+public sealed record CapacityOption(string Label, int Capacity, int StoredValue)
+{
+    public override string ToString() => Label;
+}
 
 public sealed record CapacityDefinition(
     string Id,

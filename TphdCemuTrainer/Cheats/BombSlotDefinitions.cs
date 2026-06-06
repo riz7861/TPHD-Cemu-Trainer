@@ -33,7 +33,12 @@ public static class BombSlotDefinitions
 
     public static string GetContentName(byte value)
     {
+        if (value == byte.MaxValue)
+        {
+            return "Not acquired";
+        }
+
         return ConfirmedContents.FirstOrDefault(content => content.Value == value)?.Name
-            ?? "Unknown / unsupported";
+            ?? $"Unknown value (0x{value:X2})";
     }
 }

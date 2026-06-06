@@ -11,6 +11,7 @@ public enum CheatId
 {
     CurrentHealth,
     MaximumHealth,
+    HeartProgress,
     LanternOil,
     Rupees,
     Arrows,
@@ -19,7 +20,9 @@ public enum CheatId
     BombSlot3,
     Seeds,
     PoeSouls,
-    GoldenBugsFlags
+    GoldenBugsFlags,
+    CurrentDungeonSmallKeys,
+    GoronMinesKeyShardState
 }
 
 public sealed record CheatDefinition(

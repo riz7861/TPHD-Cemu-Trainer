@@ -7,6 +7,7 @@ public sealed class TrainerValueViewModel : ObservableObject
 {
     private string _currentValue = "Not read";
     private string _targetValue = string.Empty;
+    private string _targetHearts = string.Empty;
     private bool _isLocked;
     private bool _targetInitialized;
     private bool _isSettingTargetInternally;
@@ -26,6 +27,13 @@ public sealed class TrainerValueViewModel : ObservableObject
 
     public string Name => Definition.Name;
 
+    public string FriendlyHealthName => Definition.Id switch
+    {
+        CheatId.CurrentHealth => "Current Health",
+        CheatId.MaximumHealth => "Maximum Health",
+        _ => Name
+    };
+
     public string Offset => $"0x{Definition.Offset:X}";
 
     public string Source => Definition.Source;
@@ -38,6 +46,10 @@ public sealed class TrainerValueViewModel : ObservableObject
         private set => SetField(ref _currentValue, value);
     }
 
+    public string CurrentHeartsDisplay => CurrentNumericValue.HasValue
+        ? $"{FormatQuarterHearts(CurrentNumericValue.Value)} Hearts"
+        : "Not read";
+
     public string TargetValue
     {
         get => _targetValue;
@@ -48,6 +60,12 @@ public sealed class TrainerValueViewModel : ObservableObject
                 _targetInitialized = true;
             }
         }
+    }
+
+    public string TargetHearts
+    {
+        get => _targetHearts;
+        set => SetField(ref _targetHearts, value);
     }
 
     public bool IsLocked
@@ -62,7 +80,9 @@ public sealed class TrainerValueViewModel : ObservableObject
         }
     }
 
-    public string LockText => IsLocked ? "Lock on" : "Lock off";
+    public string LockText => Definition.Id is CheatId.BombSlot1 or CheatId.BombSlot2 or CheatId.BombSlot3
+        ? "Lock Bombs"
+        : IsLocked ? "Lock on" : "Lock off";
 
     public int EffectiveMaximum => Math.Min(
         Capacity?.CurrentCapacity ?? Definition.HardMaximum,
@@ -72,6 +92,7 @@ public sealed class TrainerValueViewModel : ObservableObject
     {
         CurrentNumericValue = value;
         CurrentValue = value.ToString(CultureInfo.InvariantCulture);
+        OnPropertyChanged(nameof(CurrentHeartsDisplay));
 
         if (initializeTarget && !_targetInitialized)
         {
@@ -83,14 +104,54 @@ public sealed class TrainerValueViewModel : ObservableObject
     {
         CurrentNumericValue = null;
         CurrentValue = displayValue;
+        OnPropertyChanged(nameof(CurrentHeartsDisplay));
     }
 
     public void SetTargetValue(int value)
     {
         _isSettingTargetInternally = true;
         TargetValue = Definition.Clamp(value, EffectiveMaximum).ToString(CultureInfo.InvariantCulture);
+        TargetHearts = FormatQuarterHearts(int.Parse(TargetValue, CultureInfo.InvariantCulture));
         _targetInitialized = true;
         _isSettingTargetInternally = false;
+    }
+
+    public bool TryGetHealthTargetQuarters(out int value, out bool wasClamped, out string error)
+    {
+        if (!decimal.TryParse(
+                TargetHearts.Trim(),
+                NumberStyles.Number,
+                CultureInfo.InvariantCulture,
+                out var hearts))
+        {
+            value = 0;
+            wasClamped = false;
+            error = $"'{TargetHearts}' is not a valid heart value for {FriendlyHealthName}.";
+            return false;
+        }
+
+        var quarters = hearts * 4m;
+        if (quarters != decimal.Truncate(quarters))
+        {
+            value = 0;
+            wasClamped = false;
+            error = $"{FriendlyHealthName} must use quarter-heart increments.";
+            return false;
+        }
+
+        if (quarters > int.MaxValue || quarters < int.MinValue)
+        {
+            value = 0;
+            wasClamped = false;
+            error = $"{FriendlyHealthName} is outside the supported range.";
+            return false;
+        }
+
+        var requestedValue = (int)quarters;
+        value = Definition.Clamp(requestedValue, EffectiveMaximum);
+        wasClamped = value != requestedValue;
+        error = string.Empty;
+        return true;
     }
 
     public bool TryGetClampedTarget(out int value, out bool wasClamped, out string error)
@@ -131,5 +192,11 @@ public sealed class TrainerValueViewModel : ObservableObject
     {
         CurrentNumericValue = null;
         CurrentValue = "Not read";
+        OnPropertyChanged(nameof(CurrentHeartsDisplay));
+    }
+
+    private static string FormatQuarterHearts(int quarters)
+    {
+        return (quarters / 4m).ToString("0.##", CultureInfo.InvariantCulture);
     }
 }

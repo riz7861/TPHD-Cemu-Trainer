@@ -6,6 +6,7 @@ public sealed class CapacitySelectorViewModel : ObservableObject
 {
     private CapacityOption _selectedOption;
     private string _currentStoredValue = "Not read";
+    private int? _currentStoredNumericValue;
 
     public CapacitySelectorViewModel(CapacityDefinition definition)
     {
@@ -36,6 +37,34 @@ public sealed class CapacitySelectorViewModel : ObservableObject
         private set => SetField(ref _currentStoredValue, value);
     }
 
+    public string FriendlyCurrentStatus
+    {
+        get
+        {
+            if (!IsMemoryBacked)
+            {
+                return "Fixed capacity";
+            }
+
+            if (!_currentStoredNumericValue.HasValue)
+            {
+                return "Not read";
+            }
+
+            if (_currentStoredNumericValue.Value == 0)
+            {
+                return Definition.Id switch
+                {
+                    CheatCatalog.QuiverCapacityId => "Bow not obtained",
+                    CheatCatalog.BombBagCapacityId => "Bomb Bag not acquired",
+                    _ => GetKnownOrUnknownStatus(_currentStoredNumericValue.Value)
+                };
+            }
+
+            return GetKnownOrUnknownStatus(_currentStoredNumericValue.Value);
+        }
+    }
+
     public CapacityOption SelectedOption
     {
         get => _selectedOption;
@@ -56,7 +85,9 @@ public sealed class CapacitySelectorViewModel : ObservableObject
 
     public void SetFromStoredValue(int storedValue)
     {
+        _currentStoredNumericValue = storedValue;
         CurrentStoredValue = storedValue.ToString();
+        OnPropertyChanged(nameof(FriendlyCurrentStatus));
 
         var matchingOption = Options.FirstOrDefault(option => option.StoredValue == storedValue)
             ?? Options.FirstOrDefault(option => option.Capacity == storedValue);
@@ -69,6 +100,18 @@ public sealed class CapacitySelectorViewModel : ObservableObject
 
     public void MarkNotRead()
     {
+        _currentStoredNumericValue = null;
         CurrentStoredValue = IsMemoryBacked ? "Not read" : "Fixed";
+        OnPropertyChanged(nameof(FriendlyCurrentStatus));
+    }
+
+    private string GetKnownOrUnknownStatus(int storedValue)
+    {
+        var matchingOption = Options.FirstOrDefault(option => option.StoredValue == storedValue)
+            ?? Options.FirstOrDefault(option => option.Capacity == storedValue);
+
+        return matchingOption is not null
+            ? $"Current: {matchingOption.Label}"
+            : $"Unknown value (0x{storedValue:X2})";
     }
 }

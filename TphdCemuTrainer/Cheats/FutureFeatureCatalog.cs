@@ -75,10 +75,7 @@ public static class FutureFeatureCatalog
         new("Auru's Memo"),
         new("Ashei's Sketch"),
         new("Invoice"),
-        new("Wooden Statue"),
-        new("Ancient Sky Book"),
-        new("Ilia's Charm"),
-        new("Vessel of Light progression")
+        new("Wooden Statue")
     ];
 
     public static IReadOnlyList<FutureFeatureDefinition> DebugTools { get; } =
