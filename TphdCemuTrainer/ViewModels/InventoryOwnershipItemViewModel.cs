@@ -43,6 +43,7 @@ public sealed class InventoryOwnershipItemViewModel : ObservableObject
             {
                 OnPropertyChanged(nameof(KnownSlotText));
                 OnPropertyChanged(nameof(CanExperimentalCheckboxWrite));
+                OnPropertyChanged(nameof(DesiredEditStateText));
             }
         }
     }
@@ -56,6 +57,7 @@ public sealed class InventoryOwnershipItemViewModel : ObservableObject
             {
                 OnPropertyChanged(nameof(KnownItemText));
                 OnPropertyChanged(nameof(CanExperimentalCheckboxWrite));
+                OnPropertyChanged(nameof(DesiredEditStateText));
             }
         }
     }
@@ -123,16 +125,36 @@ public sealed class InventoryOwnershipItemViewModel : ObservableObject
             if (SetField(ref _isOwnedDesired, value))
             {
                 OnPropertyChanged(nameof(IsDirty));
+                OnPropertyChanged(nameof(DesiredEditStateText));
             }
         }
     }
 
     public bool IsDirty => IsOwnedDesired != IsOwnedDetected;
 
+    public string DesiredEditStateText
+    {
+        get
+        {
+            if (CanEdit)
+            {
+                return IsOwnedDesired ? "Will add/keep" : "Will remove";
+            }
+
+            return CanExperimentalCheckboxWrite ? "Locked" : "Read only";
+        }
+    }
+
     public bool CanEdit
     {
         get => _canEdit;
-        set => SetField(ref _canEdit, value);
+        set
+        {
+            if (SetField(ref _canEdit, value))
+            {
+                OnPropertyChanged(nameof(DesiredEditStateText));
+            }
+        }
     }
 
     public void SetDetectedFlag(bool isOwned, byte backingValue, bool preserveDirty)

@@ -13,6 +13,8 @@ Before and After captures are persisted immediately so the trainer and Cemu can 
 
 The Hidden Skills tab includes a confirmed progression editor for the seven ownership bits listed below. Research tools remain available for mapping related lesson, wolf, Hero's Shade, and menu refresh state.
 
+The top-level **Research** tab includes generic Live Capture and Snapshot Diff workflows for broader continuous monitoring. The Hidden Skills-specific research tools remain useful when you need persisted Hidden Skills captures, pinned candidates, region analysis, or the six-capture skill-count analyzer.
+
 Current findings:
 
 - Candidate bit testing confirmed the ownership bitfield at `_playerbase+0x3D5` and `_playerbase+0x3D6`.
@@ -21,6 +23,8 @@ Current findings:
 - `_playerbase+0x238` bit `0` is not Hidden Skill ownership. It appears to be Hero's Shade / lesson active state and is not used by the editor.
 - Hidden Skills should be edited sequentially. Some moves require prerequisite flags for combat usability.
 - The in-game Skills menu may show progression slots rather than exact isolated bit state, so menu display is not reliable for isolated flag testing.
+- Unrelated bits in `0x3D5` and `0x3D6` are ignored for normal ownership checkboxes. Raw diagnostics still show the full bytes.
+- If confirmed bits contain a later skill without its prerequisites, the editor warns that the save contains inconsistent Hidden Skill flags but does not auto-write fixes on refresh.
 - Hidden Skills still likely involve additional progression states, such as wolf/howling interactions, Hero's Shade lesson state, tutorial completion, and final menu visibility.
 - Live Memory Watch was added for direct observation while triggering Howling Stones, Golden Wolves, Hero's Shade lessons, and menu updates.
 

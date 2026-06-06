@@ -23,6 +23,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
 {
     private readonly DispatcherTimer _refreshTimer;
     private readonly DispatcherTimer _hiddenSkillsLiveWatchTimer;
+    private readonly DispatcherTimer _liveCaptureTimer;
     private readonly Dictionary<CheatId, TrainerValueViewModel> _values;
     private readonly Dictionary<string, CapacitySelectorViewModel> _capacities;
     private ProcessMemory? _memory;
@@ -98,6 +99,24 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     private int _hiddenSkillsLiveWatchLength;
     private DateTimeOffset? _hiddenSkillsLiveWatchStartedAt;
     private readonly Dictionary<uint, int> _hiddenSkillsLiveWatchChangeCounts = [];
+    private byte[]? _liveCaptureBaselineBytes;
+    private byte[]? _liveCapturePreviousBytes;
+    private uint _liveCaptureStartOffset;
+    private int _liveCaptureLength;
+    private int _liveCaptureSamplingRateMs;
+    private string _liveCaptureLabel = string.Empty;
+    private DateTimeOffset? _liveCaptureStartedAt;
+    private bool _liveCaptureTickInProgress;
+    private readonly Dictionary<uint, LiveCaptureTrackedAddress> _liveCaptureTrackedAddresses = [];
+    private readonly List<string> _researchLogViewerAllLines = [];
+    private byte[]? _researchWorkspaceSnapshotABytes;
+    private byte[]? _researchWorkspaceSnapshotBBytes;
+    private uint _researchWorkspaceSnapshotStart;
+    private DateTimeOffset? _researchWorkspaceSnapshotACapturedAt;
+    private DateTimeOffset? _researchWorkspaceSnapshotBCapturedAt;
+    private ResearchWorkspaceSnapshotExport? _lastResearchWorkspaceSnapshotExport;
+    private byte? _researchCandidatePreviousValue;
+    private uint? _researchCandidatePreviousOffset;
     private byte[]? _goldenBugsBitfieldRestoreSnapshotBytes;
     private DateTimeOffset? _goldenBugsBitfieldRestoreSnapshotCapturedAt;
     private byte[]? _goldenBugsEditorRestoreSnapshotBytes;
@@ -140,6 +159,16 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         "Palace of Twilight",
         "Hyrule Castle",
         "Custom"
+    ];
+
+    private static readonly IReadOnlyList<KnownResearchRegionHint> LiveCaptureRegionHints =
+    [
+        new(0x26A, 0x26E, "quest-special", "confirmed/researched Quest / Special item slots"),
+        new(0x298, 0x29B, "ownership-candidate", "candidate ownership/progression bytes"),
+        new(0x3D1, 0x3D1, "dominion-rod-restoration", "confirmed Dominion Rod restoration bit"),
+        new(0x3D5, 0x3D6, "hidden-skills", "confirmed Hidden Skills ownership/progression bytes"),
+        new(0xFD1, 0xFD1, "current-dungeon-items", "confirmed current dungeon Map/Boss Key/Compass bits"),
+        new(0x221, 0x22D, "scene-noise", "known scene/location/runtime noise")
     ];
 
     private static readonly JsonSerializerOptions ExportJsonOptions = new()
@@ -194,6 +223,12 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         QuestItemsCandidateRows = [];
         QuestItemsCandidateGroups = [];
         QuestItemsMultiCaptureRows = [];
+        QuestSpecialSlots = new ObservableCollection<QuestSpecialSlotViewModel>(
+            QuestSpecialDefinitions.Slots.Select(slot => new QuestSpecialSlotViewModel(slot)));
+        DominionRodRestorationFlag = new QuestBitFlagViewModel(QuestSpecialDefinitions.DominionRodRestoration);
+        CurrentDungeonItems = new ObservableCollection<QuestBitFlagViewModel>(
+            QuestSpecialDefinitions.CurrentDungeonItems.Select(flag => new QuestBitFlagViewModel(flag)));
+        QuestSpecialEditorDiagnostics = [];
         GoldenBugsCandidateList = new ObservableCollection<string>(
             GoldenBugCandidateNames.Select((name, index) => $"{index + 1}. {name}"));
         GoldenBugsBitRows = new ObservableCollection<GoldenBugBitViewModel>(
@@ -218,6 +253,14 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         HiddenSkillsRegionAnalysisRows = [];
         HiddenSkillsLiveWatchRows = [];
         HiddenSkillsEventMarkers = [];
+        LiveCaptureChanges = [];
+        LiveCaptureCandidates = [];
+        LiveCaptureTimelineLines = [];
+        LiveCaptureStatisticsLines = [];
+        ResearchWorkspaceSnapshotRows = [];
+        ResearchWorkspaceSnapshotCandidates = [];
+        ResearchReports = [];
+        ResearchLogViewerLines = [];
 
         EquipmentSlots = new ObservableCollection<EquipmentSlotViewModel>(
             EquipmentDefinitions.Slots.Select(slot => new EquipmentSlotViewModel(slot)));
@@ -261,6 +304,15 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             Interval = TimeSpan.FromMilliseconds(250)
         };
         _hiddenSkillsLiveWatchTimer.Tick += HiddenSkillsLiveWatchTimer_Tick;
+
+        _liveCaptureTimer = new DispatcherTimer
+        {
+            Interval = TimeSpan.FromMilliseconds(250)
+        };
+        _liveCaptureTimer.Tick += LiveCaptureTimer_Tick;
+
+        RefreshResearchReports();
+        RefreshResearchLogViewer();
     }
 
     private void InventoryOwnershipItem_PropertyChanged(object? sender, PropertyChangedEventArgs e)
@@ -320,6 +372,9 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     private static string QuestItemsResearchLogPath =>
         Path.Combine(AppContext.BaseDirectory, "logs", "quest-items-research.log");
 
+    private static string QuestSpecialEditorLogPath =>
+        Path.Combine(AppContext.BaseDirectory, "logs", "quest-special-editor.log");
+
     private static string GoldenBugsResearchLogPath =>
         Path.Combine(AppContext.BaseDirectory, "logs", "golden-bugs-research.log");
 
@@ -340,6 +395,9 @@ public partial class MainWindow : Window, INotifyPropertyChanged
 
     private static string HiddenSkillsLiveWatchLogPath =>
         Path.Combine(AppContext.BaseDirectory, "logs", "hidden-skills-live-watch.log");
+
+    private static string LiveCaptureLogPath =>
+        Path.Combine(AppContext.BaseDirectory, "logs", "live-capture.log");
 
     private static string HiddenSkillsCaptureDirectory =>
         Path.Combine(ResearchSnapshotStore.ExportDirectory, "hidden-skills-captures");
@@ -447,6 +505,14 @@ public partial class MainWindow : Window, INotifyPropertyChanged
 
     public ObservableCollection<QuestItemsMultiCaptureRowViewModel> QuestItemsMultiCaptureRows { get; }
 
+    public ObservableCollection<QuestSpecialSlotViewModel> QuestSpecialSlots { get; }
+
+    public QuestBitFlagViewModel DominionRodRestorationFlag { get; }
+
+    public ObservableCollection<QuestBitFlagViewModel> CurrentDungeonItems { get; }
+
+    public ObservableCollection<string> QuestSpecialEditorDiagnostics { get; }
+
     public ObservableCollection<HiddenSkillViewModel> HiddenSkillsEditorRows { get; }
 
     public ObservableCollection<string> HiddenSkillsEditorDiagnostics { get; }
@@ -462,6 +528,22 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     public ObservableCollection<HiddenSkillsLiveWatchRowViewModel> HiddenSkillsLiveWatchRows { get; }
 
     public ObservableCollection<HiddenSkillsEventMarkerViewModel> HiddenSkillsEventMarkers { get; }
+
+    public ObservableCollection<LiveCaptureChangeViewModel> LiveCaptureChanges { get; }
+
+    public ObservableCollection<LiveCaptureCandidateViewModel> LiveCaptureCandidates { get; }
+
+    public ObservableCollection<string> LiveCaptureTimelineLines { get; }
+
+    public ObservableCollection<string> LiveCaptureStatisticsLines { get; }
+
+    public ObservableCollection<QuestItemsResearchRowViewModel> ResearchWorkspaceSnapshotRows { get; }
+
+    public ObservableCollection<QuestItemsCandidateRowViewModel> ResearchWorkspaceSnapshotCandidates { get; }
+
+    public ObservableCollection<ResearchReportViewModel> ResearchReports { get; }
+
+    public ObservableCollection<string> ResearchLogViewerLines { get; }
 
     public ObservableCollection<EquipmentSlotViewModel> EquipmentSlots { get; }
 
@@ -1315,6 +1397,24 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             QuestItemsResearchStatusText.Text = $"Quest Items CSV export failed: {ex.Message}";
             SetStatus("Quest Items CSV export failed.", StatusKind.Warning);
         }
+    }
+
+    private void QuestItemsRangePreset_Click(object sender, RoutedEventArgs e)
+    {
+        if ((sender as FrameworkElement)?.Tag is not string preset)
+        {
+            return;
+        }
+
+        var parts = preset.Split('|');
+        if (parts.Length != 2)
+        {
+            return;
+        }
+
+        QuestItemsResearchStartOffsetText.Text = parts[0];
+        QuestItemsResearchLengthText.Text = parts[1];
+        QuestItemsResearchStatusText.Text = $"Loaded Quest Items range preset {parts[0]} length {parts[1]}.";
     }
 
     private void HiddenSkillsCaptureBefore_Click(object sender, RoutedEventArgs e)
@@ -2776,6 +2876,32 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         RefreshBombSlots(showStatus: true);
     }
 
+    private void RefreshQuestSpecialEditors_Click(object sender, RoutedEventArgs e)
+    {
+        RefreshQuestSpecialEditors(showStatus: true);
+    }
+
+    private void ApplyQuestSpecialSlot_Click(object sender, RoutedEventArgs e)
+    {
+        if ((sender as FrameworkElement)?.Tag is QuestSpecialSlotViewModel slot)
+        {
+            WriteQuestSpecialSlotWithVerification(slot);
+        }
+    }
+
+    private void ApplyDominionRodRestoration_Click(object sender, RoutedEventArgs e)
+    {
+        WriteQuestBitFlagWithVerification(
+            DominionRodRestorationFlag,
+            "dominion-rod-restoration",
+            "Dominion Rod restoration updated.");
+    }
+
+    private void ApplyCurrentDungeonItems_Click(object sender, RoutedEventArgs e)
+    {
+        WriteCurrentDungeonItemsWithVerification();
+    }
+
     private async void ApplyBombSlotChanges_Click(object sender, RoutedEventArgs e)
     {
         if (!CanWriteBombSlots())
@@ -3135,6 +3261,506 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             verified ? "verified" : "restore-readback-mismatch");
     }
 
+    private void LiveCaptureStart_Click(object sender, RoutedEventArgs e)
+    {
+        if (_liveCaptureTimer.IsEnabled)
+        {
+            LiveCaptureStatusText.Text = "Live Capture is already running.";
+            return;
+        }
+
+        if (!TryParseResearchOffset(LiveCaptureStartOffsetText.Text, out var startOffset, out var offsetError))
+        {
+            LiveCaptureStatusText.Text = offsetError;
+            SetStatus("Invalid Live Capture start offset.", StatusKind.Warning);
+            return;
+        }
+
+        if (!TryParseResearchLength(LiveCaptureLengthText.Text, out var length, out var lengthError))
+        {
+            LiveCaptureStatusText.Text = lengthError;
+            SetStatus("Invalid Live Capture length.", StatusKind.Warning);
+            return;
+        }
+
+        if (!TryParseResearchLength(LiveCaptureSamplingRateText.Text, out var samplingRateMs, out var samplingError))
+        {
+            LiveCaptureStatusText.Text = samplingError;
+            SetStatus("Invalid Live Capture sampling rate.", StatusKind.Warning);
+            return;
+        }
+
+        samplingRateMs = Math.Clamp(samplingRateMs, 50, 5000);
+        if (!TryReadPlayerbaseRange(startOffset, length, out var bytes, out var readError))
+        {
+            LiveCaptureStatusText.Text = readError;
+            SetStatus("Live Capture could not read the selected range.", StatusKind.Warning);
+            return;
+        }
+
+        _liveCaptureStartOffset = startOffset;
+        _liveCaptureLength = bytes.Length;
+        _liveCaptureSamplingRateMs = samplingRateMs;
+        _liveCaptureLabel = LiveCaptureLabelText.Text.Trim();
+        _liveCaptureStartedAt = DateTimeOffset.Now;
+        _liveCaptureBaselineBytes = bytes;
+        _liveCapturePreviousBytes = bytes.ToArray();
+        _liveCaptureTrackedAddresses.Clear();
+        LiveCaptureChanges.Clear();
+        LiveCaptureCandidates.Clear();
+        LiveCaptureTimelineLines.Clear();
+        UpdateLiveCaptureStatistics();
+
+        _liveCaptureTimer.Interval = TimeSpan.FromMilliseconds(samplingRateMs);
+        _liveCaptureTimer.Start();
+        LiveCaptureStatusText.Text =
+            $"Live Capture started at _playerbase+0x{startOffset:X}, length 0x{bytes.Length:X}, every {samplingRateMs}ms.";
+        AppendLiveCaptureLog(
+            $"action=start label=\"{_liveCaptureLabel}\" start=0x{startOffset:X} length=0x{bytes.Length:X} sampling-ms={samplingRateMs}");
+        SetStatus("Live Capture started.", StatusKind.Working);
+    }
+
+    private void LiveCaptureStop_Click(object sender, RoutedEventArgs e)
+    {
+        StopLiveCapture("Live Capture stopped.");
+    }
+
+    private void LiveCaptureClear_Click(object sender, RoutedEventArgs e)
+    {
+        StopLiveCapture("Live Capture cleared.");
+        _liveCaptureBaselineBytes = null;
+        _liveCapturePreviousBytes = null;
+        _liveCaptureTrackedAddresses.Clear();
+        LiveCaptureChanges.Clear();
+        LiveCaptureCandidates.Clear();
+        LiveCaptureTimelineLines.Clear();
+        LiveCaptureStatisticsLines.Clear();
+        LiveCaptureStatusText.Text = "Live Capture session cleared.";
+        AppendLiveCaptureLog("action=clear-session");
+        SetStatus("Live Capture session cleared.", StatusKind.Neutral);
+    }
+
+    private void LiveCaptureCheckPersistence_Click(object sender, RoutedEventArgs e)
+    {
+        if (_liveCaptureBaselineBytes is null || _liveCaptureTrackedAddresses.Count == 0)
+        {
+            LiveCaptureStatusText.Text = "Start a Live Capture session and collect changes before checking persistence.";
+            SetStatus("No Live Capture changes to check.", StatusKind.Neutral);
+            return;
+        }
+
+        if (!TryReadPlayerbaseRange(_liveCaptureStartOffset, _liveCaptureLength, out var currentBytes, out var readError))
+        {
+            StopLiveCapture($"Live Capture persistence check stopped: {readError}");
+            return;
+        }
+
+        foreach (var tracked in _liveCaptureTrackedAddresses.Values)
+        {
+            var index = (int)(tracked.OffsetValue - _liveCaptureStartOffset);
+            if (index < 0 || index >= currentBytes.Length || index >= _liveCaptureBaselineBytes.Length)
+            {
+                tracked.PersistedStatus = "Unknown";
+                continue;
+            }
+
+            tracked.CurrentValue = currentBytes[index];
+            tracked.PersistedStatus = currentBytes[index] == tracked.InitialValue
+                ? "Reverted"
+                : "Persisted";
+            tracked.LastSeen = DateTimeOffset.Now;
+        }
+
+        _liveCapturePreviousBytes = currentBytes;
+        RefreshLiveCaptureViews();
+        LiveCaptureStatusText.Text = "Persistence checked against current memory. Persisted means the byte remains changed from baseline.";
+        AppendLiveCaptureLog($"action=check-persistence tracked={_liveCaptureTrackedAddresses.Count}");
+        SetStatus("Live Capture persistence checked.", StatusKind.Connected);
+    }
+
+    private void LiveCaptureExport_Click(object sender, RoutedEventArgs e)
+    {
+        try
+        {
+            Directory.CreateDirectory(ResearchSnapshotStore.ExportDirectory);
+            var timestamp = DateTimeOffset.Now;
+            var safeLabel = string.IsNullOrWhiteSpace(_liveCaptureLabel)
+                ? "session"
+                : SanitizeFileName(_liveCaptureLabel);
+            var path = Path.Combine(
+                ResearchSnapshotStore.ExportDirectory,
+                $"live-capture-session_{timestamp:yyyyMMdd_HHmmss}_{safeLabel}.json");
+            var export = CreateLiveCaptureSessionExport(timestamp);
+            File.WriteAllText(path, JsonSerializer.Serialize(export, ExportJsonOptions));
+            LiveCaptureStatusText.Text = $"Exported Live Capture session: {Path.GetFileName(path)}.";
+            AppendLiveCaptureLog($"action=export path=\"{path}\" tracked={_liveCaptureTrackedAddresses.Count}");
+            RefreshResearchReports();
+            SetStatus("Live Capture session exported.", StatusKind.Connected);
+        }
+        catch (Exception ex)
+        {
+            LiveCaptureStatusText.Text = $"Live Capture export failed: {ex.Message}";
+            SetStatus("Live Capture export failed.", StatusKind.Warning);
+        }
+    }
+
+    private void LiveCaptureFilter_Changed(object sender, RoutedEventArgs e)
+    {
+        if (!IsLoaded)
+        {
+            return;
+        }
+
+        RefreshLiveCaptureViews();
+    }
+
+    private void ResearchWorkspaceCaptureA_Click(object sender, RoutedEventArgs e)
+    {
+        if (!TryReadResearchWorkspaceSnapshotRange(out var startOffset, out var bytes, out var error))
+        {
+            ResearchWorkspaceSnapshotStatusText.Text = error;
+            SetStatus("Snapshot Diff Capture A failed.", StatusKind.Warning);
+            return;
+        }
+
+        _researchWorkspaceSnapshotStart = startOffset;
+        _researchWorkspaceSnapshotABytes = bytes;
+        _researchWorkspaceSnapshotACapturedAt = DateTimeOffset.Now;
+        _lastResearchWorkspaceSnapshotExport = null;
+        ResearchWorkspaceSnapshotStatusText.Text =
+            $"Captured A at _playerbase+0x{startOffset:X}, length 0x{bytes.Length:X}.";
+        AppendLiveCaptureLog($"action=snapshot-capture-a start=0x{startOffset:X} length=0x{bytes.Length:X}");
+        SetStatus("Research Snapshot A captured.", StatusKind.Connected);
+    }
+
+    private void ResearchWorkspaceCaptureB_Click(object sender, RoutedEventArgs e)
+    {
+        if (!TryReadResearchWorkspaceSnapshotRange(out var startOffset, out var bytes, out var error))
+        {
+            ResearchWorkspaceSnapshotStatusText.Text = error;
+            SetStatus("Snapshot Diff Capture B failed.", StatusKind.Warning);
+            return;
+        }
+
+        _researchWorkspaceSnapshotStart = startOffset;
+        _researchWorkspaceSnapshotBBytes = bytes;
+        _researchWorkspaceSnapshotBCapturedAt = DateTimeOffset.Now;
+        _lastResearchWorkspaceSnapshotExport = null;
+        ResearchWorkspaceSnapshotStatusText.Text =
+            $"Captured B at _playerbase+0x{startOffset:X}, length 0x{bytes.Length:X}.";
+        AppendLiveCaptureLog($"action=snapshot-capture-b start=0x{startOffset:X} length=0x{bytes.Length:X}");
+        SetStatus("Research Snapshot B captured.", StatusKind.Connected);
+    }
+
+    private void ResearchWorkspaceCompareSnapshots_Click(object sender, RoutedEventArgs e)
+    {
+        if (_researchWorkspaceSnapshotABytes is null || _researchWorkspaceSnapshotBBytes is null)
+        {
+            ResearchWorkspaceSnapshotStatusText.Text = "Capture A and Capture B before comparing.";
+            SetStatus("Capture both research snapshots before comparing.", StatusKind.Neutral);
+            return;
+        }
+
+        if (_researchWorkspaceSnapshotABytes.Length != _researchWorkspaceSnapshotBBytes.Length)
+        {
+            ResearchWorkspaceSnapshotStatusText.Text = "Snapshot ranges do not match. Capture A and B with the same start and length.";
+            SetStatus("Research snapshot ranges do not match.", StatusKind.Warning);
+            return;
+        }
+
+        var rows = new List<QuestItemsResearchRowViewModel>();
+        for (var index = 0; index < _researchWorkspaceSnapshotABytes.Length; index++)
+        {
+            var beforeValue = _researchWorkspaceSnapshotABytes[index];
+            var afterValue = _researchWorkspaceSnapshotBBytes[index];
+            if (beforeValue == afterValue)
+            {
+                continue;
+            }
+
+            rows.Add(new QuestItemsResearchRowViewModel(
+                _researchWorkspaceSnapshotStart + (uint)index,
+                beforeValue,
+                afterValue));
+        }
+
+        AssignQuestItemsCandidateGroups(rows);
+        ResearchWorkspaceSnapshotRows.Clear();
+        foreach (var row in rows)
+        {
+            ResearchWorkspaceSnapshotRows.Add(row);
+        }
+
+        ResearchWorkspaceSnapshotCandidates.Clear();
+        foreach (var row in rows.OrderByDescending(row => row.CandidateScore))
+        {
+            var analysis = ScoreQuestItemsCandidate(row, persisted: false);
+            ResearchWorkspaceSnapshotCandidates.Add(new QuestItemsCandidateRowViewModel(
+                row.OffsetValue,
+                row.BeforeValue,
+                row.AfterValue,
+                row.ChangedBits,
+                row.ChangedBitCount,
+                row.IsChanged,
+                row.IsSingleBitChange,
+                isPersisted: false,
+                row.CandidateGroup != "-",
+                analysis.Score,
+                GetQuestItemsConfidence(analysis.Score),
+                row.CandidateGroup,
+                string.Join("; ", analysis.Reasons)));
+        }
+
+        _lastResearchWorkspaceSnapshotExport = CreateResearchWorkspaceSnapshotExport();
+        ResearchWorkspaceSnapshotStatusText.Text =
+            $"Compared snapshots. Changed bytes: {ResearchWorkspaceSnapshotRows.Count}.";
+        AppendLiveCaptureLog(
+            $"action=snapshot-compare start=0x{_researchWorkspaceSnapshotStart:X} length=0x{_researchWorkspaceSnapshotABytes.Length:X} changed={ResearchWorkspaceSnapshotRows.Count}");
+        SetStatus("Research snapshots compared.", StatusKind.Connected);
+    }
+
+    private void ResearchWorkspaceExportJson_Click(object sender, RoutedEventArgs e)
+    {
+        ExportResearchWorkspaceSnapshot(json: true);
+    }
+
+    private void ResearchWorkspaceExportCsv_Click(object sender, RoutedEventArgs e)
+    {
+        ExportResearchWorkspaceSnapshot(json: false);
+    }
+
+    private void ResearchCandidatePreset_Click(object sender, RoutedEventArgs e)
+    {
+        if ((sender as FrameworkElement)?.Tag is not string offset)
+        {
+            return;
+        }
+
+        ResearchCandidateOffsetText.Text = offset;
+        ResearchCandidateStatusText.Text = $"Loaded candidate preset {offset}.";
+    }
+
+    private void ResearchCandidateReadCurrent_Click(object sender, RoutedEventArgs e)
+    {
+        if (!TryReadResearchCandidateByte(out var offset, out var value, out var absoluteAddress, out var error))
+        {
+            ResearchCandidateStatusText.Text = error;
+            SetStatus("Candidate read failed.", StatusKind.Warning);
+            return;
+        }
+
+        _researchCandidatePreviousOffset = offset;
+        _researchCandidatePreviousValue = value;
+        ResearchCandidateAbsoluteAddressText.Text = $"0x{absoluteAddress:X}";
+        ResearchCandidateCurrentByteText.Text = FormatResearchByte(value);
+        ResearchCandidatePreviousByteText.Text = FormatResearchByte(value);
+        ResearchCandidateStatusText.Text = $"Read _playerbase+0x{offset:X}: {FormatResearchByte(value)}. Restore baseline captured.";
+        AppendCandidateTestingLog("research-read", offset, absoluteAddress, null, null, value, "read-current");
+        SetStatus("Research candidate byte read.", StatusKind.Connected);
+    }
+
+    private void ResearchCandidateWriteValue_Click(object sender, RoutedEventArgs e)
+    {
+        if (!TryReadResearchCandidateByte(out var offset, out var previousValue, out var absoluteAddress, out var readError))
+        {
+            ResearchCandidateStatusText.Text = readError;
+            SetStatus("Candidate write pre-read failed.", StatusKind.Warning);
+            return;
+        }
+
+        if (!TryParseCandidateValue(ResearchCandidateValueText.Text, out var requestedValue, out var parseError))
+        {
+            ResearchCandidateStatusText.Text = parseError;
+            SetStatus(parseError, StatusKind.Warning);
+            return;
+        }
+
+        var memory = _memory;
+        if (memory is null)
+        {
+            ResearchCandidateStatusText.Text = "Not attached.";
+            SetStatus("Attach to Cemu and rescan before writing candidate bytes.", StatusKind.Neutral);
+            return;
+        }
+
+        _researchCandidatePreviousOffset = offset;
+        _researchCandidatePreviousValue = previousValue;
+        ResearchCandidatePreviousByteText.Text = FormatResearchByte(previousValue);
+        if (!memory.TryWriteBytes(absoluteAddress, [requestedValue], out var writeError))
+        {
+            ResearchCandidateStatusText.Text = $"Write failed: {writeError}";
+            AppendCandidateTestingLog("research-write", offset, absoluteAddress, previousValue, requestedValue, null, $"write-failed: {writeError}");
+            SetStatus("Research candidate write failed.", StatusKind.Warning);
+            return;
+        }
+
+        if (!TryReadCandidateByteAt(offset, absoluteAddress, out var readbackValue, out var verifyError))
+        {
+            ResearchCandidateStatusText.Text = $"Write issued, but verification failed: {verifyError}";
+            AppendCandidateTestingLog("research-write", offset, absoluteAddress, previousValue, requestedValue, null, $"verify-failed: {verifyError}");
+            SetStatus("Research candidate verification failed.", StatusKind.Warning);
+            return;
+        }
+
+        ResearchCandidateCurrentByteText.Text = FormatResearchByte(readbackValue);
+        var verified = readbackValue == requestedValue;
+        ResearchCandidateStatusText.Text = verified
+            ? $"Write verified at _playerbase+0x{offset:X}: {FormatResearchByte(readbackValue)}."
+            : $"Write failed: expected {FormatResearchByte(requestedValue)} but read {FormatResearchByte(readbackValue)}.";
+        AppendCandidateTestingLog(
+            "research-write",
+            offset,
+            absoluteAddress,
+            previousValue,
+            requestedValue,
+            readbackValue,
+            verified ? "verified" : "readback-mismatch");
+        SetStatus(
+            verified ? "Research candidate write verified." : "Research candidate write mismatch.",
+            verified ? StatusKind.Connected : StatusKind.Warning);
+    }
+
+    private void ResearchCandidateRestorePrevious_Click(object sender, RoutedEventArgs e)
+    {
+        if (!_researchCandidatePreviousOffset.HasValue || !_researchCandidatePreviousValue.HasValue)
+        {
+            ResearchCandidateStatusText.Text = "No previous value captured. Click Read or Write first.";
+            SetStatus("No research candidate baseline captured.", StatusKind.Neutral);
+            return;
+        }
+
+        var memory = _memory;
+        if (memory is null || !_playerBaseAddress.HasValue)
+        {
+            ResearchCandidateStatusText.Text = "Not attached.";
+            SetStatus("Attach to Cemu and rescan before restoring candidate bytes.", StatusKind.Neutral);
+            return;
+        }
+
+        var offset = _researchCandidatePreviousOffset.Value;
+        var previousValue = _researchCandidatePreviousValue.Value;
+        var absoluteAddress = _playerBaseAddress.Value + offset;
+        if (!memory.TryWriteBytes(absoluteAddress, [previousValue], out var writeError))
+        {
+            ResearchCandidateStatusText.Text = $"Restore failed: {writeError}";
+            AppendCandidateTestingLog("research-restore", offset, absoluteAddress, previousValue, previousValue, null, $"restore-failed: {writeError}");
+            SetStatus("Research candidate restore failed.", StatusKind.Warning);
+            return;
+        }
+
+        if (!TryReadCandidateByteAt(offset, absoluteAddress, out var readbackValue, out var readbackError))
+        {
+            ResearchCandidateStatusText.Text = $"Restore issued, but verification failed: {readbackError}";
+            AppendCandidateTestingLog("research-restore", offset, absoluteAddress, previousValue, previousValue, null, $"restore-verify-failed: {readbackError}");
+            SetStatus("Research candidate restore verification failed.", StatusKind.Warning);
+            return;
+        }
+
+        ResearchCandidateOffsetText.Text = $"0x{offset:X}";
+        ResearchCandidateCurrentByteText.Text = FormatResearchByte(readbackValue);
+        var verified = readbackValue == previousValue;
+        ResearchCandidateStatusText.Text = verified
+            ? $"Restored _playerbase+0x{offset:X} to {FormatResearchByte(readbackValue)}."
+            : $"Restore mismatch: expected {FormatResearchByte(previousValue)} but read {FormatResearchByte(readbackValue)}.";
+        AppendCandidateTestingLog(
+            "research-restore",
+            offset,
+            absoluteAddress,
+            previousValue,
+            previousValue,
+            readbackValue,
+            verified ? "verified" : "restore-mismatch");
+        SetStatus(
+            verified ? "Research candidate previous value restored." : "Research candidate restore mismatch.",
+            verified ? StatusKind.Connected : StatusKind.Warning);
+    }
+
+    private void RefreshResearchReports_Click(object sender, RoutedEventArgs e)
+    {
+        RefreshResearchReports();
+    }
+
+    private void ResearchReportFilter_Changed(object sender, TextChangedEventArgs e)
+    {
+        if (IsLoaded)
+        {
+            RefreshResearchReports();
+        }
+    }
+
+    private void OpenResearchReport_Click(object sender, RoutedEventArgs e)
+    {
+        if ((sender as FrameworkElement)?.Tag is not ResearchReportViewModel report)
+        {
+            return;
+        }
+
+        OpenPath(report.Path, ResearchReportsStatusText);
+    }
+
+    private void ExportResearchReport_Click(object sender, RoutedEventArgs e)
+    {
+        if ((sender as FrameworkElement)?.Tag is not ResearchReportViewModel report)
+        {
+            return;
+        }
+
+        var dialog = new SaveFileDialog
+        {
+            FileName = report.FileName,
+            Filter = "All files (*.*)|*.*"
+        };
+        if (dialog.ShowDialog(this) != true)
+        {
+            return;
+        }
+
+        try
+        {
+            File.Copy(report.Path, dialog.FileName, overwrite: true);
+            ResearchReportsStatusText.Text = $"Exported {report.FileName}.";
+            SetStatus("Research report exported.", StatusKind.Connected);
+        }
+        catch (Exception ex)
+        {
+            ResearchReportsStatusText.Text = $"Export failed: {ex.Message}";
+            SetStatus("Research report export failed.", StatusKind.Warning);
+        }
+    }
+
+    private void OpenResearchReportsFolder_Click(object sender, RoutedEventArgs e)
+    {
+        Directory.CreateDirectory(ResearchSnapshotStore.ExportDirectory);
+        OpenPath(ResearchSnapshotStore.ExportDirectory, ResearchReportsStatusText);
+    }
+
+    private void ResearchLogCategory_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (IsLoaded)
+        {
+            RefreshResearchLogViewer();
+        }
+    }
+
+    private void RefreshResearchLogs_Click(object sender, RoutedEventArgs e)
+    {
+        RefreshResearchLogViewer();
+    }
+
+    private void ClearResearchLogs_Click(object sender, RoutedEventArgs e)
+    {
+        ResearchLogViewerLines.Clear();
+        ResearchLogStatusText.Text = "Cleared displayed log output. Log files were not deleted.";
+        SetStatus("Research log display cleared.", StatusKind.Neutral);
+    }
+
+    private void OpenResearchLogsFolder_Click(object sender, RoutedEventArgs e)
+    {
+        var logsDirectory = Path.Combine(AppContext.BaseDirectory, "logs");
+        Directory.CreateDirectory(logsDirectory);
+        OpenPath(logsDirectory, ResearchLogStatusText);
+    }
+
     private void ResearchPresetInventorySlots_Click(object sender, RoutedEventArgs e)
     {
         SetResearchRangeInputs("0x258", "0x18", "Inventory Slots");
@@ -3460,6 +4086,8 @@ public partial class MainWindow : Window, INotifyPropertyChanged
                 return;
             }
 
+            RefreshQuestSpecialEditors(showStatus: false);
+
             if (!_equipmentDiagnosticInProgress && !RefreshEquipment(showStatus: false))
             {
                 return;
@@ -3770,6 +4398,673 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         }
 
         return true;
+    }
+
+    private bool RefreshQuestSpecialEditors(bool showStatus)
+    {
+        if (_memory is null || !_playerBaseAddress.HasValue)
+        {
+            MarkQuestSpecialEditorsNotRead();
+            if (showStatus)
+            {
+                QuestSpecialEditorStatusText.Text = "Not attached. Attach to Cemu and rescan before refreshing Quest / Special values.";
+                SetStatus("Not attached. Attach to Cemu and rescan before refreshing Quest / Special values.", StatusKind.Neutral);
+            }
+
+            return false;
+        }
+
+        var readFailed = false;
+        foreach (var slot in QuestSpecialSlots)
+        {
+            if (!InventoryMemoryService.TryReadByte(
+                    _memory,
+                    _playerBaseAddress.Value,
+                    slot.OffsetValue,
+                    slot.Name,
+                    out var value,
+                    out var error))
+            {
+                slot.MarkNotRead();
+                slot.LastVerificationResult = "Read failed";
+                AppendQuestSpecialEditorDiagnostic(
+                    "refresh-slot-failed",
+                    slot.Name,
+                    slot.OffsetValue,
+                    _playerBaseAddress.Value + slot.OffsetValue,
+                    null,
+                    null,
+                    null,
+                    error);
+                readFailed = true;
+                continue;
+            }
+
+            slot.SetCurrentValue(value);
+            slot.CanEdit = HasPlayerData;
+            slot.LastVerificationResult = "Read current value";
+        }
+
+        if (!RefreshQuestBitFlag(DominionRodRestorationFlag))
+        {
+            readFailed = true;
+        }
+
+        if (!RefreshCurrentDungeonItems())
+        {
+            readFailed = true;
+        }
+
+        if (showStatus)
+        {
+            QuestSpecialEditorStatusText.Text = readFailed
+                ? "Some Quest / Special values could not be read. Load into gameplay and rescan if values stay unavailable."
+                : "Quest / Special values refreshed.";
+            SetStatus(QuestSpecialEditorStatusText.Text, readFailed ? StatusKind.Warning : StatusKind.Connected);
+        }
+
+        return !readFailed;
+    }
+
+    private bool RefreshQuestBitFlag(QuestBitFlagViewModel flag)
+    {
+        if (_memory is null || !_playerBaseAddress.HasValue)
+        {
+            flag.MarkNotRead();
+            return false;
+        }
+
+        if (!InventoryMemoryService.TryReadByte(
+                _memory,
+                _playerBaseAddress.Value,
+                flag.OffsetValue,
+                flag.Name,
+                out var backingValue,
+                out var error))
+        {
+            flag.MarkNotRead();
+            flag.LastVerificationResult = "Read failed";
+            AppendQuestSpecialEditorDiagnostic(
+                "refresh-flag-failed",
+                flag.Name,
+                flag.OffsetValue,
+                _playerBaseAddress.Value + flag.OffsetValue,
+                null,
+                null,
+                null,
+                error);
+            return false;
+        }
+
+        flag.SetDetected(IsBitSet(backingValue, flag.Bit), preserveDirty: true);
+        flag.CanEdit = HasPlayerData;
+        flag.LastVerificationResult = "Read current value";
+        return true;
+    }
+
+    private bool RefreshCurrentDungeonItems()
+    {
+        if (_memory is null || !_playerBaseAddress.HasValue)
+        {
+            foreach (var flag in CurrentDungeonItems)
+            {
+                flag.MarkNotRead();
+            }
+
+            return false;
+        }
+
+        if (!InventoryMemoryService.TryReadByte(
+                _memory,
+                _playerBaseAddress.Value,
+                QuestSpecialDefinitions.CurrentDungeonItemsOffset,
+                "Current Dungeon Items",
+                out var backingValue,
+                out var error))
+        {
+            foreach (var flag in CurrentDungeonItems)
+            {
+                flag.MarkNotRead();
+                flag.LastVerificationResult = "Read failed";
+            }
+
+            AppendQuestSpecialEditorDiagnostic(
+                "refresh-current-dungeon-items-failed",
+                "Current Dungeon Items",
+                QuestSpecialDefinitions.CurrentDungeonItemsOffset,
+                _playerBaseAddress.Value + QuestSpecialDefinitions.CurrentDungeonItemsOffset,
+                null,
+                null,
+                null,
+                error);
+            return false;
+        }
+
+        foreach (var flag in CurrentDungeonItems)
+        {
+            flag.SetDetected(IsBitSet(backingValue, flag.Bit), preserveDirty: true);
+            flag.CanEdit = HasPlayerData;
+            flag.LastVerificationResult = "Read current value";
+        }
+
+        return true;
+    }
+
+    private void MarkQuestSpecialEditorsNotRead()
+    {
+        foreach (var slot in QuestSpecialSlots)
+        {
+            slot.MarkNotRead();
+        }
+
+        DominionRodRestorationFlag.MarkNotRead();
+        foreach (var flag in CurrentDungeonItems)
+        {
+            flag.MarkNotRead();
+        }
+
+        if (IsLoaded)
+        {
+            QuestSpecialEditorStatusText.Text = "Attach to Cemu and rescan to read confirmed Quest / Special values.";
+        }
+    }
+
+    private bool WriteQuestSpecialSlotWithVerification(QuestSpecialSlotViewModel slot)
+    {
+        if (_memory is null || !_playerBaseAddress.HasValue)
+        {
+            QuestSpecialEditorStatusText.Text = "Not attached. Attach to Cemu and rescan before editing Quest / Special values.";
+            SetStatus(QuestSpecialEditorStatusText.Text, StatusKind.Neutral);
+            return false;
+        }
+
+        var absoluteAddress = _playerBaseAddress.Value + slot.OffsetValue;
+        byte? beforeValue = null;
+        byte? readbackValue = null;
+        var desiredValue = slot.SelectedOption.Value;
+        var status = "started";
+
+        try
+        {
+            if (slot.Definition.Id == QuestSpecialDefinitions.SkyBookSlotId &&
+                desiredValue == QuestSpecialDefinitions.AncientSkyBookValue)
+            {
+                if (!InventoryMemoryService.TryReadByte(
+                        _memory,
+                        _playerBaseAddress.Value,
+                        QuestSpecialDefinitions.OoccooSlotOffset,
+                        "Ooccoo",
+                        out var ooccooValue,
+                        out var ooccooReadError))
+                {
+                    status = $"warning-sky-book-validation-read-failed: {ooccooReadError}";
+                    slot.LastWriteResult = "Blocked by validation";
+                    slot.LastVerificationResult = "Could not verify that the Ooccoo slot is empty";
+                    QuestSpecialEditorStatusText.Text =
+                        "Could not verify the Ooccoo slot is empty. Ancient Sky Book write blocked.";
+                    SetStatus(QuestSpecialEditorStatusText.Text, StatusKind.Warning);
+                    return false;
+                }
+
+                if (ooccooValue != InventoryDefinitions.EmptyItemId)
+                {
+                    status = $"warning-sky-book-validation-blocked-ooccoo-slot=0x{ooccooValue:X2}";
+                    slot.LastWriteResult = "Blocked by validation";
+                    slot.LastVerificationResult = "Ancient Sky Book requires the Ooccoo slot to be empty.";
+                    QuestSpecialEditorStatusText.Text =
+                        "Ancient Sky Book requires the Ooccoo slot to be empty.";
+                    SetStatus(QuestSpecialEditorStatusText.Text, StatusKind.Warning);
+                    return false;
+                }
+            }
+
+            if (!InventoryMemoryService.TryReadByte(
+                    _memory,
+                    _playerBaseAddress.Value,
+                    slot.OffsetValue,
+                    slot.Name,
+                    out var currentValue,
+                    out var readError))
+            {
+                status = "before-read-failed";
+                slot.LastWriteResult = "Read failed";
+                slot.LastVerificationResult = "Could not read current value before writing";
+                QuestSpecialEditorStatusText.Text = $"Could not read {slot.Name}. Load into gameplay and rescan.";
+                SetStatus(QuestSpecialEditorStatusText.Text, StatusKind.Warning);
+                AppendQuestSpecialEditorDiagnostic(
+                    "slot-write-failed-before-read",
+                    slot.Name,
+                    slot.OffsetValue,
+                    absoluteAddress,
+                    null,
+                    desiredValue,
+                    null,
+                    readError);
+                return false;
+            }
+
+            beforeValue = currentValue;
+            if (!_memory.TryWriteBytes(absoluteAddress, [desiredValue], out var writeError))
+            {
+                status = "write-failed";
+                slot.LastWriteResult = $"Write failed at _playerbase+0x{slot.OffsetValue:X} for 0x{desiredValue:X2}";
+                slot.LastVerificationResult = "Write did not complete";
+                QuestSpecialEditorStatusText.Text =
+                    $"{slot.Name} write failed at _playerbase+0x{slot.OffsetValue:X} for value 0x{desiredValue:X2}.";
+                SetStatus(QuestSpecialEditorStatusText.Text, StatusKind.Warning);
+                AppendQuestSpecialEditorDiagnostic(
+                    "slot-write-failed",
+                    slot.Name,
+                    slot.OffsetValue,
+                    absoluteAddress,
+                    beforeValue,
+                    desiredValue,
+                    null,
+                    writeError);
+                return false;
+            }
+
+            if (!InventoryMemoryService.TryReadByte(
+                    _memory,
+                    _playerBaseAddress.Value,
+                    slot.OffsetValue,
+                    slot.Name,
+                    out var readback,
+                    out var verifyError))
+            {
+                status = "immediate-readback-failed";
+                slot.LastWriteResult = $"Wrote _playerbase+0x{slot.OffsetValue:X} = 0x{desiredValue:X2}";
+                slot.LastVerificationResult = $"Immediate readback failed at _playerbase+0x{slot.OffsetValue:X}";
+                QuestSpecialEditorStatusText.Text =
+                    $"{slot.Name} wrote _playerbase+0x{slot.OffsetValue:X} = 0x{desiredValue:X2}, but verification failed.";
+                SetStatus(QuestSpecialEditorStatusText.Text, StatusKind.Warning);
+                AppendQuestSpecialEditorDiagnostic(
+                    "slot-write-immediate-readback-failed",
+                    slot.Name,
+                    slot.OffsetValue,
+                    absoluteAddress,
+                    beforeValue,
+                    desiredValue,
+                    null,
+                    verifyError);
+                return false;
+            }
+
+            readbackValue = readback;
+            slot.SetCurrentValue(readback);
+            slot.LastWriteResult = $"Wrote _playerbase+0x{slot.OffsetValue:X} = 0x{desiredValue:X2}";
+            if (readback != desiredValue)
+            {
+                status = "immediate-mismatch";
+                slot.LastVerificationResult =
+                    $"Expected 0x{desiredValue:X2}; read 0x{readback:X2} at _playerbase+0x{slot.OffsetValue:X}";
+                QuestSpecialEditorStatusText.Text =
+                    $"{slot.Name} verification failed at _playerbase+0x{slot.OffsetValue:X}: expected 0x{desiredValue:X2}, read 0x{readback:X2}.";
+                SetStatus(QuestSpecialEditorStatusText.Text, StatusKind.Warning);
+                return false;
+            }
+
+            status = "verified";
+            slot.LastVerificationResult =
+                $"Verified _playerbase+0x{slot.OffsetValue:X} = 0x{readback:X2}";
+            QuestSpecialEditorStatusText.Text =
+                $"{slot.Name} set to {slot.SelectedOption.Name}. Verified _playerbase+0x{slot.OffsetValue:X} = 0x{readback:X2}.";
+            SetStatus(QuestSpecialEditorStatusText.Text, StatusKind.Connected);
+            return true;
+        }
+        finally
+        {
+            AppendQuestSpecialEditorDiagnostic(
+                "slot-write",
+                slot.Name,
+                slot.OffsetValue,
+                absoluteAddress,
+                beforeValue,
+                desiredValue,
+                readbackValue,
+                status);
+        }
+    }
+
+    private bool WriteQuestBitFlagWithVerification(
+        QuestBitFlagViewModel flag,
+        string action,
+        string successMessage)
+    {
+        if (_memory is null || !_playerBaseAddress.HasValue)
+        {
+            QuestSpecialEditorStatusText.Text = "Not attached. Attach to Cemu and rescan before editing Quest / Special values.";
+            SetStatus(QuestSpecialEditorStatusText.Text, StatusKind.Neutral);
+            return false;
+        }
+
+        var absoluteAddress = _playerBaseAddress.Value + flag.OffsetValue;
+        var mask = (byte)(1 << flag.Bit);
+        byte? beforeValue = null;
+        byte? desiredValue = null;
+        byte? readbackValue = null;
+        var status = "started";
+
+        try
+        {
+            if (!InventoryMemoryService.TryReadByte(
+                    _memory,
+                    _playerBaseAddress.Value,
+                    flag.OffsetValue,
+                    flag.Name,
+                    out var currentValue,
+                    out var readError))
+            {
+                status = "before-read-failed";
+                flag.LastWriteResult = "Read failed";
+                flag.LastVerificationResult = "Could not read current value before writing";
+                QuestSpecialEditorStatusText.Text = $"Could not read {flag.Name}. Load into gameplay and rescan.";
+                SetStatus(QuestSpecialEditorStatusText.Text, StatusKind.Warning);
+                AppendQuestSpecialEditorDiagnostic(
+                    $"{action}-failed-before-read",
+                    flag.Name,
+                    flag.OffsetValue,
+                    absoluteAddress,
+                    null,
+                    null,
+                    null,
+                    readError);
+                return false;
+            }
+
+            beforeValue = currentValue;
+            var desiredState = flag.IsSetDesired;
+            var nextValue = desiredState
+                ? (byte)(currentValue | mask)
+                : (byte)(currentValue & ~mask);
+            desiredValue = nextValue;
+
+            if (currentValue == nextValue)
+            {
+                flag.SetDetected(IsBitSet(currentValue, flag.Bit), preserveDirty: false);
+                flag.CanEdit = HasPlayerData;
+                flag.LastWriteResult = "No change";
+                flag.LastVerificationResult =
+                    $"Already matched at _playerbase+0x{flag.OffsetValue:X} = 0x{currentValue:X2}";
+                QuestSpecialEditorStatusText.Text =
+                    $"{flag.Name} already matched the desired state at _playerbase+0x{flag.OffsetValue:X} = 0x{currentValue:X2}.";
+                SetStatus(QuestSpecialEditorStatusText.Text, StatusKind.Neutral);
+                status = "no-change";
+                readbackValue = currentValue;
+                return true;
+            }
+
+            if (!_memory.TryWriteBytes(absoluteAddress, [nextValue], out var writeError))
+            {
+                status = "write-failed";
+                flag.LastWriteResult = $"Write failed at _playerbase+0x{flag.OffsetValue:X} for 0x{nextValue:X2}";
+                flag.LastVerificationResult = "Write did not complete";
+                QuestSpecialEditorStatusText.Text =
+                    $"{flag.Name} write failed at _playerbase+0x{flag.OffsetValue:X} for value 0x{nextValue:X2}.";
+                SetStatus(QuestSpecialEditorStatusText.Text, StatusKind.Warning);
+                AppendQuestSpecialEditorDiagnostic(
+                    $"{action}-write-failed",
+                    flag.Name,
+                    flag.OffsetValue,
+                    absoluteAddress,
+                    beforeValue,
+                    desiredValue,
+                    null,
+                    writeError);
+                return false;
+            }
+
+            if (!InventoryMemoryService.TryReadByte(
+                    _memory,
+                    _playerBaseAddress.Value,
+                    flag.OffsetValue,
+                    flag.Name,
+                    out var readback,
+                    out var verifyError))
+            {
+                status = "immediate-readback-failed";
+                flag.LastWriteResult = $"Wrote _playerbase+0x{flag.OffsetValue:X} = 0x{nextValue:X2}";
+                flag.LastVerificationResult = $"Immediate readback failed at _playerbase+0x{flag.OffsetValue:X}";
+                QuestSpecialEditorStatusText.Text =
+                    $"{flag.Name} wrote _playerbase+0x{flag.OffsetValue:X} = 0x{nextValue:X2}, but verification failed.";
+                SetStatus(QuestSpecialEditorStatusText.Text, StatusKind.Warning);
+                AppendQuestSpecialEditorDiagnostic(
+                    $"{action}-immediate-readback-failed",
+                    flag.Name,
+                    flag.OffsetValue,
+                    absoluteAddress,
+                    beforeValue,
+                    desiredValue,
+                    null,
+                    verifyError);
+                return false;
+            }
+
+            readbackValue = readback;
+            flag.SetDetected(IsBitSet(readback, flag.Bit), preserveDirty: false);
+            flag.CanEdit = HasPlayerData;
+            flag.LastWriteResult = $"Wrote _playerbase+0x{flag.OffsetValue:X} = 0x{nextValue:X2}";
+
+            var matchesDesiredBit = DoesFlagMatch(readback, mask, desiredState);
+            var preservedUnrelatedBits = (readback & ~mask) == (currentValue & ~mask);
+            if (!matchesDesiredBit)
+            {
+                status = "immediate-mismatch";
+                flag.LastVerificationResult =
+                    $"Expected target bit {(desiredState ? "set" : "clear")}; read 0x{readback:X2} at _playerbase+0x{flag.OffsetValue:X}";
+                QuestSpecialEditorStatusText.Text =
+                    $"{flag.Name} verification failed at _playerbase+0x{flag.OffsetValue:X}: wrote 0x{nextValue:X2}, read 0x{readback:X2}.";
+                SetStatus(QuestSpecialEditorStatusText.Text, StatusKind.Warning);
+                return false;
+            }
+
+            status = preservedUnrelatedBits ? "verified" : "verified-unrelated-bits-changed";
+            flag.LastVerificationResult = preservedUnrelatedBits
+                ? $"Verified _playerbase+0x{flag.OffsetValue:X} = 0x{readback:X2}; unrelated bits preserved"
+                : $"Verified target bit at _playerbase+0x{flag.OffsetValue:X} = 0x{readback:X2}; another bit changed";
+            QuestSpecialEditorStatusText.Text =
+                $"{successMessage} Verified _playerbase+0x{flag.OffsetValue:X} = 0x{readback:X2}.";
+            SetStatus(QuestSpecialEditorStatusText.Text, preservedUnrelatedBits ? StatusKind.Connected : StatusKind.Warning);
+            return preservedUnrelatedBits;
+        }
+        finally
+        {
+            AppendQuestSpecialEditorDiagnostic(
+                action,
+                flag.Name,
+                flag.OffsetValue,
+                absoluteAddress,
+                beforeValue,
+                desiredValue,
+                readbackValue,
+                status);
+        }
+    }
+
+    private bool WriteCurrentDungeonItemsWithVerification()
+    {
+        if (_memory is null || !_playerBaseAddress.HasValue)
+        {
+            QuestSpecialEditorStatusText.Text = "Not attached. Attach to Cemu and rescan before editing Current Dungeon Items.";
+            SetStatus(QuestSpecialEditorStatusText.Text, StatusKind.Neutral);
+            return false;
+        }
+
+        if (CurrentDungeonItems.Any(flag => !flag.IsSetDetected.HasValue))
+        {
+            QuestSpecialEditorStatusText.Text = "Refresh Current Dungeon Items before applying changes.";
+            SetStatus(QuestSpecialEditorStatusText.Text, StatusKind.Neutral);
+            return false;
+        }
+
+        const byte editableMask = 0x07;
+        var offset = QuestSpecialDefinitions.CurrentDungeonItemsOffset;
+        var absoluteAddress = _playerBaseAddress.Value + offset;
+        byte? beforeValue = null;
+        byte? desiredValue = null;
+        byte? readbackValue = null;
+        var status = "started";
+
+        try
+        {
+            if (!InventoryMemoryService.TryReadByte(
+                    _memory,
+                    _playerBaseAddress.Value,
+                    offset,
+                    "Current Dungeon Items",
+                    out var currentValue,
+                    out var readError))
+            {
+                status = "before-read-failed";
+                foreach (var flag in CurrentDungeonItems)
+                {
+                    flag.LastWriteResult = "Read failed";
+                    flag.LastVerificationResult = "Could not read current value before writing";
+                }
+
+                QuestSpecialEditorStatusText.Text = "Could not read Current Dungeon Items. Load into gameplay and rescan.";
+                SetStatus(QuestSpecialEditorStatusText.Text, StatusKind.Warning);
+                AppendQuestSpecialEditorDiagnostic(
+                    "current-dungeon-items-failed-before-read",
+                    "Current Dungeon Items",
+                    offset,
+                    absoluteAddress,
+                    null,
+                    null,
+                    null,
+                    readError);
+                return false;
+            }
+
+            beforeValue = currentValue;
+            var desiredLowBits = CurrentDungeonItems.Aggregate((byte)0, (value, flag) =>
+            {
+                var mask = (byte)(1 << flag.Bit);
+                return flag.IsSetDesired ? (byte)(value | mask) : value;
+            });
+            var nextValue = (byte)((currentValue & ~editableMask) | (desiredLowBits & editableMask));
+            desiredValue = nextValue;
+
+            if (currentValue == nextValue)
+            {
+                foreach (var flag in CurrentDungeonItems)
+                {
+                    flag.SetDetected(IsBitSet(currentValue, flag.Bit), preserveDirty: false);
+                    flag.CanEdit = HasPlayerData;
+                    flag.LastWriteResult = "No change";
+                    flag.LastVerificationResult =
+                        $"Already matched at _playerbase+0x{offset:X} = 0x{currentValue:X2}";
+                }
+
+                QuestSpecialEditorStatusText.Text =
+                    $"Current Dungeon Items already matched the desired state at _playerbase+0x{offset:X} = 0x{currentValue:X2}.";
+                SetStatus(QuestSpecialEditorStatusText.Text, StatusKind.Neutral);
+                status = "no-change";
+                readbackValue = currentValue;
+                return true;
+            }
+
+            if (!_memory.TryWriteBytes(absoluteAddress, [nextValue], out var writeError))
+            {
+                status = "write-failed";
+                foreach (var flag in CurrentDungeonItems)
+                {
+                    flag.LastWriteResult = $"Write failed at _playerbase+0x{offset:X} for 0x{nextValue:X2}";
+                    flag.LastVerificationResult = "Write did not complete";
+                }
+
+                QuestSpecialEditorStatusText.Text =
+                    $"Current Dungeon Items write failed at _playerbase+0x{offset:X} for value 0x{nextValue:X2}.";
+                SetStatus(QuestSpecialEditorStatusText.Text, StatusKind.Warning);
+                AppendQuestSpecialEditorDiagnostic(
+                    "current-dungeon-items-write-failed",
+                    "Current Dungeon Items",
+                    offset,
+                    absoluteAddress,
+                    beforeValue,
+                    desiredValue,
+                    null,
+                    writeError);
+                return false;
+            }
+
+            if (!InventoryMemoryService.TryReadByte(
+                    _memory,
+                    _playerBaseAddress.Value,
+                    offset,
+                    "Current Dungeon Items",
+                    out var readback,
+                    out var verifyError))
+            {
+                status = "immediate-readback-failed";
+                foreach (var flag in CurrentDungeonItems)
+                {
+                    flag.LastWriteResult = $"Wrote _playerbase+0x{offset:X} = 0x{nextValue:X2}";
+                    flag.LastVerificationResult = $"Immediate readback failed at _playerbase+0x{offset:X}";
+                }
+
+                QuestSpecialEditorStatusText.Text =
+                    $"Current Dungeon Items wrote _playerbase+0x{offset:X} = 0x{nextValue:X2}, but verification failed.";
+                SetStatus(QuestSpecialEditorStatusText.Text, StatusKind.Warning);
+                AppendQuestSpecialEditorDiagnostic(
+                    "current-dungeon-items-immediate-readback-failed",
+                    "Current Dungeon Items",
+                    offset,
+                    absoluteAddress,
+                    beforeValue,
+                    desiredValue,
+                    null,
+                    verifyError);
+                return false;
+            }
+
+            readbackValue = readback;
+            foreach (var flag in CurrentDungeonItems)
+            {
+                flag.SetDetected(IsBitSet(readback, flag.Bit), preserveDirty: false);
+                flag.CanEdit = HasPlayerData;
+                flag.LastWriteResult = $"Wrote _playerbase+0x{offset:X} = 0x{nextValue:X2}";
+            }
+
+            var editableBitsMatch = (readback & editableMask) == (nextValue & editableMask);
+            var preservedUnrelatedBits = (readback & ~editableMask) == (currentValue & ~editableMask);
+            foreach (var flag in CurrentDungeonItems)
+            {
+                flag.LastVerificationResult = editableBitsMatch
+                    ? preservedUnrelatedBits
+                        ? $"Verified _playerbase+0x{offset:X} = 0x{readback:X2}; bits 3-7 preserved"
+                        : $"Verified bits 0-2 at _playerbase+0x{offset:X} = 0x{readback:X2}; another bit changed"
+                    : $"Expected 0x{nextValue:X2}; read 0x{readback:X2} at _playerbase+0x{offset:X}";
+            }
+
+            if (!editableBitsMatch)
+            {
+                status = "immediate-mismatch";
+                QuestSpecialEditorStatusText.Text =
+                    $"Current Dungeon Items verification failed at _playerbase+0x{offset:X}: wrote 0x{nextValue:X2}, read 0x{readback:X2}.";
+                SetStatus(QuestSpecialEditorStatusText.Text, StatusKind.Warning);
+                return false;
+            }
+
+            status = preservedUnrelatedBits ? "verified" : "verified-unrelated-bits-changed";
+            QuestSpecialEditorStatusText.Text = preservedUnrelatedBits
+                ? $"Current Dungeon Items updated. Verified _playerbase+0x{offset:X} = 0x{readback:X2}; bits 3-7 preserved."
+                : $"Current Dungeon Items target bits updated at _playerbase+0x{offset:X} = 0x{readback:X2}, but another bit changed.";
+            SetStatus(QuestSpecialEditorStatusText.Text, preservedUnrelatedBits ? StatusKind.Connected : StatusKind.Warning);
+            return preservedUnrelatedBits;
+        }
+        finally
+        {
+            AppendQuestSpecialEditorDiagnostic(
+                "current-dungeon-items-write",
+                "Current Dungeon Items",
+                offset,
+                absoluteAddress,
+                beforeValue,
+                desiredValue,
+                readbackValue,
+                status);
+        }
     }
 
     private bool RefreshInventoryOwnership(IReadOnlyList<byte> rawBytes, bool preserveDirty)
@@ -5433,6 +6728,44 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         }
     }
 
+    private void AppendQuestSpecialEditorDiagnostic(
+        string action,
+        string name,
+        uint offset,
+        ulong absoluteAddress,
+        byte? beforeValue,
+        byte? requestedValue,
+        byte? readbackValue,
+        string status)
+    {
+        var entry =
+            $"{DateTimeOffset.Now:O} action={action} name=\"{name}\" offset=0x{offset:X} " +
+            $"address=0x{absoluteAddress:X} before={FormatEquipmentByte(beforeValue)} " +
+            $"requested={FormatEquipmentByte(requestedValue)} readback={FormatEquipmentByte(readbackValue)} " +
+            $"status=\"{status}\"";
+
+        QuestSpecialEditorDiagnostics.Insert(0, entry);
+        while (QuestSpecialEditorDiagnostics.Count > 100)
+        {
+            QuestSpecialEditorDiagnostics.RemoveAt(QuestSpecialEditorDiagnostics.Count - 1);
+        }
+
+        try
+        {
+            var logDirectory = Path.GetDirectoryName(QuestSpecialEditorLogPath);
+            if (!string.IsNullOrWhiteSpace(logDirectory))
+            {
+                Directory.CreateDirectory(logDirectory);
+            }
+
+            File.AppendAllText(QuestSpecialEditorLogPath, entry + Environment.NewLine);
+        }
+        catch (Exception ex)
+        {
+            QuestSpecialEditorDiagnostics.Insert(0, $"{DateTimeOffset.Now:O} quest-special-editor-log-write-failed: {ex.Message}");
+        }
+    }
+
     private void AppendInventoryStateDiagnostic(string state)
     {
         var rawSlots = string.Join(
@@ -6164,10 +7497,28 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         }
 
         UpdateHiddenSkillsEditorRows(bytes, preserveDirty);
+        var hasInconsistentFlags = HasInconsistentHiddenSkillFlags();
+        HiddenSkillsInconsistentWarningText.Visibility = hasInconsistentFlags
+            ? Visibility.Visible
+            : Visibility.Collapsed;
+        if (hasInconsistentFlags)
+        {
+            HiddenSkillsEditorStatusText.Text = "Save contains inconsistent Hidden Skill flags.";
+            SetStatus("Save contains inconsistent Hidden Skill flags.", StatusKind.Warning);
+        }
+
         if (showStatus)
         {
-            HiddenSkillsEditorStatusText.Text = "Hidden Skills refreshed.";
-            SetStatus("Hidden Skills refreshed.", StatusKind.Connected);
+            if (hasInconsistentFlags)
+            {
+                HiddenSkillsEditorStatusText.Text =
+                    "Save contains inconsistent Hidden Skill flags. No fixes were written; press Apply to normalize desired dependencies.";
+            }
+            else
+            {
+                HiddenSkillsEditorStatusText.Text = "Hidden Skills refreshed.";
+                SetStatus("Hidden Skills refreshed.", StatusKind.Connected);
+            }
         }
 
         return true;
@@ -9817,6 +11168,808 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         }
     }
 
+    private async void LiveCaptureTimer_Tick(object? sender, EventArgs e)
+    {
+        if (_liveCaptureTickInProgress)
+        {
+            return;
+        }
+
+        if (_liveCapturePreviousBytes is null || _liveCaptureBaselineBytes is null)
+        {
+            StopLiveCapture("Live Capture stopped because no baseline is available.");
+            return;
+        }
+
+        var memory = _memory;
+        var playerBaseAddress = _playerBaseAddress;
+        if (memory is null || !playerBaseAddress.HasValue)
+        {
+            StopLiveCapture("Live Capture stopped because Cemu/player data is unavailable.");
+            return;
+        }
+
+        _liveCaptureTickInProgress = true;
+        try
+        {
+            var startOffset = _liveCaptureStartOffset;
+            var length = _liveCaptureLength;
+            var absoluteAddress = playerBaseAddress.Value + startOffset;
+            var result = await Task.Run(() =>
+            {
+                if (!memory.TryReadBytes(absoluteAddress, length, out var readBytes, out var bytesRead) ||
+                    bytesRead != length)
+                {
+                    return new MemoryRangeReadResult(false, [], $"Could not read _playerbase+0x{startOffset:X}/0x{length:X}.");
+                }
+
+                return new MemoryRangeReadResult(true, readBytes, string.Empty);
+            });
+
+            if (!result.Success)
+            {
+                StopLiveCapture($"Live Capture stopped: {result.Error}");
+                return;
+            }
+
+            ProcessLiveCaptureSample(result.Bytes, DateTimeOffset.Now);
+        }
+        finally
+        {
+            _liveCaptureTickInProgress = false;
+        }
+    }
+
+    private void ProcessLiveCaptureSample(byte[] currentBytes, DateTimeOffset timestamp)
+    {
+        if (_liveCapturePreviousBytes is null || _liveCaptureBaselineBytes is null)
+        {
+            StopLiveCapture("Live Capture stopped because no baseline is available.");
+            return;
+        }
+
+        var changedCount = 0;
+        var length = Math.Min(currentBytes.Length, _liveCapturePreviousBytes.Length);
+        for (var index = 0; index < length; index++)
+        {
+            var previousValue = _liveCapturePreviousBytes[index];
+            var currentValue = currentBytes[index];
+            if (previousValue == currentValue)
+            {
+                continue;
+            }
+
+            var offset = _liveCaptureStartOffset + (uint)index;
+            if (!_liveCaptureTrackedAddresses.TryGetValue(offset, out var tracked))
+            {
+                var initialValue = index < _liveCaptureBaselineBytes.Length
+                    ? _liveCaptureBaselineBytes[index]
+                    : previousValue;
+                tracked = new LiveCaptureTrackedAddress(offset, initialValue, previousValue, currentValue, timestamp);
+                _liveCaptureTrackedAddresses[offset] = tracked;
+            }
+            else
+            {
+                tracked.RecordChange(previousValue, currentValue, timestamp);
+            }
+
+            changedCount++;
+        }
+
+        _liveCapturePreviousBytes = currentBytes;
+        if (changedCount == 0)
+        {
+            return;
+        }
+
+        RefreshLiveCaptureViews();
+        LiveCaptureStatusText.Text =
+            $"Live Capture running. Recorded {changedCount} change(s) at {timestamp.ToLocalTime():HH:mm:ss.fff}.";
+        AppendLiveCaptureLog($"action=sample changed={changedCount} tracked={_liveCaptureTrackedAddresses.Count}");
+    }
+
+    private void StopLiveCapture(string message)
+    {
+        if (_liveCaptureTimer.IsEnabled)
+        {
+            _liveCaptureTimer.Stop();
+            AppendLiveCaptureLog($"action=stop message=\"{message}\"");
+        }
+
+        if (IsLoaded)
+        {
+            LiveCaptureStatusText.Text = message;
+        }
+    }
+
+    private bool TryReadPlayerbaseRange(uint startOffset, int length, out byte[] bytes, out string error)
+    {
+        bytes = [];
+        error = string.Empty;
+        var memory = _memory;
+        if (memory is null || !_playerBaseAddress.HasValue)
+        {
+            error = "Not attached. Attach to Cemu and rescan before reading memory.";
+            return false;
+        }
+
+        var absoluteAddress = _playerBaseAddress.Value + startOffset;
+        if (!memory.TryReadBytes(absoluteAddress, length, out var readBytes, out var bytesRead) ||
+            bytesRead != length)
+        {
+            error = $"Could not read _playerbase+0x{startOffset:X}/0x{length:X}.";
+            return false;
+        }
+
+        bytes = readBytes;
+        return true;
+    }
+
+    private void RefreshLiveCaptureViews()
+    {
+        var rows = _liveCaptureTrackedAddresses.Values
+            .Select(CreateLiveCaptureChangeRow)
+            .Where(PassesLiveCaptureFilters)
+            .OrderByDescending(row => row.LastSeen)
+            .ThenBy(row => row.OffsetValue)
+            .ToList();
+
+        LiveCaptureChanges.Clear();
+        foreach (var row in rows)
+        {
+            LiveCaptureChanges.Add(row);
+        }
+
+        LiveCaptureCandidates.Clear();
+        foreach (var row in rows
+                     .OrderByDescending(row => row.CandidateScore)
+                     .ThenBy(row => row.ChangeCount)
+                     .ThenBy(row => row.OffsetValue))
+        {
+            LiveCaptureCandidates.Add(new LiveCaptureCandidateViewModel(
+                row.OffsetValue,
+                row.CandidateScore,
+                row.Confidence,
+                row.Reasons,
+                row.CurrentValue,
+                row.ChangeCount,
+                row.PersistedStatus));
+        }
+
+        LiveCaptureTimelineLines.Clear();
+        foreach (var line in _liveCaptureTrackedAddresses.Values
+                     .SelectMany(address => address.Timeline.Select(point =>
+                         $"{point.Timestamp.ToLocalTime():HH:mm:ss.fff} 0x{address.OffsetValue:X}: 0x{point.PreviousValue:X2} -> 0x{point.CurrentValue:X2}"))
+                     .OrderByDescending(line => line)
+                     .Take(250)
+                     .Reverse())
+        {
+            LiveCaptureTimelineLines.Add(line);
+        }
+
+        UpdateLiveCaptureStatistics();
+    }
+
+    private LiveCaptureChangeViewModel CreateLiveCaptureChangeRow(LiveCaptureTrackedAddress tracked)
+    {
+        var score = ScoreLiveCaptureCandidate(tracked, out var confidence, out var reasons);
+        return new LiveCaptureChangeViewModel(
+            tracked.OffsetValue,
+            tracked.InitialValue,
+            tracked.PreviousValue,
+            tracked.CurrentValue,
+            tracked.ChangeCount,
+            tracked.FirstSeen,
+            tracked.LastSeen,
+            tracked.PersistedStatus,
+            score,
+            confidence,
+            string.Join("; ", reasons));
+    }
+
+    private bool PassesLiveCaptureFilters(LiveCaptureChangeViewModel row)
+    {
+        if (LiveCaptureHideFrequentCheckBox.IsChecked == true && row.ChangeCount > 5)
+        {
+            return false;
+        }
+
+        if (LiveCaptureSingleBitOnlyCheckBox.IsChecked == true && !row.IsSingleBitTransition)
+        {
+            return false;
+        }
+
+        if (LiveCapturePersistedOnlyCheckBox.IsChecked == true &&
+            !string.Equals(row.PersistedStatus, "Persisted", StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        if (LiveCaptureChangedOnceCheckBox.IsChecked == true && row.ChangeCount != 1)
+        {
+            return false;
+        }
+
+        if (LiveCaptureHideSceneNoiseCheckBox.IsChecked == true && IsKnownSceneNoise(row.OffsetValue))
+        {
+            return false;
+        }
+
+        if (int.TryParse(
+                LiveCaptureScoreThresholdText.Text.Trim(),
+                NumberStyles.Integer,
+                CultureInfo.InvariantCulture,
+                out var threshold) &&
+            row.CandidateScore < threshold)
+        {
+            return false;
+        }
+
+        return true;
+    }
+
+    private int ScoreLiveCaptureCandidate(
+        LiveCaptureTrackedAddress tracked,
+        out string confidence,
+        out List<string> reasons)
+    {
+        var score = 0;
+        reasons = [];
+        var changedBits = CountSetBits((byte)(tracked.PreviousValue ^ tracked.CurrentValue));
+        var regionHint = GetLiveCaptureRegionHint(tracked.OffsetValue);
+
+        if (tracked.ChangeCount == 1)
+        {
+            score += 30;
+            reasons.Add("Changed once");
+        }
+        else if (tracked.ChangeCount <= 5)
+        {
+            score += 8;
+            reasons.Add("Low change count");
+        }
+        else
+        {
+            score -= Math.Min(40, tracked.ChangeCount * 2);
+            reasons.Add("Frequently changing");
+        }
+
+        if (tracked.CurrentValue != tracked.InitialValue)
+        {
+            score += 25;
+            reasons.Add("Stayed changed from baseline");
+        }
+        else if (tracked.ChangeCount > 0)
+        {
+            score -= 20;
+            reasons.Add("Reverted to baseline");
+        }
+
+        if (changedBits == 1)
+        {
+            score += 20;
+            reasons.Add("Single-bit transition");
+        }
+        else if (changedBits is > 1 and <= 3)
+        {
+            score += 8;
+            reasons.Add("Small bit transition");
+        }
+        else if (changedBits >= 5)
+        {
+            score -= 12;
+            reasons.Add("Large noisy transition");
+        }
+
+        if (string.Equals(tracked.PersistedStatus, "Persisted", StringComparison.OrdinalIgnoreCase))
+        {
+            score += 30;
+            reasons.Add("Persisted after check");
+        }
+        else if (string.Equals(tracked.PersistedStatus, "Reverted", StringComparison.OrdinalIgnoreCase))
+        {
+            score -= 15;
+            reasons.Add("Reverted after check");
+        }
+
+        if (regionHint is not null)
+        {
+            if (string.Equals(regionHint.Category, "scene-noise", StringComparison.Ordinal))
+            {
+                score -= 30;
+                reasons.Add("Known scene/runtime noise region");
+            }
+            else
+            {
+                score += string.Equals(regionHint.Category, "hidden-skills", StringComparison.Ordinal) ? 15 : 12;
+                reasons.Add($"Near {regionHint.Description}");
+            }
+        }
+
+        score = Math.Clamp(score, 0, 100);
+        confidence = score >= 70 ? "High" : score >= 40 ? "Medium" : "Low";
+        if (reasons.Count == 0)
+        {
+            reasons.Add("Changed");
+        }
+
+        return score;
+    }
+
+    private void UpdateLiveCaptureStatistics()
+    {
+        LiveCaptureStatisticsLines.Clear();
+        LiveCaptureStatisticsLines.Add($"Tracked offsets: {_liveCaptureTrackedAddresses.Count}");
+        LiveCaptureStatisticsLines.Add($"Visible after filters: {LiveCaptureChanges.Count}");
+        LiveCaptureStatisticsLines.Add($"Range: _playerbase+0x{_liveCaptureStartOffset:X}/0x{_liveCaptureLength:X}");
+        LiveCaptureStatisticsLines.Add($"Sampling: {_liveCaptureSamplingRateMs}ms");
+        LiveCaptureStatisticsLines.Add($"Started: {(_liveCaptureStartedAt.HasValue ? _liveCaptureStartedAt.Value.ToLocalTime().ToString("g") : "not running")}");
+        LiveCaptureStatisticsLines.Add("Hints: 0x26A-0x26E, 0x3D1, 0x3D5-0x3D6, 0xFD1; 0x221-0x22D is filterable scene noise.");
+    }
+
+    private bool TryReadResearchWorkspaceSnapshotRange(out uint startOffset, out byte[] bytes, out string error)
+    {
+        bytes = [];
+        if (!TryParseResearchOffset(ResearchWorkspaceSnapshotStartOffsetText.Text, out startOffset, out error))
+        {
+            return false;
+        }
+
+        if (!TryParseResearchLength(ResearchWorkspaceSnapshotLengthText.Text, out var length, out error))
+        {
+            return false;
+        }
+
+        return TryReadPlayerbaseRange(startOffset, length, out bytes, out error);
+    }
+
+    private ResearchWorkspaceSnapshotExport CreateResearchWorkspaceSnapshotExport()
+    {
+        var changedBitCount = ResearchWorkspaceSnapshotRows.Sum(row => row.ChangedBitCount);
+        return new ResearchWorkspaceSnapshotExport(
+            DateTimeOffset.Now,
+            ResearchWorkspaceSnapshotLabelText.Text.Trim(),
+            _researchWorkspaceSnapshotStart,
+            _researchWorkspaceSnapshotABytes?.Length ?? 0,
+            _researchWorkspaceSnapshotACapturedAt,
+            _researchWorkspaceSnapshotBCapturedAt,
+            ResearchWorkspaceSnapshotRows.Count,
+            changedBitCount,
+            ResearchWorkspaceSnapshotRows.Select(row => new QuestItemsResearchExportRow(
+                row.Offset,
+                row.BeforeValue,
+                row.AfterValue,
+                row.BeforeBinary,
+                row.AfterBinary,
+                row.ChangedBits,
+                row.ChangedBitCount,
+                row.IsChanged,
+                row.CandidateScore,
+                row.CandidateGroup)).ToList());
+    }
+
+    private void ExportResearchWorkspaceSnapshot(bool json)
+    {
+        if (_lastResearchWorkspaceSnapshotExport is null)
+        {
+            ResearchWorkspaceSnapshotStatusText.Text = "Compare snapshots before exporting.";
+            SetStatus("Compare research snapshots before exporting.", StatusKind.Neutral);
+            return;
+        }
+
+        try
+        {
+            Directory.CreateDirectory(ResearchSnapshotStore.ExportDirectory);
+            var label = string.IsNullOrWhiteSpace(_lastResearchWorkspaceSnapshotExport.Label)
+                ? "snapshot-diff"
+                : SanitizeFileName(_lastResearchWorkspaceSnapshotExport.Label);
+            var extension = json ? ".json" : ".csv";
+            var path = Path.Combine(
+                ResearchSnapshotStore.ExportDirectory,
+                $"snapshot-diff_{_lastResearchWorkspaceSnapshotExport.Timestamp:yyyyMMdd_HHmmss}_{label}{extension}");
+            if (json)
+            {
+                File.WriteAllText(path, JsonSerializer.Serialize(_lastResearchWorkspaceSnapshotExport, ExportJsonOptions));
+            }
+            else
+            {
+                File.WriteAllLines(path, CreateResearchWorkspaceSnapshotCsvLines(_lastResearchWorkspaceSnapshotExport));
+            }
+
+            ResearchWorkspaceSnapshotStatusText.Text = $"Exported {Path.GetFileName(path)}.";
+            AppendLiveCaptureLog($"action=snapshot-export path=\"{path}\" rows={_lastResearchWorkspaceSnapshotExport.Rows.Count}");
+            RefreshResearchReports();
+            SetStatus("Research snapshot export complete.", StatusKind.Connected);
+        }
+        catch (Exception ex)
+        {
+            ResearchWorkspaceSnapshotStatusText.Text = $"Snapshot export failed: {ex.Message}";
+            SetStatus("Research snapshot export failed.", StatusKind.Warning);
+        }
+    }
+
+    private bool TryReadResearchCandidateByte(
+        out uint offset,
+        out byte value,
+        out ulong absoluteAddress,
+        out string error)
+    {
+        value = 0;
+        absoluteAddress = 0;
+        if (!TryParseResearchOffset(ResearchCandidateOffsetText.Text, out offset, out error))
+        {
+            return false;
+        }
+
+        if (_memory is null || !_playerBaseAddress.HasValue)
+        {
+            error = "Not attached. Attach to Cemu and rescan before testing candidate flags.";
+            return false;
+        }
+
+        absoluteAddress = _playerBaseAddress.Value + offset;
+        return TryReadCandidateByteAt(offset, absoluteAddress, out value, out error);
+    }
+
+    private void RefreshResearchReports()
+    {
+        var filter = IsLoaded ? ResearchReportFilterText.Text.Trim() : string.Empty;
+        var reports = EnumerateResearchReports(filter)
+            .OrderByDescending(report => report.Created)
+            .ToList();
+        ResearchReports.Clear();
+        foreach (var report in reports)
+        {
+            ResearchReports.Add(report);
+        }
+
+        if (IsLoaded)
+        {
+            ResearchReportsStatusText.Text = $"Showing {ResearchReports.Count} report(s).";
+        }
+    }
+
+    private IEnumerable<ResearchReportViewModel> EnumerateResearchReports(string filter)
+    {
+        var directories = new[]
+        {
+            ResearchSnapshotStore.ExportDirectory,
+            QuestSearchDirectory,
+            HiddenSkillsCaptureDirectory
+        };
+
+        var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var directory in directories.Where(Directory.Exists))
+        {
+            foreach (var path in Directory.EnumerateFiles(directory, "*.*", SearchOption.TopDirectoryOnly)
+                         .Where(path => path.EndsWith(".json", StringComparison.OrdinalIgnoreCase) ||
+                                        path.EndsWith(".csv", StringComparison.OrdinalIgnoreCase)))
+            {
+                if (!seen.Add(path))
+                {
+                    continue;
+                }
+
+                var fileName = Path.GetFileName(path);
+                if (!string.IsNullOrWhiteSpace(filter) &&
+                    !fileName.Contains(filter, StringComparison.OrdinalIgnoreCase))
+                {
+                    continue;
+                }
+
+                yield return CreateResearchReportViewModel(path);
+            }
+        }
+    }
+
+    private ResearchReportViewModel CreateResearchReportViewModel(string path)
+    {
+        var fileInfo = new FileInfo(path);
+        var type = InferResearchReportType(fileInfo.Name);
+        var captureA = "-";
+        var captureB = "-";
+        var changedBytes = "-";
+
+        if (string.Equals(fileInfo.Extension, ".json", StringComparison.OrdinalIgnoreCase))
+        {
+            try
+            {
+                using var document = JsonDocument.Parse(File.ReadAllText(path));
+                var root = document.RootElement;
+                captureA = TryReadJsonString(root, "CaptureALabel") ??
+                           TryReadJsonString(root, "CaptureA") ??
+                           TryReadJsonString(root, "Label") ??
+                           "-";
+                captureB = TryReadJsonString(root, "CaptureBLabel") ??
+                           TryReadJsonString(root, "CaptureB") ??
+                           "-";
+                changedBytes = TryReadJsonInt(root, "ChangedByteCount") ??
+                               TryReadJsonInt(root, "ChangedBytes") ??
+                               "-";
+            }
+            catch
+            {
+                // Report browser metadata is best-effort; malformed research files remain openable.
+            }
+        }
+
+        return new ResearchReportViewModel(
+            path,
+            fileInfo.Name,
+            type,
+            fileInfo.LastWriteTime,
+            captureA,
+            captureB,
+            changedBytes);
+    }
+
+    private static string InferResearchReportType(string fileName)
+    {
+        var lower = fileName.ToLowerInvariant();
+        if (lower.Contains("live-capture", StringComparison.Ordinal))
+        {
+            return "Live Capture";
+        }
+
+        if (lower.Contains("quest", StringComparison.Ordinal))
+        {
+            return "Quest";
+        }
+
+        if (lower.Contains("hidden-skills", StringComparison.Ordinal))
+        {
+            return "Hidden Skills";
+        }
+
+        if (lower.Contains("golden-bugs", StringComparison.Ordinal))
+        {
+            return "Golden Bugs";
+        }
+
+        return lower.EndsWith(".csv", StringComparison.Ordinal) ? "CSV" : "Research";
+    }
+
+    private static string? TryReadJsonString(JsonElement root, string propertyName)
+    {
+        if (!root.TryGetProperty(propertyName, out var element))
+        {
+            return null;
+        }
+
+        return element.ValueKind == JsonValueKind.String
+            ? element.GetString()
+            : element.ToString();
+    }
+
+    private static string? TryReadJsonInt(JsonElement root, string propertyName)
+    {
+        if (!root.TryGetProperty(propertyName, out var element))
+        {
+            return null;
+        }
+
+        return element.ValueKind == JsonValueKind.Number && element.TryGetInt32(out var value)
+            ? value.ToString(CultureInfo.InvariantCulture)
+            : element.ToString();
+    }
+
+    private void OpenPath(string path, TextBlock statusText)
+    {
+        try
+        {
+            Process.Start(new ProcessStartInfo
+            {
+                FileName = path,
+                UseShellExecute = true
+            });
+            statusText.Text = $"Opened {Path.GetFileName(path)}.";
+        }
+        catch (Exception ex)
+        {
+            statusText.Text = $"Open failed: {ex.Message}";
+            SetStatus("Open path failed.", StatusKind.Warning);
+        }
+    }
+
+    private void RefreshResearchLogViewer()
+    {
+        var category = GetResearchLogCategory();
+        var paths = GetResearchLogPaths(category).Where(File.Exists).ToList();
+        _researchLogViewerAllLines.Clear();
+        foreach (var path in paths)
+        {
+            foreach (var line in File.ReadLines(path).TakeLast(250))
+            {
+                _researchLogViewerAllLines.Add($"{Path.GetFileName(path)} | {line}");
+            }
+        }
+
+        ResearchLogViewerLines.Clear();
+        foreach (var line in _researchLogViewerAllLines.TakeLast(600))
+        {
+            ResearchLogViewerLines.Add(line);
+        }
+
+        ResearchLogStatusText.Text = paths.Count == 0
+            ? "No matching log files found yet."
+            : $"Loaded {ResearchLogViewerLines.Count} line(s) from {paths.Count} log file(s).";
+        ScrollResearchLogsToEnd();
+    }
+
+    private string GetResearchLogCategory()
+    {
+        return ResearchLogCategoryComboBox.SelectedItem is ComboBoxItem item &&
+               item.Content is string content
+            ? content
+            : "All";
+    }
+
+    private static IEnumerable<string> GetResearchLogPaths(string category)
+    {
+        var all = new Dictionary<string, string[]>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["Live Capture"] = [LiveCaptureLogPath],
+            ["Quest"] = [QuestItemsResearchLogPath, QuestSpecialEditorLogPath],
+            ["Hidden Skills"] = [HiddenSkillsResearchLogPath, HiddenSkillsLiveWatchLogPath, HiddenSkillsBitTestingLogPath],
+            ["Candidate"] = [CandidateTestingLogPath],
+            ["Scan"] = [ScanLogPath],
+            ["Inventory"] = [InventoryLogPath, InventoryOwnershipLogPath, InventoryRemovalLogPath, InventoryCheckboxTestingLogPath],
+            ["Equipment"] = [EquipmentLogPath],
+            ["Collectibles"] = [CollectiblesLogPath, GoldenBugsResearchLogPath, GoldenBugsEditorLogPath, GoldenBugsBitfieldTestingLogPath],
+            ["Bottles"] = [BottleEditorLogPath],
+            ["Bomb Slots"] = [BombSlotEditorLogPath],
+            ["Research"] = [ResearchLogPath]
+        };
+
+        if (!string.Equals(category, "All", StringComparison.OrdinalIgnoreCase) &&
+            all.TryGetValue(category, out var selected))
+        {
+            return selected;
+        }
+
+        return all.Values.SelectMany(paths => paths).Distinct(StringComparer.OrdinalIgnoreCase);
+    }
+
+    private void ScrollResearchLogsToEnd()
+    {
+        if (ResearchLogAutoScrollCheckBox.IsChecked == true)
+        {
+            ResearchLogsScrollViewer.ScrollToEnd();
+        }
+    }
+
+    private void AppendLiveCaptureLog(string details)
+    {
+        var entry = $"{DateTimeOffset.Now:O} {details}";
+        try
+        {
+            var logDirectory = Path.GetDirectoryName(LiveCaptureLogPath);
+            if (!string.IsNullOrWhiteSpace(logDirectory))
+            {
+                Directory.CreateDirectory(logDirectory);
+            }
+
+            File.AppendAllText(LiveCaptureLogPath, entry + Environment.NewLine);
+            if (IsLoaded && string.Equals(GetResearchLogCategory(), "Live Capture", StringComparison.OrdinalIgnoreCase))
+            {
+                ResearchLogViewerLines.Add($"{Path.GetFileName(LiveCaptureLogPath)} | {entry}");
+                ScrollResearchLogsToEnd();
+            }
+        }
+        catch (Exception ex)
+        {
+            if (IsLoaded)
+            {
+                LiveCaptureStatusText.Text = $"Live Capture log write failed: {ex.Message}";
+            }
+        }
+    }
+
+    private static KnownResearchRegionHint? GetLiveCaptureRegionHint(uint offset)
+    {
+        return LiveCaptureRegionHints.FirstOrDefault(hint => offset >= hint.StartOffset && offset <= hint.EndOffset);
+    }
+
+    private static bool IsKnownSceneNoise(uint offset)
+    {
+        var hint = GetLiveCaptureRegionHint(offset);
+        return hint is not null && string.Equals(hint.Category, "scene-noise", StringComparison.Ordinal);
+    }
+
+    private LiveCaptureSessionExport CreateLiveCaptureSessionExport(DateTimeOffset timestamp)
+    {
+        return new LiveCaptureSessionExport(
+            timestamp,
+            string.IsNullOrWhiteSpace(_liveCaptureLabel) ? "Live Capture Session" : _liveCaptureLabel,
+            _liveCaptureStartedAt,
+            _liveCaptureStartOffset,
+            _liveCaptureLength,
+            _liveCaptureSamplingRateMs,
+            _liveCaptureTrackedAddresses.Values
+                .OrderBy(address => address.OffsetValue)
+                .Select(address =>
+                {
+                    var score = ScoreLiveCaptureCandidate(address, out var confidence, out var reasons);
+                    return new LiveCaptureTrackedAddressExport(
+                        $"0x{address.OffsetValue:X}",
+                        address.InitialValue,
+                        address.PreviousValue,
+                        address.CurrentValue,
+                        address.ChangeCount,
+                        address.FirstSeen,
+                        address.LastSeen,
+                        address.PersistedStatus,
+                        score,
+                        confidence,
+                        reasons,
+                        address.Timeline.Select(point => new LiveCaptureTimelinePointExport(
+                            point.Timestamp,
+                            point.PreviousValue,
+                            point.CurrentValue)).ToList());
+                })
+                .ToList(),
+            GetLiveCaptureAppliedFilters(),
+            LiveCaptureRegionHints);
+    }
+
+    private IReadOnlyList<string> GetLiveCaptureAppliedFilters()
+    {
+        var filters = new List<string>();
+        if (LiveCaptureHideFrequentCheckBox.IsChecked == true)
+        {
+            filters.Add("Hide Frequently Changing");
+        }
+
+        if (LiveCaptureSingleBitOnlyCheckBox.IsChecked == true)
+        {
+            filters.Add("Show Single-Bit Only");
+        }
+
+        if (LiveCapturePersistedOnlyCheckBox.IsChecked == true)
+        {
+            filters.Add("Show Persisted Only");
+        }
+
+        if (LiveCaptureChangedOnceCheckBox.IsChecked == true)
+        {
+            filters.Add("Show Changed Once");
+        }
+
+        if (LiveCaptureHideSceneNoiseCheckBox.IsChecked == true)
+        {
+            filters.Add("Hide Known Scene Noise");
+        }
+
+        filters.Add($"Candidate Score >= {LiveCaptureScoreThresholdText.Text.Trim()}");
+        return filters;
+    }
+
+    private static IEnumerable<string> CreateResearchWorkspaceSnapshotCsvLines(ResearchWorkspaceSnapshotExport export)
+    {
+        yield return "Field,Value";
+        yield return string.Join(",", Csv("Label"), Csv(export.Label));
+        yield return string.Join(",", Csv("Start Offset"), Csv($"0x{export.StartOffset:X}"));
+        yield return string.Join(",", Csv("Length"), Csv($"0x{export.Length:X}"));
+        yield return string.Join(",", Csv("Changed Bytes"), Csv(export.ChangedByteCount.ToString(CultureInfo.InvariantCulture)));
+        yield return string.Join(",", Csv("Changed Bits"), Csv(export.ChangedBitCount.ToString(CultureInfo.InvariantCulture)));
+        yield return string.Empty;
+        yield return "Offset,Before Value,After Value,Before Binary,After Binary,Changed Bits,Changed Bit Count,Candidate Score,Candidate Group";
+        foreach (var row in export.Rows)
+        {
+            yield return string.Join(
+                ",",
+                Csv(row.Offset),
+                Csv($"0x{row.BeforeValue:X2}"),
+                Csv($"0x{row.AfterValue:X2}"),
+                Csv(row.BeforeBinary),
+                Csv(row.AfterBinary),
+                Csv(row.ChangedBits),
+                Csv(row.ChangedBitCount.ToString(CultureInfo.InvariantCulture)),
+                Csv(row.CandidateScore.ToString(CultureInfo.InvariantCulture)),
+                Csv(row.CandidateGroup));
+        }
+    }
+
     private HiddenSkillsLiveWatchExport CreateHiddenSkillsLiveWatchExport()
     {
         return new HiddenSkillsLiveWatchExport(
@@ -10777,6 +12930,26 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         UpdateHiddenSkillsByteDisplays(bytes);
     }
 
+    private bool HasInconsistentHiddenSkillFlags()
+    {
+        var seenMissingPrerequisite = false;
+        foreach (var skill in HiddenSkillsEditorRows)
+        {
+            if (skill.IsOwnedDetected != true)
+            {
+                seenMissingPrerequisite = true;
+                continue;
+            }
+
+            if (seenMissingPrerequisite)
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
     private void UpdateHiddenSkillsByteDisplays(IReadOnlyList<byte> bytes)
     {
         var byte3D5 = bytes.Count > 0 ? FormatHiddenSkillsByte(bytes[0]) : "Not read";
@@ -10807,6 +12980,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         HiddenSkillsByte3D6Text.Text = "Not read";
         HiddenSkillsDebugByte3D5Text.Text = "Not read";
         HiddenSkillsDebugByte3D6Text.Text = "Not read";
+        HiddenSkillsInconsistentWarningText.Visibility = Visibility.Collapsed;
         HiddenSkillsEditorStatusText.Text = "Attach to Cemu and rescan before editing Hidden Skills.";
     }
 
@@ -11045,6 +13219,8 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             bombSlot.MarkNotRead();
         }
 
+        MarkQuestSpecialEditorsNotRead();
+
         foreach (var item in InventoryOwnershipItems)
         {
             item.MarkNotRead();
@@ -11087,6 +13263,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     {
         _refreshTimer.Stop();
         StopHiddenSkillsLiveWatch("Stopped Hidden Skills live watch because the trainer detached.");
+        StopLiveCapture("Live Capture stopped because the trainer detached.");
         _memory?.Dispose();
         _memory = null;
         _playerBaseAddress = null;
@@ -11119,6 +13296,8 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         {
             bombSlot.MarkNotRead();
         }
+
+        MarkQuestSpecialEditorsNotRead();
 
         foreach (var item in InventoryOwnershipItems)
         {
@@ -11288,6 +13467,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     protected override void OnClosed(EventArgs e)
     {
         _hiddenSkillsLiveWatchTimer.Stop();
+        _liveCaptureTimer.Stop();
         Detach(clearStatus: false);
         base.OnClosed(e);
     }
@@ -11623,6 +13803,115 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         int CandidateScore,
         bool SingleBitRegion,
         string Highlights);
+
+    private sealed record MemoryRangeReadResult(
+        bool Success,
+        byte[] Bytes,
+        string Error);
+
+    private sealed record KnownResearchRegionHint(
+        uint StartOffset,
+        uint EndOffset,
+        string Category,
+        string Description);
+
+    private sealed class LiveCaptureTrackedAddress
+    {
+        public LiveCaptureTrackedAddress(
+            uint offsetValue,
+            byte initialValue,
+            byte previousValue,
+            byte currentValue,
+            DateTimeOffset timestamp)
+        {
+            OffsetValue = offsetValue;
+            InitialValue = initialValue;
+            PreviousValue = previousValue;
+            CurrentValue = currentValue;
+            FirstSeen = timestamp;
+            LastSeen = timestamp;
+            ChangeCount = 1;
+            Timeline.Add(new LiveCaptureTimelinePoint(timestamp, previousValue, currentValue));
+        }
+
+        public uint OffsetValue { get; }
+
+        public byte InitialValue { get; }
+
+        public byte PreviousValue { get; set; }
+
+        public byte CurrentValue { get; set; }
+
+        public int ChangeCount { get; private set; }
+
+        public DateTimeOffset FirstSeen { get; }
+
+        public DateTimeOffset LastSeen { get; set; }
+
+        public string PersistedStatus { get; set; } = "Unknown";
+
+        public List<LiveCaptureTimelinePoint> Timeline { get; } = [];
+
+        public void RecordChange(byte previousValue, byte currentValue, DateTimeOffset timestamp)
+        {
+            PreviousValue = previousValue;
+            CurrentValue = currentValue;
+            LastSeen = timestamp;
+            ChangeCount++;
+            PersistedStatus = "Unknown";
+            Timeline.Add(new LiveCaptureTimelinePoint(timestamp, previousValue, currentValue));
+            while (Timeline.Count > 24)
+            {
+                Timeline.RemoveAt(0);
+            }
+        }
+    }
+
+    private sealed record LiveCaptureTimelinePoint(
+        DateTimeOffset Timestamp,
+        byte PreviousValue,
+        byte CurrentValue);
+
+    private sealed record LiveCaptureSessionExport(
+        DateTimeOffset Timestamp,
+        string Label,
+        DateTimeOffset? StartedAt,
+        uint StartOffset,
+        int Length,
+        int SamplingRateMs,
+        IReadOnlyList<LiveCaptureTrackedAddressExport> TrackedAddresses,
+        IReadOnlyList<string> AppliedFilters,
+        IReadOnlyList<KnownResearchRegionHint> KnownRegionHints);
+
+    private sealed record LiveCaptureTrackedAddressExport(
+        string Offset,
+        byte InitialValue,
+        byte PreviousValue,
+        byte CurrentValue,
+        int ChangeCount,
+        DateTimeOffset FirstSeen,
+        DateTimeOffset LastSeen,
+        string PersistedStatus,
+        int CandidateScore,
+        string Confidence,
+        IReadOnlyList<string> Reasons,
+        IReadOnlyList<LiveCaptureTimelinePointExport> Timeline);
+
+    private sealed record LiveCaptureTimelinePointExport(
+        DateTimeOffset Timestamp,
+        byte PreviousValue,
+        byte CurrentValue);
+
+    private sealed record ResearchWorkspaceSnapshotExport(
+        DateTimeOffset Timestamp,
+        string Label,
+        uint StartOffset,
+        int Length,
+        DateTimeOffset? CaptureACapturedAt,
+        DateTimeOffset? CaptureBCapturedAt,
+        int ChangedByteCount,
+        int ChangedBitCount,
+        IReadOnlyList<QuestItemsResearchExportRow> Rows);
 
     private sealed record HiddenSkillsLiveWatchExport(
         DateTimeOffset Timestamp,

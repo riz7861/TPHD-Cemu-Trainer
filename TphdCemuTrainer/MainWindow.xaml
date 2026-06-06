@@ -123,6 +123,87 @@
             <Setter Property="Background" Value="{DynamicResource ControlBackgroundBrush}" />
             <Setter Property="Foreground" Value="{DynamicResource TextBrush}" />
             <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="{x:Type ComboBox}">
+                        <Grid SnapsToDevicePixels="True">
+                            <ToggleButton x:Name="ToggleButton"
+                                          Background="{TemplateBinding Background}"
+                                          BorderBrush="{TemplateBinding BorderBrush}"
+                                          Focusable="False"
+                                          IsChecked="{Binding IsDropDownOpen, Mode=TwoWay, RelativeSource={RelativeSource TemplatedParent}}"
+                                          ClickMode="Press">
+                                <ToggleButton.Template>
+                                    <ControlTemplate TargetType="{x:Type ToggleButton}">
+                                        <Border x:Name="ToggleButtonBorder"
+                                                Background="{TemplateBinding Background}"
+                                                BorderBrush="{TemplateBinding BorderBrush}"
+                                                BorderThickness="1">
+                                            <ContentPresenter />
+                                        </Border>
+                                    </ControlTemplate>
+                                </ToggleButton.Template>
+                                <Grid>
+                                    <ContentPresenter x:Name="ContentSite"
+                                                      IsHitTestVisible="False"
+                                                      Content="{TemplateBinding SelectionBoxItem}"
+                                                      ContentTemplate="{TemplateBinding SelectionBoxItemTemplate}"
+                                                      ContentStringFormat="{TemplateBinding SelectionBoxItemStringFormat}"
+                                                      Margin="6,2,28,2"
+                                                      VerticalAlignment="{TemplateBinding VerticalContentAlignment}"
+                                                      HorizontalAlignment="Stretch"
+                                                      TextElement.Foreground="{TemplateBinding Foreground}" />
+                                    <Path x:Name="Arrow"
+                                          Data="M 0 0 L 4 4 L 8 0 Z"
+                                          Width="8"
+                                          Height="4"
+                                          Stretch="Fill"
+                                          Fill="{DynamicResource TextBrush}"
+                                          HorizontalAlignment="Right"
+                                          VerticalAlignment="Center"
+                                          Margin="0,0,9,0" />
+                                </Grid>
+                            </ToggleButton>
+                            <Popup x:Name="PART_Popup"
+                                   AllowsTransparency="True"
+                                   Focusable="False"
+                                   IsOpen="{TemplateBinding IsDropDownOpen}"
+                                   Placement="Bottom"
+                                   PopupAnimation="Slide">
+                                <Border x:Name="DropDownBorder"
+                                        Background="{DynamicResource ControlBackgroundBrush}"
+                                        BorderBrush="{DynamicResource BorderBrush}"
+                                        BorderThickness="1"
+                                        MinWidth="{Binding ActualWidth, RelativeSource={RelativeSource TemplatedParent}}"
+                                        MaxHeight="{TemplateBinding MaxDropDownHeight}">
+                                    <ScrollViewer Margin="0"
+                                                  SnapsToDevicePixels="True"
+                                                  CanContentScroll="True">
+                                        <ItemsPresenter KeyboardNavigation.DirectionalNavigation="Contained" />
+                                    </ScrollViewer>
+                                </Border>
+                            </Popup>
+                        </Grid>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="ToggleButton" Property="Background" Value="{DynamicResource ControlHoverBackgroundBrush}" />
+                                <Setter TargetName="ToggleButton" Property="BorderBrush" Value="{DynamicResource ControlFocusedBorderBrush}" />
+                            </Trigger>
+                            <Trigger Property="IsKeyboardFocusWithin" Value="True">
+                                <Setter TargetName="ToggleButton" Property="BorderBrush" Value="{DynamicResource ControlFocusedBorderBrush}" />
+                            </Trigger>
+                            <Trigger Property="IsDropDownOpen" Value="True">
+                                <Setter TargetName="ToggleButton" Property="BorderBrush" Value="{DynamicResource ControlFocusedBorderBrush}" />
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter TargetName="ToggleButton" Property="Background" Value="{DynamicResource DisabledControlBackgroundBrush}" />
+                                <Setter TargetName="ToggleButton" Property="BorderBrush" Value="{DynamicResource BorderBrush}" />
+                                <Setter TargetName="Arrow" Property="Fill" Value="{DynamicResource DisabledTextBrush}" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
             <Setter Property="ItemContainerStyle">
                 <Setter.Value>
                     <Style TargetType="{x:Type ComboBoxItem}">
@@ -130,8 +211,45 @@
                         <Setter Property="Foreground" Value="{DynamicResource TextBrush}" />
                         <Setter Property="Padding" Value="6,3" />
                         <Setter Property="MinHeight" Value="24" />
+                        <Setter Property="Template">
+                            <Setter.Value>
+                                <ControlTemplate TargetType="{x:Type ComboBoxItem}">
+                                    <Border x:Name="ItemBorder"
+                                            Background="{TemplateBinding Background}"
+                                            BorderBrush="{DynamicResource BorderBrush}"
+                                            BorderThickness="0"
+                                            Padding="{TemplateBinding Padding}">
+                                        <ContentPresenter TextElement.Foreground="{TemplateBinding Foreground}"
+                                                          VerticalAlignment="Center"
+                                                          HorizontalAlignment="Stretch" />
+                                    </Border>
+                                    <ControlTemplate.Triggers>
+                                        <Trigger Property="IsHighlighted" Value="True">
+                                            <Setter TargetName="ItemBorder" Property="Background" Value="{DynamicResource ComboBoxItemHoverBackgroundBrush}" />
+                                            <Setter Property="Foreground" Value="{DynamicResource TextBrush}" />
+                                        </Trigger>
+                                        <Trigger Property="IsKeyboardFocusWithin" Value="True">
+                                            <Setter TargetName="ItemBorder" Property="Background" Value="{DynamicResource ComboBoxItemHoverBackgroundBrush}" />
+                                            <Setter Property="Foreground" Value="{DynamicResource TextBrush}" />
+                                        </Trigger>
+                                        <Trigger Property="IsSelected" Value="True">
+                                            <Setter TargetName="ItemBorder" Property="Background" Value="{DynamicResource ComboBoxItemSelectedBackgroundBrush}" />
+                                            <Setter Property="Foreground" Value="{DynamicResource TextBrush}" />
+                                        </Trigger>
+                                        <Trigger Property="IsEnabled" Value="False">
+                                            <Setter TargetName="ItemBorder" Property="Background" Value="{DynamicResource DisabledControlBackgroundBrush}" />
+                                            <Setter Property="Foreground" Value="{DynamicResource DisabledTextBrush}" />
+                                        </Trigger>
+                                    </ControlTemplate.Triggers>
+                                </ControlTemplate>
+                            </Setter.Value>
+                        </Setter>
                         <Style.Triggers>
                             <Trigger Property="IsHighlighted" Value="True">
+                                <Setter Property="Background" Value="{DynamicResource ComboBoxItemHoverBackgroundBrush}" />
+                                <Setter Property="Foreground" Value="{DynamicResource TextBrush}" />
+                            </Trigger>
+                            <Trigger Property="IsKeyboardFocusWithin" Value="True">
                                 <Setter Property="Background" Value="{DynamicResource ComboBoxItemHoverBackgroundBrush}" />
                                 <Setter Property="Foreground" Value="{DynamicResource TextBrush}" />
                             </Trigger>
@@ -166,8 +284,45 @@
             <Setter Property="Foreground" Value="{DynamicResource TextBrush}" />
             <Setter Property="Padding" Value="6,3" />
             <Setter Property="MinHeight" Value="24" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="{x:Type ComboBoxItem}">
+                        <Border x:Name="ItemBorder"
+                                Background="{TemplateBinding Background}"
+                                BorderBrush="{DynamicResource BorderBrush}"
+                                BorderThickness="0"
+                                Padding="{TemplateBinding Padding}">
+                            <ContentPresenter TextElement.Foreground="{TemplateBinding Foreground}"
+                                              VerticalAlignment="Center"
+                                              HorizontalAlignment="Stretch" />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsHighlighted" Value="True">
+                                <Setter TargetName="ItemBorder" Property="Background" Value="{DynamicResource ComboBoxItemHoverBackgroundBrush}" />
+                                <Setter Property="Foreground" Value="{DynamicResource TextBrush}" />
+                            </Trigger>
+                            <Trigger Property="IsKeyboardFocusWithin" Value="True">
+                                <Setter TargetName="ItemBorder" Property="Background" Value="{DynamicResource ComboBoxItemHoverBackgroundBrush}" />
+                                <Setter Property="Foreground" Value="{DynamicResource TextBrush}" />
+                            </Trigger>
+                            <Trigger Property="IsSelected" Value="True">
+                                <Setter TargetName="ItemBorder" Property="Background" Value="{DynamicResource ComboBoxItemSelectedBackgroundBrush}" />
+                                <Setter Property="Foreground" Value="{DynamicResource TextBrush}" />
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter TargetName="ItemBorder" Property="Background" Value="{DynamicResource DisabledControlBackgroundBrush}" />
+                                <Setter Property="Foreground" Value="{DynamicResource DisabledTextBrush}" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
             <Style.Triggers>
                 <Trigger Property="IsHighlighted" Value="True">
+                    <Setter Property="Background" Value="{DynamicResource ComboBoxItemHoverBackgroundBrush}" />
+                    <Setter Property="Foreground" Value="{DynamicResource TextBrush}" />
+                </Trigger>
+                <Trigger Property="IsKeyboardFocusWithin" Value="True">
                     <Setter Property="Background" Value="{DynamicResource ComboBoxItemHoverBackgroundBrush}" />
                     <Setter Property="Foreground" Value="{DynamicResource TextBrush}" />
                 </Trigger>
@@ -241,6 +396,45 @@
             <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}" />
             <Setter Property="RowBackground" Value="{DynamicResource PanelBackgroundBrush}" />
             <Setter Property="AlternatingRowBackground" Value="{DynamicResource ReadOnlyBackgroundBrush}" />
+            <Setter Property="HorizontalGridLinesBrush" Value="{DynamicResource BorderBrush}" />
+            <Setter Property="VerticalGridLinesBrush" Value="{DynamicResource BorderBrush}" />
+            <Setter Property="HeadersVisibility" Value="Column" />
+        </Style>
+        <Style TargetType="DataGridColumnHeader">
+            <Setter Property="Background" Value="{DynamicResource ControlBackgroundBrush}" />
+            <Setter Property="Foreground" Value="{DynamicResource TextBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}" />
+            <Setter Property="BorderThickness" Value="0,0,1,1" />
+            <Setter Property="Padding" Value="6,4" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="{x:Type DataGridColumnHeader}">
+                        <Border Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                Padding="{TemplateBinding Padding}">
+                            <ContentPresenter TextElement.Foreground="{TemplateBinding Foreground}"
+                                              HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
+                                              VerticalAlignment="{TemplateBinding VerticalContentAlignment}" />
+                        </Border>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+        <Style TargetType="DataGridCell">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="Foreground" Value="{DynamicResource TextBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}" />
+            <Setter Property="Padding" Value="4,2" />
+            <Style.Triggers>
+                <Trigger Property="IsSelected" Value="True">
+                    <Setter Property="Background" Value="{DynamicResource ComboBoxItemSelectedBackgroundBrush}" />
+                    <Setter Property="Foreground" Value="{DynamicResource TextBrush}" />
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+        <Style TargetType="DataGridRow">
+            <Setter Property="Foreground" Value="{DynamicResource TextBrush}" />
         </Style>
 
         <DataTemplate x:Key="EditableValueTemplate">
@@ -407,11 +601,37 @@
                                Text="{Binding IsOwnedDetected, Mode=OneWay}"
                                VerticalAlignment="Center"
                                Margin="6,0" />
-                    <CheckBox Grid.Column="3"
-                              IsChecked="{Binding IsOwnedDesired, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                              IsEnabled="{Binding CanEdit}"
-                              HorizontalAlignment="Center"
-                              VerticalAlignment="Center" />
+                    <Grid Grid.Column="3"
+                          HorizontalAlignment="Center"
+                          VerticalAlignment="Center">
+                        <CheckBox IsChecked="{Binding IsOwnedDesired, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                  IsEnabled="{Binding CanEdit}"
+                                  ToolTip="Desired fixed-slot edit. Enabled only when the fixed-slot inventory editor is enabled.">
+                            <CheckBox.Style>
+                                <Style TargetType="{x:Type CheckBox}" BasedOn="{StaticResource {x:Type CheckBox}}">
+                                    <Style.Triggers>
+                                        <Trigger Property="IsEnabled" Value="False">
+                                            <Setter Property="Visibility" Value="Collapsed" />
+                                        </Trigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </CheckBox.Style>
+                        </CheckBox>
+                        <TextBlock Text="{Binding DesiredEditStateText}"
+                                   Foreground="{DynamicResource SecondaryTextBrush}"
+                                   HorizontalAlignment="Center"
+                                   VerticalAlignment="Center">
+                            <TextBlock.Style>
+                                <Style TargetType="{x:Type TextBlock}" BasedOn="{StaticResource {x:Type TextBlock}}">
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding CanEdit}" Value="True">
+                                            <Setter Property="Visibility" Value="Collapsed" />
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </TextBlock.Style>
+                        </TextBlock>
+                    </Grid>
                     <TextBlock Grid.Column="4"
                                Text="{Binding IsDirty, Mode=OneWay}"
                                VerticalAlignment="Center" />
@@ -1338,6 +1558,83 @@
             </Border>
         </DataTemplate>
 
+        <DataTemplate x:Key="QuestSpecialSlotTemplate">
+            <Border BorderBrush="{DynamicResource BorderBrush}"
+                    BorderThickness="0,0,0,1"
+                    Padding="0,5"
+                    ToolTip="{Binding ToolTip}">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="260" />
+                        <ColumnDefinition Width="150" />
+                        <ColumnDefinition Width="220" />
+                        <ColumnDefinition Width="*" MinWidth="220" />
+                        <ColumnDefinition Width="70" />
+                    </Grid.ColumnDefinitions>
+
+                    <TextBlock Text="{Binding Name}"
+                               TextWrapping="Wrap"
+                               VerticalAlignment="Center" />
+                    <TextBlock Grid.Column="1"
+                               Text="{Binding CurrentText, Mode=OneWay}"
+                               VerticalAlignment="Center" />
+                    <ComboBox Grid.Column="2"
+                              ItemsSource="{Binding Options}"
+                              DisplayMemberPath="Name"
+                              SelectedItem="{Binding SelectedOption, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                              IsEnabled="{Binding CanEdit}"
+                              Margin="6,0" />
+                    <TextBlock Grid.Column="3"
+                               Text="{Binding LastVerificationResult, Mode=OneWay}"
+                               TextTrimming="CharacterEllipsis"
+                               VerticalAlignment="Center"
+                               Margin="6,0" />
+                    <Button Grid.Column="4"
+                            Content="Apply"
+                            IsEnabled="{Binding CanEdit}"
+                            Tag="{Binding}"
+                            Click="ApplyQuestSpecialSlot_Click" />
+                </Grid>
+            </Border>
+        </DataTemplate>
+
+        <DataTemplate x:Key="QuestBitFlagTemplate">
+            <Border BorderBrush="{DynamicResource BorderBrush}"
+                    BorderThickness="0,0,0,1"
+                    Padding="0,5"
+                    ToolTip="{Binding ToolTip}">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="260" />
+                        <ColumnDefinition Width="88" />
+                        <ColumnDefinition Width="120" />
+                        <ColumnDefinition Width="58" />
+                        <ColumnDefinition Width="*" MinWidth="220" />
+                    </Grid.ColumnDefinitions>
+
+                    <TextBlock Text="{Binding Name}"
+                               VerticalAlignment="Center" />
+                    <TextBlock Grid.Column="1"
+                               Text="{Binding CurrentText, Mode=OneWay}"
+                               VerticalAlignment="Center" />
+                    <CheckBox Grid.Column="2"
+                              Content="Desired"
+                              IsChecked="{Binding IsSetDesired, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                              IsEnabled="{Binding CanEdit}"
+                              VerticalAlignment="Center" />
+                    <TextBlock Grid.Column="3"
+                               Text="{Binding IsDirty, Mode=OneWay}"
+                               FontWeight="SemiBold"
+                               VerticalAlignment="Center" />
+                    <TextBlock Grid.Column="4"
+                               Text="{Binding LastVerificationResult, Mode=OneWay}"
+                               TextTrimming="CharacterEllipsis"
+                               VerticalAlignment="Center"
+                               Margin="6,0" />
+                </Grid>
+            </Border>
+        </DataTemplate>
+
         <DataTemplate x:Key="QuestItemsResearchRowTemplate">
             <Border BorderBrush="{DynamicResource BorderBrush}"
                     BorderThickness="0,0,0,1"
@@ -2108,7 +2405,7 @@
                                     <TextBlock Text="Item" FontWeight="SemiBold" />
                                     <TextBlock Grid.Column="1" Text="Current detected state" FontWeight="SemiBold" Margin="6,0" />
                                     <TextBlock Grid.Column="2" Text="Detected" FontWeight="SemiBold" Margin="6,0" />
-                                    <TextBlock Grid.Column="3" Text="Desired" FontWeight="SemiBold" HorizontalAlignment="Center" />
+                                    <TextBlock Grid.Column="3" Text="Desired edit" FontWeight="SemiBold" HorizontalAlignment="Center" />
                                     <TextBlock Grid.Column="4" Text="Dirty" FontWeight="SemiBold" />
                                     <TextBlock Grid.Column="5" Text="Ownership flag" FontWeight="SemiBold" Margin="6,0" />
                                     <TextBlock Grid.Column="6" Text="Fixed-slot status" FontWeight="SemiBold" Margin="6,0" />
@@ -3197,6 +3494,15 @@
                                            Margin="0,0,0,8"
                                            Text="Enabling a skill automatically enables earlier prerequisites; disabling a skill automatically disables later dependent skills. Writes only confirmed bits at _playerbase+0x3D5 and _playerbase+0x3D6. This editor does not touch 0x238 or lesson-state flags." />
 
+                                <TextBlock x:Name="HiddenSkillsInconsistentWarningText"
+                                           Foreground="{DynamicResource WarningTextBrush}"
+                                           Background="{DynamicResource WarningBackgroundBrush}"
+                                           TextWrapping="Wrap"
+                                           Padding="6"
+                                           Margin="0,0,0,8"
+                                           Visibility="Collapsed"
+                                           Text="Save contains inconsistent Hidden Skill flags." />
+
                                 <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
                                     <Button Content="Refresh Hidden Skills"
                                             Click="RefreshHiddenSkills_Click" />
@@ -3291,9 +3597,84 @@
                             <GroupBox Header="Progression Notes">
                                 <TextBlock TextWrapping="Wrap"
                                            Foreground="{DynamicResource SecondaryTextBrush}"
-                                           Text="Quest item editing will be added after item state, event flags, and save compatibility are mapped. The research workflow below is read-only." />
+                                           Text="Only live-confirmed Quest / Special controls are editable. Unconfirmed event flags and progression candidates remain in research notes and read-only capture tools." />
                             </GroupBox>
                         </UniformGrid>
+
+                        <GroupBox Header="Quest / Special Item Editor">
+                            <StackPanel>
+                                <TextBlock TextWrapping="Wrap"
+                                           Foreground="{DynamicResource SecondaryTextBrush}"
+                                           Margin="0,0,0,8"
+                                           Text="Confirmed fixed special item slots. Story progression and event flags can still be separate, so use copied saves and verify in-game." />
+                                <TextBlock TextWrapping="Wrap"
+                                           Foreground="{DynamicResource WarningTextBrush}"
+                                           Margin="0,0,0,8"
+                                           Text="Generic Quest Slot / Bottom-Right Quest Slot is advanced / experimental-safe because its intended story item is still unknown. Ancient Sky Book requires the Ooccoo slot to be empty." />
+
+                                <WrapPanel Margin="0,0,0,8">
+                                    <Button Content="Refresh Quest / Special Items"
+                                            Click="RefreshQuestSpecialEditors_Click" />
+                                </WrapPanel>
+
+                                <Grid Margin="0,0,0,4">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="260" />
+                                        <ColumnDefinition Width="150" />
+                                        <ColumnDefinition Width="220" />
+                                        <ColumnDefinition Width="*" MinWidth="220" />
+                                        <ColumnDefinition Width="70" />
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Text="Item" FontWeight="SemiBold" />
+                                    <TextBlock Grid.Column="1" Text="Current" FontWeight="SemiBold" />
+                                    <TextBlock Grid.Column="2" Text="Set To" FontWeight="SemiBold" Margin="6,0" />
+                                    <TextBlock Grid.Column="3" Text="Status" FontWeight="SemiBold" Margin="6,0" />
+                                    <TextBlock Grid.Column="4" Text="Write" FontWeight="SemiBold" />
+                                </Grid>
+
+                                <ItemsControl ItemsSource="{Binding QuestSpecialSlots}"
+                                              ItemTemplate="{StaticResource QuestSpecialSlotTemplate}" />
+
+                                <Separator Margin="0,10,0,8" />
+
+                                <TextBlock Text="Dominion Rod Restoration"
+                                           FontWeight="SemiBold"
+                                           Margin="0,0,0,4" />
+                                <TextBlock TextWrapping="Wrap"
+                                           Foreground="{DynamicResource WarningTextBrush}"
+                                           Margin="0,0,0,6"
+                                           Text="Requires Dominion Rod item. This does not grant the Dominion Rod." />
+                                <ContentControl Content="{Binding DominionRodRestorationFlag}"
+                                                ContentTemplate="{StaticResource QuestBitFlagTemplate}" />
+                                <Button Content="Apply Dominion Rod Restoration"
+                                        HorizontalAlignment="Left"
+                                        Margin="0,6,0,0"
+                                        Click="ApplyDominionRodRestoration_Click" />
+
+                                <Separator Margin="0,10,0,8" />
+
+                                <TextBlock Text="Current Dungeon Items"
+                                           FontWeight="SemiBold"
+                                           Margin="0,0,0,4" />
+                                <TextBlock TextWrapping="Wrap"
+                                           Foreground="{DynamicResource SecondaryTextBrush}"
+                                           Margin="0,0,0,6"
+                                           Text="Map, Compass, and Boss Key / Large Key for the active/current dungeon. This does not edit key shards, dungeon event history, or dungeon-specific quest items." />
+                                <ItemsControl ItemsSource="{Binding CurrentDungeonItems}"
+                                              ItemTemplate="{StaticResource QuestBitFlagTemplate}" />
+                                <Button Content="Apply Current Dungeon Items"
+                                        HorizontalAlignment="Left"
+                                        Margin="0,6,0,0"
+                                        Click="ApplyCurrentDungeonItems_Click" />
+
+                                <TextBox x:Name="QuestSpecialEditorStatusText"
+                                         Text="Attach to Cemu and rescan to read confirmed Quest / Special values."
+                                         IsReadOnly="True"
+                                         TextWrapping="Wrap"
+                                         Background="{DynamicResource ReadOnlyBackgroundBrush}"
+                                         Margin="0,10,0,0" />
+                            </StackPanel>
+                        </GroupBox>
 
                         <GroupBox Header="Quest Items Research / Experimental">
                             <StackPanel>
@@ -3390,15 +3771,30 @@
                                                Margin="0,0,6,0" />
                                     <TextBox Grid.Column="3"
                                              x:Name="QuestItemsResearchLengthText"
-                                             Text="0x200"
+                                             Text="0x400"
                                              FontFamily="Consolas"
                                              Margin="0,0,8,0" />
                                     <TextBlock Grid.Column="4"
-                                               Text="Default range: _playerbase+0x200 length 0x200."
+                                               Text="Recommended broad scan: _playerbase+0x200 length 0x400."
                                                Foreground="{DynamicResource SecondaryTextBrush}"
                                                TextWrapping="Wrap"
                                                VerticalAlignment="Center" />
                                 </Grid>
+
+                                <WrapPanel Margin="0,0,0,8">
+                                    <Button Content="0x200-0x2FF"
+                                            Tag="0x200|0x100"
+                                            Click="QuestItemsRangePreset_Click" />
+                                    <Button Content="0x200-0x3FF"
+                                            Tag="0x200|0x200"
+                                            Click="QuestItemsRangePreset_Click" />
+                                    <Button Content="0x000-0x3FF"
+                                            Tag="0x000|0x400"
+                                            Click="QuestItemsRangePreset_Click" />
+                                    <Button Content="0x000-0x7FF"
+                                            Tag="0x000|0x800"
+                                            Click="QuestItemsRangePreset_Click" />
+                                </WrapPanel>
 
                                 <WrapPanel Margin="0,0,0,8">
                                     <Button Content="Capture Before"
@@ -3622,6 +4018,543 @@
                         </GroupBox>
                     </StackPanel>
                 </ScrollViewer>
+            </TabItem>
+
+            <TabItem Header="Research">
+                <Grid Margin="6">
+                    <TabControl>
+                        <TabItem Header="Live Capture">
+                            <Grid Margin="6">
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto" />
+                                    <RowDefinition Height="*" />
+                                    <RowDefinition Height="Auto" />
+                                </Grid.RowDefinitions>
+
+                                <GroupBox Header="Capture Controls">
+                                    <StackPanel>
+                                        <TextBlock Text="Read-only continuous memory monitoring. Live Capture never writes memory."
+                                                   Foreground="{DynamicResource SecondaryTextBrush}"
+                                                   TextWrapping="Wrap"
+                                                   Margin="0,0,0,6" />
+                                        <WrapPanel>
+                                            <TextBlock Text="Label" VerticalAlignment="Center" Margin="0,0,6,4" />
+                                            <TextBox x:Name="LiveCaptureLabelText"
+                                                     Width="170"
+                                                     Margin="0,0,12,4" />
+                                            <TextBlock Text="Start Offset" VerticalAlignment="Center" Margin="0,0,6,4" />
+                                            <TextBox x:Name="LiveCaptureStartOffsetText"
+                                                     Text="0x0000"
+                                                     FontFamily="Consolas"
+                                                     Width="92"
+                                                     Margin="0,0,12,4" />
+                                            <TextBlock Text="Length" VerticalAlignment="Center" Margin="0,0,6,4" />
+                                            <TextBox x:Name="LiveCaptureLengthText"
+                                                     Text="0x400"
+                                                     FontFamily="Consolas"
+                                                     Width="82"
+                                                     Margin="0,0,12,4" />
+                                            <TextBlock Text="Sampling ms" VerticalAlignment="Center" Margin="0,0,6,4" />
+                                            <TextBox x:Name="LiveCaptureSamplingRateText"
+                                                     Text="250"
+                                                     FontFamily="Consolas"
+                                                     Width="72"
+                                                     Margin="0,0,12,4" />
+                                            <Button Content="Start Capture"
+                                                    Click="LiveCaptureStart_Click"
+                                                    Margin="0,0,4,4" />
+                                            <Button Content="Stop Capture"
+                                                    Click="LiveCaptureStop_Click"
+                                                    Margin="0,0,4,4" />
+                                            <Button Content="Check Persistence"
+                                                    Click="LiveCaptureCheckPersistence_Click"
+                                                    Margin="0,0,4,4" />
+                                            <Button Content="Clear Session"
+                                                    Click="LiveCaptureClear_Click"
+                                                    Margin="0,0,4,4" />
+                                            <Button Content="Export Session"
+                                                    Click="LiveCaptureExport_Click"
+                                                    Margin="0,0,4,4" />
+                                        </WrapPanel>
+
+                                        <WrapPanel Margin="0,4,0,0">
+                                            <CheckBox x:Name="LiveCaptureHideFrequentCheckBox"
+                                                      Content="Hide Frequently Changing"
+                                                      IsChecked="True"
+                                                      Checked="LiveCaptureFilter_Changed"
+                                                      Unchecked="LiveCaptureFilter_Changed"
+                                                      Margin="0,0,12,4" />
+                                            <CheckBox x:Name="LiveCaptureSingleBitOnlyCheckBox"
+                                                      Content="Show Single-Bit Only"
+                                                      Checked="LiveCaptureFilter_Changed"
+                                                      Unchecked="LiveCaptureFilter_Changed"
+                                                      Margin="0,0,12,4" />
+                                            <CheckBox x:Name="LiveCapturePersistedOnlyCheckBox"
+                                                      Content="Show Persisted Only"
+                                                      Checked="LiveCaptureFilter_Changed"
+                                                      Unchecked="LiveCaptureFilter_Changed"
+                                                      Margin="0,0,12,4" />
+                                            <CheckBox x:Name="LiveCaptureChangedOnceCheckBox"
+                                                      Content="Show Changed Once"
+                                                      Checked="LiveCaptureFilter_Changed"
+                                                      Unchecked="LiveCaptureFilter_Changed"
+                                                      Margin="0,0,12,4" />
+                                            <CheckBox x:Name="LiveCaptureHideSceneNoiseCheckBox"
+                                                      Content="Hide Known Scene Noise"
+                                                      IsChecked="True"
+                                                      Checked="LiveCaptureFilter_Changed"
+                                                      Unchecked="LiveCaptureFilter_Changed"
+                                                      Margin="0,0,12,4" />
+                                            <TextBlock Text="Score >="
+                                                       VerticalAlignment="Center"
+                                                       Margin="0,0,6,4" />
+                                            <TextBox x:Name="LiveCaptureScoreThresholdText"
+                                                     Text="0"
+                                                     Width="52"
+                                                     FontFamily="Consolas"
+                                                     TextChanged="LiveCaptureFilter_Changed"
+                                                     Margin="0,0,12,4" />
+                                        </WrapPanel>
+                                    </StackPanel>
+                                </GroupBox>
+
+                                <Grid Grid.Row="1" Margin="0,8,0,8">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="2*" />
+                                        <ColumnDefinition Width="*" />
+                                    </Grid.ColumnDefinitions>
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="*" />
+                                        <RowDefinition Height="*" />
+                                    </Grid.RowDefinitions>
+
+                                    <GroupBox Header="Active Changes" Grid.RowSpan="2" Margin="0,0,6,0">
+                                        <DataGrid ItemsSource="{Binding LiveCaptureChanges}"
+                                                  AutoGenerateColumns="False"
+                                                  IsReadOnly="True"
+                                                  Height="360"
+                                                  SelectionMode="Single"
+                                                  VerticalScrollBarVisibility="Auto"
+                                                  HorizontalScrollBarVisibility="Auto">
+                                            <DataGrid.Columns>
+                                                <DataGridTextColumn Header="Offset" Binding="{Binding Offset}" Width="80" />
+                                                <DataGridTextColumn Header="Old Value" Binding="{Binding OldValue}" Width="80" />
+                                                <DataGridTextColumn Header="Current Value" Binding="{Binding CurrentByte}" Width="95" />
+                                                <DataGridTextColumn Header="Change Count" Binding="{Binding ChangeCount}" Width="90" />
+                                                <DataGridTextColumn Header="First Seen" Binding="{Binding FirstSeenText}" Width="100" />
+                                                <DataGridTextColumn Header="Last Seen" Binding="{Binding LastSeenText}" Width="100" />
+                                                <DataGridTextColumn Header="Bit Change Summary" Binding="{Binding BitChangeSummary}" Width="150" />
+                                                <DataGridTextColumn Header="Persisted Status" Binding="{Binding PersistedStatus}" Width="120" />
+                                            </DataGrid.Columns>
+                                        </DataGrid>
+                                    </GroupBox>
+
+                                    <GroupBox Grid.Column="1" Header="Candidate Ranking" Margin="6,0,0,4">
+                                        <DataGrid ItemsSource="{Binding LiveCaptureCandidates}"
+                                                  AutoGenerateColumns="False"
+                                                  IsReadOnly="True"
+                                                  Height="170"
+                                                  VerticalScrollBarVisibility="Auto"
+                                                  HorizontalScrollBarVisibility="Auto">
+                                            <DataGrid.Columns>
+                                                <DataGridTextColumn Header="Offset" Binding="{Binding Offset}" Width="70" />
+                                                <DataGridTextColumn Header="Score" Binding="{Binding Score}" Width="55" />
+                                                <DataGridTextColumn Header="Confidence" Binding="{Binding Confidence}" Width="80" />
+                                                <DataGridTextColumn Header="Reason" Binding="{Binding Reason}" Width="220" />
+                                                <DataGridTextColumn Header="Current" Binding="{Binding CurrentValue}" Width="70" />
+                                                <DataGridTextColumn Header="Changes" Binding="{Binding ChangeCount}" Width="65" />
+                                                <DataGridTextColumn Header="Persisted" Binding="{Binding PersistedStatus}" Width="90" />
+                                            </DataGrid.Columns>
+                                        </DataGrid>
+                                    </GroupBox>
+
+                                    <GroupBox Grid.Row="1" Grid.Column="1" Header="Timeline / Statistics" Margin="6,4,0,0">
+                                        <Grid>
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*" />
+                                                <ColumnDefinition Width="*" />
+                                            </Grid.ColumnDefinitions>
+                                            <ScrollViewer Height="160"
+                                                          VerticalScrollBarVisibility="Auto"
+                                                          Background="{DynamicResource ReadOnlyBackgroundBrush}"
+                                                          Margin="0,0,4,0">
+                                                <ItemsControl ItemsSource="{Binding LiveCaptureTimelineLines}">
+                                                    <ItemsControl.ItemTemplate>
+                                                        <DataTemplate>
+                                                            <TextBlock Text="{Binding}"
+                                                                       FontFamily="Consolas"
+                                                                       FontSize="11"
+                                                                       TextWrapping="NoWrap" />
+                                                        </DataTemplate>
+                                                    </ItemsControl.ItemTemplate>
+                                                </ItemsControl>
+                                            </ScrollViewer>
+                                            <ScrollViewer Grid.Column="1"
+                                                          Height="160"
+                                                          VerticalScrollBarVisibility="Auto"
+                                                          Background="{DynamicResource ReadOnlyBackgroundBrush}"
+                                                          Margin="4,0,0,0">
+                                                <ItemsControl ItemsSource="{Binding LiveCaptureStatisticsLines}">
+                                                    <ItemsControl.ItemTemplate>
+                                                        <DataTemplate>
+                                                            <TextBlock Text="{Binding}"
+                                                                       TextWrapping="Wrap"
+                                                                       Margin="0,0,0,3" />
+                                                        </DataTemplate>
+                                                    </ItemsControl.ItemTemplate>
+                                                </ItemsControl>
+                                            </ScrollViewer>
+                                        </Grid>
+                                    </GroupBox>
+                                </Grid>
+
+                                <TextBlock Grid.Row="2"
+                                           x:Name="LiveCaptureStatusText"
+                                           Text="Ready. Attach to Cemu and rescan before starting Live Capture."
+                                           Foreground="{DynamicResource SecondaryTextBrush}"
+                                           TextWrapping="Wrap" />
+                            </Grid>
+                        </TabItem>
+
+                        <TabItem Header="Snapshot Diff">
+                            <Grid Margin="6">
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto" />
+                                    <RowDefinition Height="*" />
+                                    <RowDefinition Height="Auto" />
+                                </Grid.RowDefinitions>
+
+                                <GroupBox Header="Capture Controls">
+                                    <StackPanel>
+                                        <TextBlock Text="Compact range snapshot comparison. This is read-only and exports reports to logs/research/."
+                                                   Foreground="{DynamicResource SecondaryTextBrush}"
+                                                   TextWrapping="Wrap"
+                                                   Margin="0,0,0,6" />
+                                        <WrapPanel>
+                                            <TextBlock Text="Label" VerticalAlignment="Center" Margin="0,0,6,4" />
+                                            <TextBox x:Name="ResearchWorkspaceSnapshotLabelText"
+                                                     Width="180"
+                                                     Margin="0,0,12,4" />
+                                            <TextBlock Text="Start Offset" VerticalAlignment="Center" Margin="0,0,6,4" />
+                                            <TextBox x:Name="ResearchWorkspaceSnapshotStartOffsetText"
+                                                     Text="0x200"
+                                                     FontFamily="Consolas"
+                                                     Width="90"
+                                                     Margin="0,0,12,4" />
+                                            <TextBlock Text="Length" VerticalAlignment="Center" Margin="0,0,6,4" />
+                                            <TextBox x:Name="ResearchWorkspaceSnapshotLengthText"
+                                                     Text="0x400"
+                                                     FontFamily="Consolas"
+                                                     Width="90"
+                                                     Margin="0,0,12,4" />
+                                            <Button Content="Capture A"
+                                                    Click="ResearchWorkspaceCaptureA_Click"
+                                                    Margin="0,0,4,4" />
+                                            <Button Content="Capture B"
+                                                    Click="ResearchWorkspaceCaptureB_Click"
+                                                    Margin="0,0,4,4" />
+                                            <Button Content="Compare"
+                                                    Click="ResearchWorkspaceCompareSnapshots_Click"
+                                                    Margin="0,0,4,4" />
+                                            <Button Content="Export JSON"
+                                                    Click="ResearchWorkspaceExportJson_Click"
+                                                    Margin="0,0,4,4" />
+                                            <Button Content="Export CSV"
+                                                    Click="ResearchWorkspaceExportCsv_Click"
+                                                    Margin="0,0,4,4" />
+                                        </WrapPanel>
+                                    </StackPanel>
+                                </GroupBox>
+
+                                <Grid Grid.Row="1" Margin="0,8,0,8">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="*" />
+                                    </Grid.ColumnDefinitions>
+                                    <GroupBox Header="Candidate Ranking" Margin="0,0,6,0">
+                                        <DataGrid ItemsSource="{Binding ResearchWorkspaceSnapshotCandidates}"
+                                                  AutoGenerateColumns="False"
+                                                  IsReadOnly="True"
+                                                  Height="360"
+                                                  VerticalScrollBarVisibility="Auto"
+                                                  HorizontalScrollBarVisibility="Auto">
+                                            <DataGrid.Columns>
+                                                <DataGridTextColumn Header="Offset" Binding="{Binding Offset}" Width="80" />
+                                                <DataGridTextColumn Header="Score" Binding="{Binding CandidateScore}" Width="65" />
+                                                <DataGridTextColumn Header="Confidence" Binding="{Binding Confidence}" Width="80" />
+                                                <DataGridTextColumn Header="Changed Bits" Binding="{Binding ChangedBits}" Width="130" />
+                                                <DataGridTextColumn Header="Group" Binding="{Binding GroupName}" Width="90" />
+                                                <DataGridTextColumn Header="Reasons" Binding="{Binding Reasons}" Width="260" />
+                                            </DataGrid.Columns>
+                                        </DataGrid>
+                                    </GroupBox>
+                                    <GroupBox Grid.Column="1" Header="Changed Bytes" Margin="6,0,0,0">
+                                        <DataGrid ItemsSource="{Binding ResearchWorkspaceSnapshotRows}"
+                                                  AutoGenerateColumns="False"
+                                                  IsReadOnly="True"
+                                                  Height="360"
+                                                  VerticalScrollBarVisibility="Auto"
+                                                  HorizontalScrollBarVisibility="Auto">
+                                            <DataGrid.Columns>
+                                                <DataGridTextColumn Header="Offset" Binding="{Binding Offset}" Width="80" />
+                                                <DataGridTextColumn Header="Before" Binding="{Binding BeforeByte}" Width="95" />
+                                                <DataGridTextColumn Header="After" Binding="{Binding AfterByte}" Width="95" />
+                                                <DataGridTextColumn Header="Before Binary" Binding="{Binding BeforeBinary}" Width="100" />
+                                                <DataGridTextColumn Header="After Binary" Binding="{Binding AfterBinary}" Width="100" />
+                                                <DataGridTextColumn Header="Changed Bits" Binding="{Binding ChangedBits}" Width="130" />
+                                            </DataGrid.Columns>
+                                        </DataGrid>
+                                    </GroupBox>
+                                </Grid>
+
+                                <TextBlock Grid.Row="2"
+                                           x:Name="ResearchWorkspaceSnapshotStatusText"
+                                           Text="Capture A and B to compare a range."
+                                           Foreground="{DynamicResource SecondaryTextBrush}"
+                                           TextWrapping="Wrap" />
+                            </Grid>
+                        </TabItem>
+
+                        <TabItem Header="Candidate Tester">
+                            <Grid Margin="6">
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto" />
+                                    <RowDefinition Height="Auto" />
+                                    <RowDefinition Height="*" />
+                                </Grid.RowDefinitions>
+
+                                <Border BorderBrush="{DynamicResource WarningBorderBrush}"
+                                        BorderThickness="1"
+                                        Background="{DynamicResource WarningBackgroundBrush}"
+                                        Padding="8"
+                                        Margin="0,0,0,8">
+                                    <TextBlock Text="Advanced / Research. This tool writes one raw byte only when you click Write. Use copied saves and restore the previous value after testing."
+                                               Foreground="{DynamicResource WarningTextBrush}"
+                                               FontWeight="SemiBold"
+                                               TextWrapping="Wrap" />
+                                </Border>
+
+                                <GroupBox Grid.Row="1" Header="Candidate Offset Tester">
+                                    <StackPanel>
+                                        <WrapPanel Margin="0,0,0,8">
+                                            <Button Content="0x288" Tag="0x288" Click="ResearchCandidatePreset_Click" />
+                                            <Button Content="0x293" Tag="0x293" Click="ResearchCandidatePreset_Click" />
+                                            <Button Content="0x29A" Tag="0x29A" Click="ResearchCandidatePreset_Click" />
+                                            <Button Content="0x253" Tag="0x253" Click="ResearchCandidatePreset_Click" />
+                                            <Button Content="0x26C" Tag="0x26C" Click="ResearchCandidatePreset_Click" />
+                                            <Button Content="0x26D" Tag="0x26D" Click="ResearchCandidatePreset_Click" />
+                                            <Button Content="0x26E" Tag="0x26E" Click="ResearchCandidatePreset_Click" />
+                                            <Button Content="0x3D5" Tag="0x3D5" Click="ResearchCandidatePreset_Click" />
+                                            <Button Content="0x3D6" Tag="0x3D6" Click="ResearchCandidatePreset_Click" />
+                                        </WrapPanel>
+                                        <WrapPanel>
+                                            <TextBlock Text="Offset" VerticalAlignment="Center" Margin="0,0,6,4" />
+                                            <TextBox x:Name="ResearchCandidateOffsetText"
+                                                     Text="0x288"
+                                                     FontFamily="Consolas"
+                                                     Width="90"
+                                                     Margin="0,0,12,4" />
+                                            <TextBlock Text="New Value" VerticalAlignment="Center" Margin="0,0,6,4" />
+                                            <TextBox x:Name="ResearchCandidateValueText"
+                                                     Text="0x01"
+                                                     FontFamily="Consolas"
+                                                     Width="80"
+                                                     Margin="0,0,12,4" />
+                                            <Button Content="Read"
+                                                    Click="ResearchCandidateReadCurrent_Click"
+                                                    Margin="0,0,4,4" />
+                                            <Button Content="Write"
+                                                    Click="ResearchCandidateWriteValue_Click"
+                                                    Margin="0,0,4,4" />
+                                            <Button Content="Restore"
+                                                    Click="ResearchCandidateRestorePrevious_Click"
+                                                    Margin="0,0,4,4" />
+                                        </WrapPanel>
+                                        <Grid Margin="0,6,0,0">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="120" />
+                                                <ColumnDefinition Width="*" />
+                                                <ColumnDefinition Width="120" />
+                                                <ColumnDefinition Width="*" />
+                                            </Grid.ColumnDefinitions>
+                                            <Grid.RowDefinitions>
+                                                <RowDefinition Height="Auto" />
+                                                <RowDefinition Height="Auto" />
+                                            </Grid.RowDefinitions>
+                                            <TextBlock Text="Absolute" Margin="0,0,6,5" />
+                                            <TextBox Grid.Column="1"
+                                                     x:Name="ResearchCandidateAbsoluteAddressText"
+                                                     Text="-"
+                                                     IsReadOnly="True"
+                                                     FontFamily="Consolas"
+                                                     Background="{DynamicResource ReadOnlyBackgroundBrush}"
+                                                     Margin="0,0,12,5" />
+                                            <TextBlock Grid.Column="2" Text="Current" Margin="0,0,6,5" />
+                                            <TextBox Grid.Column="3"
+                                                     x:Name="ResearchCandidateCurrentByteText"
+                                                     Text="Not read"
+                                                     IsReadOnly="True"
+                                                     FontFamily="Consolas"
+                                                     Background="{DynamicResource ReadOnlyBackgroundBrush}"
+                                                     Margin="0,0,0,5" />
+                                            <TextBlock Grid.Row="1" Text="Previous" Margin="0,0,6,0" />
+                                            <TextBox Grid.Row="1"
+                                                     Grid.Column="1"
+                                                     x:Name="ResearchCandidatePreviousByteText"
+                                                     Text="Not captured"
+                                                     IsReadOnly="True"
+                                                     FontFamily="Consolas"
+                                                     Background="{DynamicResource ReadOnlyBackgroundBrush}"
+                                                     Margin="0,0,12,0" />
+                                        </Grid>
+                                    </StackPanel>
+                                </GroupBox>
+
+                                <GroupBox Grid.Row="2" Header="Result Log" Margin="0,8,0,0">
+                                    <TextBlock x:Name="ResearchCandidateStatusText"
+                                               Text="Ready. No automatic writes."
+                                               TextWrapping="Wrap"
+                                               Foreground="{DynamicResource SecondaryTextBrush}" />
+                                </GroupBox>
+                            </Grid>
+                        </TabItem>
+
+                        <TabItem Header="Analysis Reports">
+                            <Grid Margin="6">
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto" />
+                                    <RowDefinition Height="*" />
+                                    <RowDefinition Height="Auto" />
+                                </Grid.RowDefinitions>
+                                <WrapPanel Margin="0,0,0,8">
+                                    <TextBlock Text="Search/filter" VerticalAlignment="Center" Margin="0,0,6,4" />
+                                    <TextBox x:Name="ResearchReportFilterText"
+                                             Width="240"
+                                             TextChanged="ResearchReportFilter_Changed"
+                                             Margin="0,0,12,4" />
+                                    <Button Content="Refresh"
+                                            Click="RefreshResearchReports_Click"
+                                            Margin="0,0,4,4" />
+                                    <Button Content="Open Folder"
+                                            Click="OpenResearchReportsFolder_Click"
+                                            Margin="0,0,4,4" />
+                                </WrapPanel>
+
+                                <DataGrid Grid.Row="1"
+                                          ItemsSource="{Binding ResearchReports}"
+                                          AutoGenerateColumns="False"
+                                          IsReadOnly="True"
+                                          Height="430"
+                                          VerticalScrollBarVisibility="Auto"
+                                          HorizontalScrollBarVisibility="Auto">
+                                    <DataGrid.Columns>
+                                        <DataGridTextColumn Header="File Name" Binding="{Binding FileName}" Width="260" />
+                                        <DataGridTextColumn Header="Type" Binding="{Binding ReportType}" Width="110" />
+                                        <DataGridTextColumn Header="Created" Binding="{Binding CreatedText}" Width="140" />
+                                        <DataGridTextColumn Header="Capture A" Binding="{Binding CaptureA}" Width="150" />
+                                        <DataGridTextColumn Header="Capture B" Binding="{Binding CaptureB}" Width="150" />
+                                        <DataGridTextColumn Header="Changed Bytes" Binding="{Binding ChangedBytes}" Width="110" />
+                                        <DataGridTemplateColumn Header="Open" Width="70">
+                                            <DataGridTemplateColumn.CellTemplate>
+                                                <DataTemplate>
+                                                    <Button Content="Open"
+                                                            Tag="{Binding}"
+                                                            Click="OpenResearchReport_Click" />
+                                                </DataTemplate>
+                                            </DataGridTemplateColumn.CellTemplate>
+                                        </DataGridTemplateColumn>
+                                        <DataGridTemplateColumn Header="Export" Width="80">
+                                            <DataGridTemplateColumn.CellTemplate>
+                                                <DataTemplate>
+                                                    <Button Content="Export"
+                                                            Tag="{Binding}"
+                                                            Click="ExportResearchReport_Click" />
+                                                </DataTemplate>
+                                            </DataGridTemplateColumn.CellTemplate>
+                                        </DataGridTemplateColumn>
+                                    </DataGrid.Columns>
+                                </DataGrid>
+
+                                <TextBlock Grid.Row="2"
+                                           x:Name="ResearchReportsStatusText"
+                                           Text="Reports are loaded from logs/research/."
+                                           Foreground="{DynamicResource SecondaryTextBrush}"
+                                           TextWrapping="Wrap"
+                                           Margin="0,8,0,0" />
+                            </Grid>
+                        </TabItem>
+
+                        <TabItem Header="Logs">
+                            <Grid Margin="6">
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto" />
+                                    <RowDefinition Height="*" />
+                                    <RowDefinition Height="Auto" />
+                                </Grid.RowDefinitions>
+                                <WrapPanel Margin="0,0,0,8">
+                                    <CheckBox x:Name="ResearchLogAutoScrollCheckBox"
+                                              Content="Auto-scroll"
+                                              IsChecked="True"
+                                              Margin="0,0,12,4" />
+                                    <TextBlock Text="Category" VerticalAlignment="Center" Margin="0,0,6,4" />
+                                    <ComboBox x:Name="ResearchLogCategoryComboBox"
+                                              Width="150"
+                                              SelectionChanged="ResearchLogCategory_SelectionChanged"
+                                              SelectedIndex="0"
+                                              Margin="0,0,12,4">
+                                        <ComboBoxItem Content="All" />
+                                        <ComboBoxItem Content="Live Capture" />
+                                        <ComboBoxItem Content="Quest" />
+                                        <ComboBoxItem Content="Hidden Skills" />
+                                        <ComboBoxItem Content="Candidate" />
+                                        <ComboBoxItem Content="Scan" />
+                                        <ComboBoxItem Content="Inventory" />
+                                        <ComboBoxItem Content="Equipment" />
+                                        <ComboBoxItem Content="Collectibles" />
+                                        <ComboBoxItem Content="Bottles" />
+                                        <ComboBoxItem Content="Bomb Slots" />
+                                        <ComboBoxItem Content="Research" />
+                                    </ComboBox>
+                                    <Button Content="Refresh"
+                                            Click="RefreshResearchLogs_Click"
+                                            Margin="0,0,4,4" />
+                                    <Button Content="Clear Display"
+                                            Click="ClearResearchLogs_Click"
+                                            Margin="0,0,4,4" />
+                                    <Button Content="Open Logs Folder"
+                                            Click="OpenResearchLogsFolder_Click"
+                                            Margin="0,0,4,4" />
+                                </WrapPanel>
+
+                                <ScrollViewer Grid.Row="1"
+                                              x:Name="ResearchLogsScrollViewer"
+                                              Height="440"
+                                              VerticalScrollBarVisibility="Auto"
+                                              HorizontalScrollBarVisibility="Auto"
+                                              Background="{DynamicResource ReadOnlyBackgroundBrush}">
+                                    <ItemsControl ItemsSource="{Binding ResearchLogViewerLines}">
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate>
+                                                <TextBlock Text="{Binding}"
+                                                           FontFamily="Consolas"
+                                                           FontSize="11"
+                                                           TextWrapping="NoWrap"
+                                                           Margin="0,0,0,2" />
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+                                </ScrollViewer>
+
+                                <TextBlock Grid.Row="2"
+                                           x:Name="ResearchLogStatusText"
+                                           Text="Log viewer is display-only. Clear Display does not delete log files."
+                                           Foreground="{DynamicResource SecondaryTextBrush}"
+                                           TextWrapping="Wrap"
+                                           Margin="0,8,0,0" />
+                            </Grid>
+                        </TabItem>
+                    </TabControl>
+                </Grid>
             </TabItem>
 
             <TabItem Header="Debug">

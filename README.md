@@ -22,8 +22,9 @@ The UI is organized as a tabbed trainer/save-editor hybrid so new systems can be
 - **Collectibles**: verified Poe Souls editing, full Golden Bugs ownership editor, Golden Bugs research tools, and health/heart summaries
 - **Story Flags**: reserved progression flags
 - **Hidden Skills**: confirmed ownership editor plus advanced research tools
-- **Quest Items**: reserved quest item/progression tracking plus Quest Items Research snapshots
-- **Debug**: player base, AOB pattern, progression diagnostics, research snapshots, Hidden Skills Research, Ownership Discovery Mode, support snapshots, raw CT-backed values, and future memory tools
+- **Quest Items**: confirmed Quest / Special item controls, Dominion Rod restoration, current dungeon item bits, plus Quest Items Research snapshots
+- **Research**: compact Live Capture, Snapshot Diff, Candidate Tester, Analysis Reports, and Logs workspace
+- **Debug**: player base, AOB pattern, progression diagnostics, legacy/specialized research tools, support snapshots, raw CT-backed values, and future memory tools
 
 The top bar includes a **Dark Mode** toggle. The app defaults to Light mode and stores the local preference under the user's AppData folder when possible. Theme styles cover tabs, panels, text inputs, dropdowns, data grids, buttons, and checkboxes.
 
@@ -50,6 +51,9 @@ The top bar includes a **Dark Mode** toggle. The app defaults to Light mode and 
 - Read-only equipped sword at `_playerbase+0x1D2`
 - Read-only equipped shield at `_playerbase+0x1D3`
 - Equipment ownership flags at `_playerbase+0x28D`, `_playerbase+0x28E`, and `_playerbase+0x292`
+- Confirmed Quest / Special item slots at `_playerbase+0x26A` through `_playerbase+0x26E`
+- Dominion Rod restoration flag at `_playerbase+0x3D1` bit 7
+- Current dungeon Map, Compass, and Boss Key / Large Key bits at `_playerbase+0xFD1` bits 0-2
 
 ## Capacity System
 
@@ -93,11 +97,31 @@ The count/capacity controls remain CT-backed diagnostics and existing count/capa
 
 See `docs/research/BombSlotsResearch.md` for current notes.
 
-## Quest Items Research
+## Quest / Special Items And Research
+
+The Quest Items tab includes a compact **Quest / Special Item Editor** for live-confirmed fixed slots:
+
+- Ooccoo slot: `_playerbase+0x26A`, supporting Empty, Ooccoo, and Ooccoo Jr.
+- Generic Quest Slot / Bottom-Right Quest Slot: `_playerbase+0x26B`, supporting Empty, Ooccoo, Ooccoo Jr., Fishing Rod, Ilia's Charm, Horse Call, and Ancient Sky Book. This is marked advanced / experimental-safe because the intended story item is still unknown.
+- Fishing Rod slot: `_playerbase+0x26C`, supporting Empty, Fishing Rod, and Fishing Rod + Coral Earring
+- Horse Call / Ilia item slot: `_playerbase+0x26D`, supporting Empty, Ilia's Charm, and Horse Call. Ilia's Charm and Horse Call were verified working in-game.
+- Ancient Sky Book slot: `_playerbase+0x26E`, supporting Empty and Ancient Sky Book
+
+Ancient Sky Book at `_playerbase+0x26E` can only be written when the Ooccoo slot at `_playerbase+0x26A` is empty (`0xFF`). The trainer blocks the write and logs a warning rather than silently replacing Ooccoo or Ooccoo Jr.
+
+The tab also includes **Restore Dominion Rod / Complete Restoration** at `_playerbase+0x3D1` bit 7. This was verified working in-game. It does not grant the Dominion Rod item; it only restores/reactivates the rod if the player already owns it. The write preserves every unrelated bit in `0x3D1`.
+
+The **Current Dungeon Items** editor uses `_playerbase+0xFD1` as the active/current dungeon item ownership byte. It is not Forest Temple-specific and is confirmed working in Forest Temple, Goron Mines, and Lakebed Temple:
+
+- bit 0: Map
+- bit 1: Compass
+- bit 2: Boss Key / Large Key
+
+Useful low-bit values are `0x00` None, `0x01` Map, `0x02` Compass, `0x04` Boss Key / Large Key, and `0x07` all three. Writes only modify bits 0-2 and preserve bits 3-7. The dungeon editor does not expose `0xC7`, edit key shards, touch `_playerbase+0x28F`, or claim to control dungeon-specific quest items. Goron Mines key shard progression appears to be separate from these bits.
 
 The Quest Items tab includes **Quest Items Research / Experimental**. It is read-only and is intended to help identify quest-item and progression bytes without promoting unconfirmed offsets into an editor.
 
-The tool captures Before and After snapshots of a configurable `_playerbase`-relative range, defaulting to start `0x200` and length `0x200`. Compare shows offset, before/after byte, before/after binary, changed bits, candidate score, and nearby candidate group.
+The tool captures Before and After snapshots of a configurable `_playerbase`-relative range. The recommended broad scan defaults to start `0x200` and length `0x400`; quick buttons also cover `0x200-0x2FF`, `0x200-0x3FF`, `0x000-0x3FF`, and `0x000-0x7FF`. Compare shows offset, before/after byte, before/after binary, changed bits, candidate score, and nearby candidate group.
 
 Persistent Quest Items captures are saved under `logs/research/quest-search/` with labels, capture type, notes, timestamps, app version, start offset, length, and raw bytes:
 
@@ -128,7 +152,42 @@ The legacy quick exports are still written for convenience:
 - `logs/research/quest-items-report.json`
 - `logs/research/quest-items-report.csv`
 
-Activity is logged to `logs/quest-items-research.log`. See `docs/research/QuestItemsResearch.md`.
+Research activity is logged to `logs/quest-items-research.log`. Quest / Special editor writes are logged to `logs/quest-special-editor.log`. See `docs/research/QuestItemsResearch.md` and `docs/research/DungeonItemsResearch.md`.
+
+## Research Workspace
+
+The **Research** tab is a compact WPF workspace for continuous memory analysis and report review. It is designed to reduce long Debug-tab scrolling while preserving the existing Quest Items, Hidden Skills, Ownership Discovery, and support snapshot tools.
+
+Sub-tabs:
+
+- **Live Capture**: read-only continuous monitoring of a selected `_playerbase` range, defaulting to start `0x0000`, length `0x400`, and 250ms sampling.
+- **Snapshot Diff**: quick in-memory A/B range capture, changed-byte display, candidate ranking, and JSON/CSV export.
+- **Candidate Tester**: compact raw byte read/write/restore tester for copied-save research.
+- **Analysis Reports**: searchable report browser for JSON/CSV exports under `logs/research/`.
+- **Logs**: filtered scrolling log viewer with category selection and display-only clearing.
+
+Live Capture takes a baseline when **Start Capture** is clicked, then tracks only offsets whose byte values change. It records initial, previous, and current values, change counts, first/last seen timestamps, changed bits, single-bit transitions, candidate score, confidence, persisted/reverted status, and a bounded timeline. It does not write memory.
+
+Use **Check Persistence** after saving/reloading or continuing a session. A byte marked **Persisted** remains changed from the baseline; **Reverted** returned to the baseline. This is a research hint only, not proof of an ownership flag.
+
+Known-region hints are used only for scoring and filtering:
+
+- `0x26A-0x26E`: confirmed/researched inventory special item slots, including Ooccoo, Fishing Rod, Horse Call/Ilia item, and Sky Book-style fields
+- `0x298-0x29B`: candidate ownership/progression area
+- `0x3D1`: confirmed Dominion Rod restoration bit
+- `0x3D5-0x3D6`: confirmed Hidden Skills ownership/progression bytes
+- `0xFD1`: confirmed current dungeon Map/Boss Key/Compass bits
+- `0x221-0x22D`: known scene/location/runtime noise, filterable with **Hide Known Scene Noise**
+
+Live Capture exports are written to:
+
+- `logs/research/live-capture-session_<timestamp>_<label>.json`
+
+Runtime Live Capture activity is logged to:
+
+- `logs/live-capture.log`
+
+See `docs/research/LiveCaptureResearch.md`.
 
 ## Progression Initialization
 
@@ -337,7 +396,7 @@ The Hidden Skills tab includes a confirmed progression editor for all seven Hidd
 
 Enabling a skill automatically enables all earlier prerequisites. Disabling a skill automatically disables all later dependent skills. The in-game Skills menu may show progression slots rather than exact isolated bit state, and some moves require prerequisite flags for combat usability. Treat combat usability as the real validation signal when testing copied saves.
 
-The editor shows detected state, desired state, dirty state, mapping offset/bit, and last write/verification status. It supports refresh, apply changed skills, add all, clear all, and session-only restore of the previous two-byte state. Writes preserve unrelated bits in `0x3D5` and `0x3D6`, verify immediate/250ms/1000ms readbacks, and log to `logs/hidden-skills-editor.log`.
+The editor shows detected state, desired state, dirty state, mapping offset/bit, and last write/verification status. It interprets only confirmed ownership bits in `0x3D5` bits `0-3` and `0x3D6` bits `5-7`; unrelated bits remain visible in raw diagnostics only. If detected ownership has a later skill without prerequisites, the editor shows **Save contains inconsistent Hidden Skill flags** and does not write fixes until Apply is clicked. It supports refresh, apply changed skills, add all, clear all, and session-only restore of the previous two-byte state. Writes preserve unrelated bits in `0x3D5` and `0x3D6`, verify immediate/250ms/1000ms readbacks, and log to `logs/hidden-skills-editor.log`.
 
 Hidden Skill bits affect both menu ownership and Hero's Shade/wolf progression. Removing a learned skill may cause the wolf/Hero's Shade encounter to become available again after area reload. Use copied saves first.
 
@@ -454,6 +513,7 @@ The app does not parse or execute Cheat Engine scripts at runtime. The relevant 
 - `TphdCemuTrainer/Cheats/GoldenBugsDefinitions.cs`: confirmed Golden Bugs bit mappings and reference bug names
 - `TphdCemuTrainer/Cheats/HiddenSkillsDefinitions.cs`: confirmed Hidden Skills ownership bit mappings
 - `TphdCemuTrainer/Cheats/InventoryDefinitions.cs`: safe CT inventory item dropdowns, ownership candidates, and managed slot metadata
+- `TphdCemuTrainer/Cheats/QuestSpecialDefinitions.cs`: confirmed Quest / Special item slots, Dominion Rod restoration bit, and current dungeon item bits
 - `TphdCemuTrainer/Cheats/InventoryOwnershipDefinition.cs`: inventory ownership/progression candidate metadata
 - `TphdCemuTrainer/Cheats/InventoryFixedSlotDefinition.cs`: known fixed/game-managed inventory slot metadata
 - `TphdCemuTrainer/Cheats/EquipmentDefinitions.cs`: TPHD 2.2.CT equipment dropdown and flag definitions
@@ -462,6 +522,8 @@ The app does not parse or execute Cheat Engine scripts at runtime. The relevant 
 - `TphdCemuTrainer/ViewModels/`: UI-facing value and capacity models
 - `docs/research/HiddenSkillsResearch.md`: current Hidden Skills mapping notes and workflow
 - `docs/research/QuestItemsResearch.md`: Quest Items research workflow and export notes
+- `docs/research/DungeonItemsResearch.md`: current dungeon item bits and dungeon event research notes
+- `docs/research/LiveCaptureResearch.md`: generic live capture workflow and known-region hints
 - `TphdCemuTrainer/MainWindow.xaml`: tabbed WPF trainer UI
 
 ## Known Limitations
@@ -469,7 +531,7 @@ The app does not parse or execute Cheat Engine scripts at runtime. The relevant 
 - The player base scan depends on the CT table AOB. It may fail on unsupported game revisions, different memory layouts, or if gameplay is not loaded.
 - The first scan can still be slower than later rescans because no cache has been validated yet.
 - Missing player data is handled as a rescan state, not an application failure.
-- Story flags and quest items are laid out for future expansion but not yet written.
+- Broader story flags and many quest progression fields are still research-only. Only the confirmed Quest / Special item slots, Dominion Rod restoration bit, and current dungeon Map/Boss Key/Compass bits are exposed as editors.
 - Hidden Skills ownership is mapped and editable, but related Hero's Shade/wolf lesson progression state is not fully mapped. Clearing learned skills may affect encounter availability after area reload.
 - Inventory ownership editing uses detected/desired/apply where real flags are mapped. Current listed inventory ownership flags are not identified yet.
 - Bottle Editor v1 edits visible bottle-content slots only; bottle ownership and unconfirmed bottled item raw values are still being researched.
@@ -486,7 +548,7 @@ The app does not parse or execute Cheat Engine scripts at runtime. The relevant 
 - Early Ordon intro saves may accept byte writes in memory while TPHD ignores ownership edits. Progress past the intro arc and rescan, or use the manual overrides only for diagnostics on copied saves.
 - Golden Bugs ownership editing is mapped for the visible collection-screen bugs, but Agitha reward and turn-in flags are not edited.
 - Values are simple external memory edits. They do not patch game logic.
-- Quest Items Research is read-only. Quest item/progression editing is not implemented until mappings are confirmed.
+- Quest Items Research remains read-only. Unconfirmed quest/event candidates are not exposed as editors until mappings are confirmed.
 - Support snapshots include trainer logs and state summaries only. They intentionally do not include Cemu saves, game files, memory dumps, or personal account data.
 - If Cemu runs as administrator, the trainer may also need to run as administrator.
 

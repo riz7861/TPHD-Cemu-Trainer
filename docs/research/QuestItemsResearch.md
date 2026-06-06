@@ -2,24 +2,104 @@
 
 ## Status
 
-Research only. No Quest Items editor has been implemented.
+Mixed confirmed editor plus research tooling.
 
-The goal is to identify authoritative quest-item and progression fields before any write controls are added.
+The trainer now exposes a compact editor only for live-confirmed Quest / Special fields. Broader quest-item, event, and progression candidates remain research-only until confirmed.
+
+## Confirmed Quest / Special Editor
+
+The Quest Items tab includes **Quest / Special Item Editor**.
+
+Confirmed fixed slots:
+
+| Field | Offset | Values | Notes |
+| --- | --- | --- | --- |
+| Ooccoo | `0x26A` | `0xFF` Empty, `0x25` Ooccoo, `0x27` Ooccoo Jr. | Confirmed special item slot. |
+| Generic Quest Slot / Bottom-Right Quest Slot | `0x26B` | `0xFF` Empty, `0x25` Ooccoo, `0x27` Ooccoo Jr., `0x4A` Fishing Rod, `0x83` Ilia's Charm, `0x84` Horse Call, `0xE9` Ancient Sky Book | Confirmed generic quest item renderer. Advanced / experimental-safe because its intended story item is unknown. |
+| Fishing Rod | `0x26C` | `0xFF` Empty, `0x4A` Fishing Rod, `0x5C` Fishing Rod + Coral Earring | Confirmed fixed rod-state slot. |
+| Horse Call / Ilia Item | `0x26D` | `0xFF` Empty, `0x83` Ilia's Charm, `0x84` Horse Call | Confirmed companion item slot; Ilia's Charm and Horse Call verified working in-game. |
+| Ancient Sky Book | `0x26E` | `0xFF` Empty, `0xE9` Ancient Sky Book | Ancient Sky Book requires the Ooccoo slot at `0x26A` to be empty. |
+
+Writes happen only when the user clicks Apply. These controls write the confirmed slot byte only.
+
+Ancient Sky Book validation:
+
+- Before writing `0xE9` to `0x26E`, the trainer reads `0x26A`.
+- If `0x26A` is not `0xFF`, the write is blocked.
+- The trainer shows and logs: `Ancient Sky Book requires the Ooccoo slot to be empty.`
+- The trainer never silently overwrites Ooccoo or Ooccoo Jr.
+
+## Confirmed Dominion Rod Restoration
+
+`0x3D1` bit 7 controls Dominion Rod restoration/reactivation state.
+
+This control was verified working in-game.
+
+Observed values:
+
+- `0x32`: inactive/red state
+- `0xB2`: restored/blue state
+
+The trainer toggles only bit 7 and preserves every other bit in `0x3D1`.
+
+Important:
+
+- This does not grant the Dominion Rod item.
+- The player must already own the Dominion Rod item.
+- The Dominion Rod inventory slot is not touched by this control.
+
+## Confirmed Current Dungeon Items
+
+`0xFD1` is the current dungeon item ownership byte in at least Forest Temple, Goron Mines, and Lakebed Temple.
+
+Confirmed bits:
+
+- bit 0: Map
+- bit 1: Compass
+- bit 2: Boss Key / Large Key
+
+Useful values:
+
+- `0x00`: None
+- `0x01`: Map
+- `0x02`: Compass
+- `0x04`: Boss Key / Large Key
+- `0x07`: All three
+
+The trainer modifies only bits 0-2 and preserves bits 3-7. It does not touch key shards, `_playerbase+0x28F`, or dungeon-specific quest item state.
+
+`0xC7` is not exposed as an editor value because it includes extra progression bits outside the confirmed ownership bits.
+
+Notes:
+
+- Goron Mines has unique key shard progression, so Boss Key behavior may depend on dungeon/story context.
+- Bits 6 and 7 are not key shard count.
 
 ## UI Location
 
 The Quest Items tab includes **Quest Items Research / Experimental**.
 
+The top-level **Research** tab also includes a compact **Snapshot Diff** workflow for quick in-memory A/B range comparison and a **Live Capture** workflow for continuous read-only monitoring. Use the Quest Items tab when you need persistent labeled quest captures and multi-capture progression analysis.
+
 ## Default Range
 
 The research tool captures a configurable `_playerbase`-relative byte range.
 
-Default:
+Recommended broad scan:
 
 - Start: `_playerbase+0x200`
-- Length: `0x200`
+- Length: `0x400`
 
 The range can be changed in the UI when comparing different candidate areas.
+
+Quick range buttons:
+
+- `0x200-0x2FF`: start `0x200`, length `0x100`
+- `0x200-0x3FF`: start `0x200`, length `0x200`
+- `0x000-0x3FF`: start `0x000`, length `0x400`
+- `0x000-0x7FF`: start `0x000`, length `0x800`
+
+Use the broader `0x200` / `0x400` range when looking for quest flags that may live past `0x2FF`.
 
 ## Persistent Capture Library
 
@@ -98,6 +178,8 @@ The comparison summary shows:
 - Range mismatch warning if the captures do not cover the same range
 - Changed byte count
 - Changed bit count
+
+Pairwise comparisons and multi-capture analysis require matching start offsets and lengths. If ranges differ, the tool warns instead of silently comparing unrelated bytes.
 
 Each compared byte row shows:
 
@@ -203,6 +285,7 @@ Multi-capture appearances are also fed back into pairwise candidate ranking. If 
 Activity is logged to:
 
 - `logs/quest-items-research.log`
+- `logs/quest-special-editor.log`
 
 Persistent reports are written to:
 
@@ -227,6 +310,31 @@ Legacy quick exports are still written to:
 
 ## Safety
 
-This feature is read-only. It does not grant quest items, change progression flags, write inventory slots, or modify story state.
+Quest Items Research is read-only. It does not grant quest items, change progression flags, write inventory slots, or modify story state.
+
+The confirmed Quest / Special editor writes only the confirmed slot bytes or confirmed bitfields listed above. All bitfield writes preserve unrelated bits.
 
 Use copied saves or save states when researching progression changes so you can repeat the same before/after comparison safely.
+
+## Research-Only Notes
+
+These findings are documented for future investigation and are not exposed as editor controls:
+
+- `0x28F` appears to be a dungeon event/progression byte, not ownership.
+- `0x28F` bit 3: observed map chest event.
+- `0x28F` bit 0: observed small key event.
+- `0x28F` bit 5: observed Ooccoo event.
+- `0xFC3` bit 7: strong candidate for Goron Mines first key shard collected flag. Observed `0x00 -> 0x80` on the first shard pickup. It is not a shard count, and manual editing produced no visible UI change.
+- `0x289` bit 3: stamp chest collected/history flag. Manual editing did not grant a stamp.
+- `0x49B` bit 7: heart piece collected/history flag. Manual editing did not grant a heart piece, health, or container progress.
+
+Rejected or failed visible-effect candidates:
+
+- `0xFCA`
+- `0xFC2`
+- `0x1030`
+- `0x1010`
+- `0xFBE`
+- `0xFBD`
+- `0xFC1`
+- `0xFC5`
