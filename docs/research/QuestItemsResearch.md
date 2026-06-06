@@ -8,6 +8,8 @@ The trainer now exposes a compact editor only for live-confirmed Quest / Special
 
 The confirmed editor remains visible in the public v1.0 interface. **Quest Items Research / Experimental** is preserved behind Developer Mode so unconfirmed candidates are not presented as normal editor options.
 
+The normal Quest Items UI uses a two-column, game-facing layout with friendly **Current**, **Set To**, and **Apply** controls. Raw slot terminology, offsets, and research tooling remain behind Developer Mode.
+
 ## Confirmed Quest / Special Editor
 
 The Quest Items tab includes **Quest / Special Item Editor**.
@@ -76,6 +78,16 @@ Notes:
 
 - Goron Mines has unique key shard progression, so Boss Key behavior may depend on dungeon/story context.
 - Bits 6 and 7 are not key shard count.
+
+## Confirmed Current Dungeon Small Keys
+
+`0xFD0` stores the current dungeon Small Key count. The normal editor limits values to `0-9`, writes only this byte, and verifies readback. This is separate from the current dungeon item bits at `0xFD1`.
+
+## Confirmed Goron Mines Key-Shard Completion
+
+Writing `0x6E` to `_playerbase+0x2A4` was confirmed to complete the Goron Mines key-shard sequence and form the Big Key. The trainer exposes this as a separate completion action and does not touch `0xFD1`.
+
+This is not an individual shard-count editor. The first-shard candidate at `0xFC3` bit 7 remains research-only.
 
 ## UI Location
 

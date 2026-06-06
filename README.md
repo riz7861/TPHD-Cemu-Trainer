@@ -15,25 +15,25 @@ This trainer is external only. It does not inject DLLs, install drivers, hook em
 
 ## Current Features
 
-The UI is organized as a tabbed trainer/save-editor hybrid so new systems can be added without crowding one large grid.
+The UI is organized as a tabbed trainer/save-editor hybrid so new systems can be added without crowding one large grid. Release 1.0 uses game-facing names and compact editors by default; raw offsets, diagnostic columns, and research terminology appear only in Developer Mode.
 
-- **General**: health, max health, heart container summary, lantern oil, wallet, rupees, Poe Souls, Golden Bugs count
+- **General**: heart-based health editing, max health, safe Heart Piece progress, lantern oil, wallet, rupees, Poe Souls, Golden Bugs count
 - **Inventory**: item detection and confirmed fixed-slot grant/remove for mapped visible slots
 - **Equipment**: ownership flag editor with read-only current equipped armor/sword/shield diagnostics
-- **Ammo & Upgrades**: wallet, quiver, bomb slot count/capacity diagnostics, confirmed Bomb Slot Editor, and seed capacity-aware edits
-- **Collectibles**: verified Poe Souls editing, full Golden Bugs ownership editor, and health/heart summaries
+- **Ammo & Upgrades**: wallet, quiver, friendly Bomb Bag type/count/capacity controls, and seed capacity-aware edits
+- **Collectibles**: friendly Poe Souls editing, full Golden Bugs editor, and health/heart summaries
 - **Story Flags**: reserved progression flags
 - **Hidden Skills**: confirmed dependency-safe progression editor
 - **Quest Items**: confirmed Quest / Special item controls, Dominion Rod restoration, and current dungeon item bits
 - **Developer Mode**: optional Research and Debug workspaces, experimental tools, raw values, diagnostics, and unsafe research editors
 
-The traditional WPF menu provides File actions for attach/detach/exit, Options for Dark Mode, Developer Mode, and the backup reminder, Tools for logs and Developer Mode workspaces, and Help links for documentation and About information. The existing top bar remains available for quick attach/detach and status checks.
+The traditional WPF menu provides File actions for attach/detach/exit, Options for Dark Mode and Developer Mode, Tools for logs and Developer Mode workspaces, and Help links for documentation, About information, and the backup warning. The existing top bar remains available for quick attach/detach and status checks.
 
 The app defaults to Light mode with Developer Mode off and stores both preferences locally under the user's AppData folder when possible.
 
 ## Developer Mode
 
-Developer Mode is off by default so the public v1.0 interface stays focused on confirmed editors. Enabling it requires accepting a warning and reveals the Research tab, Debug tab, raw addresses, detailed diagnostics, experimental candidate tools, Bottle Editor, inventory removal/raw writes, and embedded research panels.
+Developer Mode is off by default so the public v1.0 interface stays focused on confirmed editors. Enabling it requires accepting a warning and reveals the Research tab, Debug tab, raw addresses, detailed diagnostics, experimental candidate tools, advanced bottle details, inventory removal/raw writes, bomb/Golden Bug diagnostics, and embedded research panels.
 
 Developer Mode never writes its preference to TPHD memory or save data. Disabling it hides the research tools again and stops active live-memory watches. A visible **Developer Mode Enabled** indicator remains in the top bar while it is active.
 
@@ -41,6 +41,7 @@ Developer Mode never writes its preference to TPHD memory or save data. Disablin
 
 - Current health
 - Maximum health
+- Safe partial Heart Piece progress within the current collection cycle
 - Rupees
 - Lantern oil
 - Arrows
@@ -63,23 +64,35 @@ Developer Mode never writes its preference to TPHD memory or save data. Disablin
 - Confirmed Quest / Special item slots at `_playerbase+0x26A` through `_playerbase+0x26E`
 - Dominion Rod restoration flag at `_playerbase+0x3D1` bit 7
 - Current dungeon Map, Compass, and Boss Key / Large Key bits at `_playerbase+0xFD1` bits 0-2
+- Current dungeon Small Keys at `_playerbase+0xFD0`, limited to 0-9
+- Goron Mines key-shard completion at `_playerbase+0x2A4`
 
 ## Capacity System
 
 Capacity-limited values are clamped before every write. The **Max** button means the currently selected capacity, not a global maximum.
+
+Capacity dropdowns use friendly labels such as **500 Rupees**, **30 Arrows**, and **30 Bombs**. Reading player data selects the matching current capacity automatically. Normal-mode health values and targets are displayed in hearts, while the underlying quarter-heart writes remain unchanged. Health editing supports values through 1000 quarter-hearts and no longer clamps valid values above 80. Maximum-health targets initialize from the current read value after attach/rescan.
 
 - Wallet: 500, 1000, 2000, 9999
 - Quiver: 30, 60, 100
 - Bomb Slots: 30, 60
 - Seed Bag: 50
 
-The CT exposes one shared bomb capacity byte, so all three CT-backed bomb slot count fields currently share that capacity selector. The UI labels these as **Bomb Slot 1-3** because the independent three-bag model is not confirmed. The seed bag capacity is fixed because the CT table does not expose a separate seed capacity offset.
+The CT exposes one shared bomb capacity byte, so all three CT-backed bomb count fields currently share that capacity selector. Normal Mode presents them as **Bomb Bag 1-3** for a familiar game-facing workflow. Developer Mode retains the underlying slot terminology and diagnostics. The seed bag capacity is fixed because the CT table does not expose a separate seed capacity offset.
 
 Targets initialize from the current in-memory value after a successful scan. Lock mode writes only clamped values. Current health is also clamped to maximum health.
 
-## Bomb Slot Editor And Research
+## Bomb Bags And Developer Diagnostics
 
-The Ammo & Upgrades tab includes a confirmed **Bomb Slot Editor** for TPHD's visible bomb slot content bytes:
+The normal Ammo & Upgrades tab presents three compact **Bomb Bag** sections. Each shows Bomb Type, shared Capacity, Current Bombs, and Lock Bombs. The type dropdown contains only:
+
+- Normal Bombs
+- Water Bombs
+- Bomblings
+
+Select **Apply Bomb Type Changes** to write pending type changes. Raw slot values, delayed verification details, previous-value restore, and research wording are visible only in Developer Mode.
+
+Internally, the confirmed visible bomb content bytes are:
 
 - Bomb Slot 1 content: `_playerbase+0x267`
 - Bomb Slot 2 content: `_playerbase+0x268`
@@ -93,7 +106,7 @@ Confirmed live-tested content values:
 
 The invalid `0x50` value produced an empty/glitched bomb icon during testing and is intentionally not exposed in the editor.
 
-Bomb Slot Editor writes happen only when **Apply Bomb Slot Changes** or **Restore Previous Bomb Slots** is clicked. The trainer reads the previous slot bytes, writes only the selected confirmed slot values, verifies immediate readback, verifies again after 250ms and 1000ms, refreshes the slot state, and logs to `logs/bomb-slot-editor.log`. Restore is session-only and restores the previous 3-byte bomb slot snapshot captured before the last editor write.
+Bomb type writes happen only when **Apply Bomb Type Changes** is clicked. The trainer reads the previous slot bytes, writes only the selected confirmed slot values, verifies immediate readback, verifies again after 250ms and 1000ms, refreshes the slot state, and logs to `logs/bomb-slot-editor.log`. Developer Mode provides a session-only **Restore Previous Bomb Slots** action.
 
 The existing CT-backed bomb count/capacity behavior remains unchanged:
 
@@ -108,7 +121,9 @@ See `docs/research/BombSlotsResearch.md` for current notes.
 
 ## Quest / Special Items And Research
 
-The Quest Items tab includes a compact **Quest / Special Item Editor** for live-confirmed fixed slots:
+The normal Quest Items tab uses a two-column layout so important actions remain reachable at common window sizes. Confirmed Quest / Special slots use friendly current-value and **Set To** dropdowns with per-slot **Apply** buttons. Items sharing one game slot, such as Ooccoo/Ooccoo Jr. and Ilia's Charm/Horse Call, remain mutually exclusive. The verified Ancient Sky Book/Ooccoo safety rule still applies.
+
+With Developer Mode enabled, the **Advanced Slot Editor** exposes the live-confirmed fixed slots:
 
 - Ooccoo slot: `_playerbase+0x26A`, supporting Empty, Ooccoo, and Ooccoo Jr.
 - Generic Quest Slot / Bottom-Right Quest Slot: `_playerbase+0x26B`, supporting Empty, Ooccoo, Ooccoo Jr., Fishing Rod, Ilia's Charm, Horse Call, and Ancient Sky Book. This is marked advanced / experimental-safe because the intended story item is still unknown.
@@ -127,6 +142,10 @@ The **Current Dungeon Items** editor uses `_playerbase+0xFD1` as the active/curr
 - bit 2: Boss Key / Large Key
 
 Useful low-bit values are `0x00` None, `0x01` Map, `0x02` Compass, `0x04` Boss Key / Large Key, and `0x07` all three. Writes only modify bits 0-2 and preserve bits 3-7. The dungeon editor does not expose `0xC7`, edit key shards, touch `_playerbase+0x28F`, or claim to control dungeon-specific quest items. Goron Mines key shard progression appears to be separate from these bits.
+
+The same section exposes **Small Keys for the current dungeon** at `_playerbase+0xFD0`. The normal editor limits this byte to `0-9` and verifies the written value. It is separate from the Map, Compass, and Boss Key / Large Key bits at `0xFD1`.
+
+The separate **Goron Mines Key Shards** control writes the live-confirmed completed state `0x6E` to `_playerbase+0x2A4`. It completes the Goron Mines key-shard sequence and forms the Big Key without touching `0xFD1`. This is a completion control, not a shard-count editor.
 
 With Developer Mode enabled, the Quest Items tab includes **Quest Items Research / Experimental**. It is read-only and is intended to help identify quest-item and progression bytes without promoting unconfirmed offsets into an editor.
 
@@ -162,6 +181,12 @@ The legacy quick exports are still written for convenience:
 - `logs/research/quest-items-report.csv`
 
 Research activity is logged to `logs/quest-items-research.log`. Quest / Special editor writes are logged to `logs/quest-special-editor.log`. See `docs/research/QuestItemsResearch.md` and `docs/research/DungeonItemsResearch.md`.
+
+## Heart Piece Progress
+
+The General tab displays Current Health and Maximum Health in hearts. Targets accept quarter-heart increments, while Developer Mode and raw-memory tools retain the underlying quarter-heart values. The guarded Heart Piece progress editor is backed by `_playerbase+0x1BF`; it treats the byte as a running progress counter, shows the current partial progress using `value % 5`, and allows only `1/5` through `4/5` within the current cycle. It does not expose unsafe raw values or destructive low resets in normal mode.
+
+The editor changes only partial progress within the current cycle; it does not grant a specific overworld Heart Piece or alter chest/history flags. Raw value details are visible only in Developer Mode. See `docs/research/HeartProgressResearch.md`.
 
 ## Research Workspace
 
@@ -255,9 +280,9 @@ The Ownership Diff Report shows offset, before value, after value, changed statu
 
 The Inventory tab reads the 24 CT-backed visible inventory bytes from `_playerbase+0x258` through `_playerbase+0x26F`. Research indicates these bytes are game-managed display/current-state fields, not arbitrary bag slots. TPHD may rebuild them from authoritative ownership or progression flags and may immediately revert direct writes.
 
-In the default v1.0 interface, Inventory uses a compact editor with quick actions, item name, friendly current state, desired checkbox, and a short status. Raw offsets, slot IDs, ownership/progression research notes, write diagnostics, unsafe controls, and the full technical table are hidden by default. Enable Developer Mode and expand **Developer / Research Details** to inspect those fields without changing the normal editor workflow.
+In the default v1.0 interface, Inventory uses a compact editor with quick actions, item name, friendly current state, change checkbox, and a short status. Raw offsets, slot IDs, ownership/progression research notes, write diagnostics, unsafe controls, and the full technical table are hidden by default. Enable Developer Mode and expand **Developer / Research Details** to inspect those fields without changing the normal editor workflow.
 
-The normal **Owned / Unlocked Inventory Items** section is ownership-first, but the checked CT source still does not identify authoritative inventory ownership/progression flags:
+The technical inventory ownership and fixed-slot details below are visible only in Developer Mode. The checked CT source still does not identify authoritative inventory ownership/progression flags:
 
 - **Detected**: visible-slot detection for the listed item families.
 - **Desired**: used by the fixed-slot experimental editor for mapped visible slots, and reserved for future real ownership flags.
@@ -271,7 +296,9 @@ The **Current Inventory Slots (Read Only)** section shows all 24 CT-derived byte
 
 The trainer should eventually grant inventory through ownership/progression flags rather than raw slot forcing. Raw slots are still useful for detection and research, especially when comparing before/after saves or snapshots.
 
-The **Bottle Editor / Experimental** section edits only the four currently mapped bottle-content slots:
+The normal Inventory tab includes a compact four-row **Bottles** editor showing each bottle's current content and a friendly content dropdown. Developer Mode reveals raw values and detailed bottle diagnostics.
+
+The bottle editor changes only the four currently mapped bottle-content slots:
 
 - Bottle Slot 1: `_playerbase+0x263`
 - Bottle Slot 2: `_playerbase+0x264`
@@ -352,15 +379,15 @@ Inventory remains read-only in normal mode even when the Inventory state says **
 
 The Collectibles tab currently supports stable edits only:
 
-- **Poe Souls**: editable CT-backed byte at `_playerbase+0x2C8`, clamped to `0-60`, verified after write, refreshed after apply, and logged to `logs/collectibles.log`.
-- **Golden Bugs**: editable ownership bits for all 24 bugs at `_playerbase+0x2A1` through `_playerbase+0x2A3`, with detected/desired state, Apply, Add All, Clear All, Restore Previous, readback verification, and logging to `logs/golden-bugs-editor.log`.
-- **Health summary**: current health quarters and maximum health quarters are shown for reference. Health editing remains in the General tab.
+- **Poe Souls**: friendly current/set/max controls for values `0-60`; technical verification details remain in Developer Mode and `logs/collectibles.log`.
+- **Golden Bugs**: simple **Owned** checkboxes for all 24 bugs, plus Apply, Add All, and Clear All. Raw ownership details and session restore remain in Developer Mode.
+- **Health summary**: current and maximum health are shown in hearts. Health editing remains in the General tab.
 
 TPHD has 24 Golden Bugs: 12 species with male and female variants. Live memory testing confirms that visible Golden Bug ownership uses the 24 bits across `_playerbase+0x2A1`, `_playerbase+0x2A2`, and `_playerbase+0x2A3`. The normal Golden Bugs editor does not write `_playerbase+0x2A4`.
 
-The editor shows the current owned count out of 24, raw bytes `0x2A1-0x2A3`, and one row per bug with offset, bit, current state, desired checkbox, and dirty indicator. Refresh updates detected state and preserves unsaved desired edits. The trainer never writes Golden Bugs on attach, rescan, or refresh.
+Normal Mode shows the current owned count out of 24 and one friendly **Owned** checkbox per bug. Developer Mode adds raw bytes `0x2A1-0x2A3`, offset/bit/current state, pending indicators, diagnostics, and session restore. Refresh updates detected state and preserves unsaved desired edits. The trainer never writes Golden Bugs on attach, rescan, or refresh.
 
-**Apply Golden Bug Changes** writes only changed desired bits and preserves the rest of each byte. **Add All Golden Bugs** sets all 24 confirmed ownership bits. **Clear All Golden Bugs** clears all 24 confirmed ownership bits. **Restore Previous Bug State** restores the previous 3-byte state captured before the last editor write in the current trainer session. All editor writes verify immediate, 250ms, and 1000ms readbacks.
+**Apply Changes** writes only changed desired bits and preserves the rest of each byte. **Collect All** sets all 24 confirmed collection bits. **Clear All** clears all 24 confirmed collection bits. Developer Mode's **Restore Previous Bug State** restores the previous 3-byte state captured before the last editor write in the current trainer session. All editor writes verify immediate, 250ms, and 1000ms readbacks.
 
 Confirmed Golden Bugs mapping:
 
@@ -407,7 +434,7 @@ The Hidden Skills tab includes a confirmed progression editor for all seven Hidd
 
 Enabling a skill automatically enables all earlier prerequisites. Disabling a skill automatically disables all later dependent skills. The in-game Skills menu may show progression slots rather than exact isolated bit state, and some moves require prerequisite flags for combat usability. Treat combat usability as the real validation signal when testing copied saves.
 
-The editor shows detected state, desired state, dirty state, and last write/verification status. It interprets only confirmed ownership bits in `0x3D5` bits `0-3` and `0x3D6` bits `5-7`; unrelated bits remain visible in Developer Mode diagnostics only. If detected ownership has a later skill without prerequisites, the editor shows **Hidden Skill progression appears non-standard. This may happen on edited or imported saves.** and does not write fixes until Apply is clicked. It supports refresh, apply changed skills, add all, clear all, and session-only restore of the previous two-byte state. Writes preserve unrelated bits in `0x3D5` and `0x3D6`, verify immediate/250ms/1000ms readbacks, and log to `logs/hidden-skills-editor.log`.
+The editor shows detected state, desired state, dirty state, and last write/verification status. It interprets only confirmed ownership bits in `0x3D5` bits `0-3` and `0x3D6` bits `5-7`; unrelated bits remain visible in Developer Mode diagnostics only. If detected ownership has a later skill without prerequisites, the editor shows **Hidden Skill progression appears non-standard. This can happen on edited or imported saves.** and does not write fixes until Apply is clicked. It supports refresh, apply changed skills, add all, clear all, and session-only restore of the previous two-byte state. Writes preserve unrelated bits in `0x3D5` and `0x3D6`, verify immediate/250ms/1000ms readbacks, and log to `logs/hidden-skills-editor.log`.
 
 Hidden Skill bits affect both menu ownership and Hero's Shade/wolf progression. Removing a learned skill may cause the wolf/Hero's Shade encounter to become available again after area reload. Use copied saves first.
 
@@ -534,6 +561,7 @@ The app does not parse or execute Cheat Engine scripts at runtime. The relevant 
 - `docs/research/HiddenSkillsResearch.md`: current Hidden Skills mapping notes and workflow
 - `docs/research/QuestItemsResearch.md`: Quest Items research workflow and export notes
 - `docs/research/DungeonItemsResearch.md`: current dungeon item bits and dungeon event research notes
+- `docs/research/HeartProgressResearch.md`: confirmed guarded Heart Piece progress behavior
 - `docs/research/LiveCaptureResearch.md`: generic live capture workflow and known-region hints
 - `TphdCemuTrainer/MainWindow.xaml`: tabbed WPF trainer UI
 
@@ -542,9 +570,9 @@ The app does not parse or execute Cheat Engine scripts at runtime. The relevant 
 - The player base scan depends on the CT table AOB. It may fail on unsupported game revisions, different memory layouts, or if gameplay is not loaded.
 - The first scan can still be slower than later rescans because no cache has been validated yet.
 - Missing player data is handled as a rescan state, not an application failure.
-- Broader story flags and many quest progression fields are still research-only. Only the confirmed Quest / Special item slots, Dominion Rod restoration bit, and current dungeon Map/Boss Key/Compass bits are exposed as editors.
-- Heart piece ownership/counter and stamp ownership/counter are not fully mapped.
-- Goron Mines key shard count is not fully mapped.
+- Broader story flags and many quest progression fields are still research-only. Only the confirmed Quest / Special item slots, Dominion Rod restoration bit, current dungeon items/Small Keys, and Goron Mines key-shard completion state are exposed as editors.
+- Heart Piece partial progress is editable within the current collection cycle, but individual Heart Piece ownership/history and stamp ownership/history are not mapped.
+- Goron Mines key-shard completion is confirmed, but individual shard count/state editing is not exposed.
 - Some quest items remain unknown until natural playthrough captures identify their authoritative state.
 - Developer Mode tools are experimental and hidden by default.
 - Hidden Skills ownership is mapped and editable, but related Hero's Shade/wolf lesson progression state is not fully mapped. Clearing learned skills may affect encounter availability after area reload.

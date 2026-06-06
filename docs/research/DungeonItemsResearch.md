@@ -2,9 +2,9 @@
 
 ## Status
 
-Limited confirmed editor plus research notes.
+Confirmed current-dungeon editor plus research notes.
 
-The trainer exposes only the confirmed active/current dungeon item ownership byte. It is not Forest Temple-specific. Dungeon-specific events, key shards, chest history, and other progression state remain research-only.
+The trainer exposes the confirmed active/current dungeon item ownership byte, the current dungeon Small Key count, and a separate confirmed Goron Mines key-shard completion action. Other dungeon-specific events, individual key shards, chest history, and progression state remain research-only.
 
 The confirmed Current Dungeon Items editor remains available in the normal v1.0 interface. Raw diagnostics and research-only dungeon candidates require Developer Mode.
 
@@ -51,6 +51,22 @@ Goron Mines has unique key shard progression. Boss Key / Large Key behavior may 
 
 Bits 6 and 7 at `0xFD1` are not key shard count.
 
+## Confirmed Current Dungeon Small Keys
+
+The current dungeon Small Key count is stored at:
+
+- `_playerbase+0xFD0`
+
+The normal editor limits values to `0-9`, writes only this byte, and verifies readback. This field is separate from the Map, Compass, and Boss Key / Large Key ownership bits at `0xFD1`.
+
+## Confirmed Goron Mines Key-Shard Completion
+
+Live testing confirmed:
+
+- `_playerbase+0x2A4 = 0x6E`: completes the Goron Mines key-shard sequence and forms the Big Key.
+
+The trainer exposes this as a separate **Complete Key Shards** action. It does not write `0xFD1`, does not claim to edit individual shard count, and is not part of Golden Bug ownership editing.
+
 ## Dungeon Event / Progression Byte
 
 `_playerbase+0x28F` appears to be dungeon event/progression history, not ownership.
@@ -63,7 +79,7 @@ Observed bits:
 
 These bits should stay research-only until their behavior is better understood.
 
-## Goron Mines Key Shard Candidate
+## Goron Mines First-Shard Candidate
 
 `_playerbase+0xFC3` bit 7 is a strong candidate for the Goron Mines first key shard collected flag.
 
@@ -73,6 +89,7 @@ Current findings:
 - It is not a shard count.
 - Manual editing produced no visible UI change.
 - It is not exposed as an editor.
+- It remains distinct from the confirmed completed-state value at `_playerbase+0x2A4`.
 
 ## Chest History Candidates
 
