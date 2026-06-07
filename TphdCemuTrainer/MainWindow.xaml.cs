@@ -124,6 +124,8 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     private DateTimeOffset? _goldenBugsBitfieldRestoreSnapshotCapturedAt;
     private byte[]? _goldenBugsEditorRestoreSnapshotBytes;
     private DateTimeOffset? _goldenBugsEditorRestoreSnapshotCapturedAt;
+    private byte[]? _stampsEditorRestoreSnapshotBytes;
+    private DateTimeOffset? _stampsEditorRestoreSnapshotCapturedAt;
     private byte[]? _hiddenSkillsRestoreSnapshotBytes;
     private DateTimeOffset? _hiddenSkillsRestoreSnapshotCapturedAt;
     private byte? _candidatePreviousValue;
@@ -249,6 +251,9 @@ public partial class MainWindow : Window, INotifyPropertyChanged
                     bit.OffsetValue == definition.Offset && bit.Bit == definition.Bit)));
         GoldenBugsBitfieldDiagnostics = [];
         GoldenBugsEditorDiagnostics = [];
+        StampEditorRows = new ObservableCollection<StampBitViewModel>(
+            StampDefinitions.Stamps.Select(stamp => new StampBitViewModel(stamp)));
+        StampEditorDiagnostics = [];
         HiddenSkillsEditorRows = new ObservableCollection<HiddenSkillViewModel>(
             HiddenSkillsDefinitions.Skills.Select(skill => new HiddenSkillViewModel(skill)));
         foreach (var skill in HiddenSkillsEditorRows)
@@ -421,6 +426,9 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     private static string GoldenBugsEditorLogPath =>
         Path.Combine(AppContext.BaseDirectory, "logs", "golden-bugs-editor.log");
 
+    private static string StampEditorLogPath =>
+        Path.Combine(AppContext.BaseDirectory, "logs", "stamps-editor.log");
+
     private static string HiddenSkillsResearchLogPath =>
         Path.Combine(AppContext.BaseDirectory, "logs", "hidden-skills-research.log");
 
@@ -556,6 +564,10 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     public ObservableCollection<string> GoldenBugsBitfieldDiagnostics { get; }
 
     public ObservableCollection<string> GoldenBugsEditorDiagnostics { get; }
+
+    public ObservableCollection<StampBitViewModel> StampEditorRows { get; }
+
+    public ObservableCollection<string> StampEditorDiagnostics { get; }
 
     public ObservableCollection<QuestItemsResearchRowViewModel> QuestItemsResearchRows { get; }
 
@@ -2678,6 +2690,128 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             verified ? StatusKind.Connected : StatusKind.Warning);
     }
 
+    private void RefreshStamps_Click(object sender, RoutedEventArgs e)
+    {
+        RefreshStampsEditor(preserveDirty: true, showStatus: true);
+    }
+
+    private async void ApplyStampChanges_Click(object sender, RoutedEventArgs e)
+    {
+        var dirtyStamps = StampEditorRows
+            .Where(stamp => stamp.IsDirty && stamp.CanEdit)
+            .ToList();
+        if (dirtyStamps.Count == 0)
+        {
+            StampsEditorStatusText.Text = "No Stamp changes to apply.";
+            SetStatus(StampsEditorStatusText.Text, StatusKind.Neutral);
+            return;
+        }
+
+        if (!TryReadStampEditorBytes(out var currentBytes, out _))
+        {
+            return;
+        }
+
+        var desiredBytes = currentBytes.ToArray();
+        foreach (var stamp in dirtyStamps)
+        {
+            SetStampBitInBytes(desiredBytes, stamp, stamp.IsCollectedDesired);
+        }
+
+        var verified = await WriteStampEditorBytesAsync("apply", desiredBytes);
+        foreach (var stamp in dirtyStamps)
+        {
+            stamp.LastWriteStatus = verified ? "Verified" : "Verification failed";
+        }
+
+        RefreshStampsEditor(preserveDirty: !verified, showStatus: false);
+        StampsEditorStatusText.Text = verified
+            ? $"Applied {dirtyStamps.Count} Stamp change(s)."
+            : IsDeveloperMode
+                ? "Stamp write did not fully verify. Check diagnostics."
+                : "Some Stamp changes could not be applied.";
+        SetStatus(StampsEditorStatusText.Text, verified ? StatusKind.Connected : StatusKind.Warning);
+    }
+
+    private async void CollectAllStamps_Click(object sender, RoutedEventArgs e)
+    {
+        if (!TryReadStampEditorBytes(out var currentBytes, out _))
+        {
+            return;
+        }
+
+        var desiredBytes = currentBytes.ToArray();
+        foreach (var stamp in StampEditorRows)
+        {
+            stamp.IsCollectedDesired = true;
+            SetStampBitInBytes(desiredBytes, stamp, isSet: true);
+        }
+
+        var verified = await WriteStampEditorBytesAsync("collect-all", desiredBytes);
+        foreach (var stamp in StampEditorRows)
+        {
+            stamp.LastWriteStatus = verified ? "Verified" : "Verification failed";
+        }
+
+        RefreshStampsEditor(preserveDirty: !verified, showStatus: false);
+        StampsEditorStatusText.Text = verified
+            ? "Collected all Stamps."
+            : "Some Stamps could not be collected.";
+        SetStatus(StampsEditorStatusText.Text, verified ? StatusKind.Connected : StatusKind.Warning);
+    }
+
+    private async void ClearAllStamps_Click(object sender, RoutedEventArgs e)
+    {
+        if (!TryReadStampEditorBytes(out var currentBytes, out _))
+        {
+            return;
+        }
+
+        var desiredBytes = currentBytes.ToArray();
+        foreach (var stamp in StampEditorRows)
+        {
+            stamp.IsCollectedDesired = false;
+            SetStampBitInBytes(desiredBytes, stamp, isSet: false);
+        }
+
+        var verified = await WriteStampEditorBytesAsync("clear-all", desiredBytes);
+        foreach (var stamp in StampEditorRows)
+        {
+            stamp.LastWriteStatus = verified ? "Verified" : "Verification failed";
+        }
+
+        RefreshStampsEditor(preserveDirty: !verified, showStatus: false);
+        StampsEditorStatusText.Text = verified
+            ? "Cleared all Stamps."
+            : "Some Stamps could not be cleared.";
+        SetStatus(StampsEditorStatusText.Text, verified ? StatusKind.Connected : StatusKind.Warning);
+    }
+
+    private async void RestoreStampState_Click(object sender, RoutedEventArgs e)
+    {
+        if (_stampsEditorRestoreSnapshotBytes is null)
+        {
+            StampsEditorStatusText.Text = "No previous Stamp state captured this session.";
+            SetStatus(StampsEditorStatusText.Text, StatusKind.Neutral);
+            return;
+        }
+
+        var verified = await WriteStampEditorBytesAsync(
+            "restore-previous",
+            _stampsEditorRestoreSnapshotBytes,
+            capturePreviousState: false);
+        foreach (var stamp in StampEditorRows)
+        {
+            stamp.LastWriteStatus = verified ? "Restored" : "Restore failed";
+        }
+
+        RefreshStampsEditor(preserveDirty: !verified, showStatus: false);
+        StampsEditorStatusText.Text = verified
+            ? $"Restored Stamp state captured at {_stampsEditorRestoreSnapshotCapturedAt?.ToLocalTime():g}."
+            : "Stamp restore did not fully verify. Check diagnostics.";
+        SetStatus(StampsEditorStatusText.Text, verified ? StatusKind.Connected : StatusKind.Warning);
+    }
+
     private void RefreshHiddenSkills_Click(object sender, RoutedEventArgs e)
     {
         RefreshHiddenSkillsEditor(preserveDirty: false, showStatus: true);
@@ -4537,6 +4671,11 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             }
 
             if (!RefreshHiddenSkillsEditor(preserveDirty: true, showStatus: false))
+            {
+                return;
+            }
+
+            if (!RefreshStampsEditor(preserveDirty: true, showStatus: false))
             {
                 return;
             }
@@ -8032,6 +8171,37 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         return true;
     }
 
+    private bool TryReadStampEditorBytes(out byte[] bytes, out ulong absoluteAddress)
+    {
+        bytes = [];
+        absoluteAddress = 0;
+
+        if (_memory is null || !_playerBaseAddress.HasValue)
+        {
+            StampsEditorStatusText.Text = "Not attached. Attach to Cemu and rescan before editing Stamps.";
+            SetStatus(StampsEditorStatusText.Text, StatusKind.Neutral);
+            return false;
+        }
+
+        if (!HasPlayerData)
+        {
+            StampsEditorStatusText.Text = "Player data is not available. Load into gameplay and rescan before editing Stamps.";
+            SetStatus(StampsEditorStatusText.Text, StatusKind.Neutral);
+            return false;
+        }
+
+        absoluteAddress = _playerBaseAddress.Value + StampDefinitions.FirstOffset;
+        if (!_memory.TryReadBytes(absoluteAddress, StampDefinitions.ByteCount, out bytes, out var bytesRead) ||
+            bytesRead != StampDefinitions.ByteCount)
+        {
+            StampsEditorStatusText.Text = "Could not read Stamp collection data.";
+            SetStatus(StampsEditorStatusText.Text, StatusKind.Warning);
+            return false;
+        }
+
+        return true;
+    }
+
     private bool TryReadHiddenSkillsEditorBytes(out byte[] bytes, out ulong absoluteAddress)
     {
         bytes = [];
@@ -8125,6 +8295,34 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             bytes[3];
         GoldenBugsFlags.SetCurrentDisplay($"0x{rawValue:X8}");
         UpdateGoldenBugsResearchCurrentDisplay(rawValue, preserveDirty);
+    }
+
+    private bool RefreshStampsEditor(bool preserveDirty = true, bool showStatus = false)
+    {
+        if (!HasPlayerData)
+        {
+            MarkStampsNotRead();
+            if (showStatus)
+            {
+                SetStatus("Player data is not available. Load into gameplay and rescan before editing Stamps.", StatusKind.Neutral);
+            }
+
+            return true;
+        }
+
+        if (!TryReadStampEditorBytes(out var bytes, out _))
+        {
+            return false;
+        }
+
+        UpdateStampEditorRows(bytes, preserveDirty);
+        if (showStatus)
+        {
+            StampsEditorStatusText.Text = "Stamps refreshed.";
+            SetStatus(StampsEditorStatusText.Text, StatusKind.Connected);
+        }
+
+        return true;
     }
 
     private async Task<bool> WriteGoldenBugsEditorBytesAsync(
@@ -8240,6 +8438,129 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         finally
         {
             AppendGoldenBugsEditorDiagnostic(
+                operation,
+                beforeBytes,
+                desiredBytes,
+                immediateBytes,
+                delayed250Bytes,
+                delayed1000Bytes,
+                status);
+        }
+    }
+
+    private async Task<bool> WriteStampEditorBytesAsync(
+        string operation,
+        byte[] desiredBytes,
+        bool capturePreviousState = true)
+    {
+        var memory = _memory;
+        if (memory is null || !_playerBaseAddress.HasValue)
+        {
+            StampsEditorStatusText.Text = "Not attached.";
+            SetStatus("Not attached. Attach to Cemu and rescan before editing Stamps.", StatusKind.Neutral);
+            return false;
+        }
+
+        if (desiredBytes.Length != StampDefinitions.ByteCount)
+        {
+            StampsEditorStatusText.Text = "Stamp desired state has an invalid length.";
+            SetStatus(StampsEditorStatusText.Text, StatusKind.Warning);
+            return false;
+        }
+
+        var absoluteAddress = _playerBaseAddress.Value + StampDefinitions.FirstOffset;
+        byte[]? beforeBytes = null;
+        byte[]? immediateBytes = null;
+        byte[]? delayed250Bytes = null;
+        byte[]? delayed1000Bytes = null;
+        var status = "started";
+
+        try
+        {
+            if (!memory.TryReadBytes(absoluteAddress, StampDefinitions.ByteCount, out var currentBytes, out var currentBytesRead) ||
+                currentBytesRead != StampDefinitions.ByteCount)
+            {
+                status = "before-read-failed";
+                StampsEditorStatusText.Text = "Could not read Stamps before writing.";
+                SetStatus(StampsEditorStatusText.Text, StatusKind.Warning);
+                return false;
+            }
+
+            beforeBytes = currentBytes;
+            if (capturePreviousState && !beforeBytes.SequenceEqual(desiredBytes))
+            {
+                _stampsEditorRestoreSnapshotBytes = beforeBytes.ToArray();
+                _stampsEditorRestoreSnapshotCapturedAt = DateTimeOffset.Now;
+            }
+
+            if (beforeBytes.SequenceEqual(desiredBytes))
+            {
+                immediateBytes = beforeBytes.ToArray();
+                delayed250Bytes = beforeBytes.ToArray();
+                delayed1000Bytes = beforeBytes.ToArray();
+                status = "no-change";
+                return true;
+            }
+
+            for (var index = 0; index < desiredBytes.Length; index++)
+            {
+                if (beforeBytes[index] == desiredBytes[index])
+                {
+                    continue;
+                }
+
+                if (!memory.TryWriteBytes(absoluteAddress + (uint)index, [desiredBytes[index]], out var writeError))
+                {
+                    status = $"write-failed-index-{index}: {writeError}";
+                    StampsEditorStatusText.Text = "Stamp write failed. Detailed diagnostics were logged.";
+                    SetStatus("Stamp write failed.", StatusKind.Warning);
+                    return false;
+                }
+            }
+
+            if (!memory.TryReadBytes(absoluteAddress, StampDefinitions.ByteCount, out immediateBytes, out var immediateRead) ||
+                immediateRead != StampDefinitions.ByteCount)
+            {
+                status = "immediate-read-failed";
+                SetStatus("Stamp immediate verification failed.", StatusKind.Warning);
+                return false;
+            }
+
+            if (!desiredBytes.SequenceEqual(immediateBytes))
+            {
+                status = "immediate-mismatch";
+                SetStatus("Stamp immediate readback mismatch.", StatusKind.Warning);
+                return false;
+            }
+
+            await Task.Delay(250);
+            if (memory.TryReadBytes(absoluteAddress, StampDefinitions.ByteCount, out var read250, out var read250Count) &&
+                read250Count == StampDefinitions.ByteCount)
+            {
+                delayed250Bytes = read250;
+            }
+
+            await Task.Delay(750);
+            if (memory.TryReadBytes(absoluteAddress, StampDefinitions.ByteCount, out var read1000, out var read1000Count) &&
+                read1000Count == StampDefinitions.ByteCount)
+            {
+                delayed1000Bytes = read1000;
+            }
+
+            var delayedMismatch =
+                delayed250Bytes is not null && !desiredBytes.SequenceEqual(delayed250Bytes) ||
+                delayed1000Bytes is not null && !desiredBytes.SequenceEqual(delayed1000Bytes);
+            status = delayedMismatch ? "delayed-mismatch" : "verified";
+            if (delayedMismatch)
+            {
+                SetStatus("Stamp collection data changed after delayed verification.", StatusKind.Warning);
+            }
+
+            return !delayedMismatch;
+        }
+        finally
+        {
+            AppendStampEditorDiagnostic(
                 operation,
                 beforeBytes,
                 desiredBytes,
@@ -12401,7 +12722,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             ["Scan"] = [ScanLogPath],
             ["Inventory"] = [InventoryLogPath, InventoryOwnershipLogPath, InventoryRemovalLogPath, InventoryCheckboxTestingLogPath],
             ["Equipment"] = [EquipmentLogPath],
-            ["Collectibles"] = [CollectiblesLogPath, GoldenBugsResearchLogPath, GoldenBugsEditorLogPath, GoldenBugsBitfieldTestingLogPath],
+            ["Collectibles"] = [CollectiblesLogPath, GoldenBugsResearchLogPath, GoldenBugsEditorLogPath, GoldenBugsBitfieldTestingLogPath, StampEditorLogPath],
             ["Bottles"] = [BottleEditorLogPath],
             ["Bomb Slots"] = [BombSlotEditorLogPath],
             ["Research"] = [ResearchLogPath]
@@ -12658,6 +12979,43 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         catch (Exception ex)
         {
             GoldenBugsEditorDiagnostics.Insert(0, $"{DateTimeOffset.Now:O} golden-bugs-editor-log-write-failed: {ex.Message}");
+        }
+    }
+
+    private void AppendStampEditorDiagnostic(
+        string operation,
+        byte[]? beforeBytes,
+        byte[] desiredBytes,
+        byte[]? immediateBytes,
+        byte[]? delayed250Bytes,
+        byte[]? delayed1000Bytes,
+        string status)
+    {
+        var entry =
+            $"{DateTimeOffset.Now:O} operation={operation} offset=0x{StampDefinitions.FirstOffset:X} " +
+            $"before=\"{FormatNullableByteArray(beforeBytes)}\" desired=\"{FormatByteArray(desiredBytes)}\" " +
+            $"immediate=\"{FormatNullableByteArray(immediateBytes)}\" read250ms=\"{FormatNullableByteArray(delayed250Bytes)}\" " +
+            $"read1000ms=\"{FormatNullableByteArray(delayed1000Bytes)}\" status=\"{status}\"";
+
+        StampEditorDiagnostics.Insert(0, entry);
+        while (StampEditorDiagnostics.Count > 100)
+        {
+            StampEditorDiagnostics.RemoveAt(StampEditorDiagnostics.Count - 1);
+        }
+
+        try
+        {
+            var logDirectory = Path.GetDirectoryName(StampEditorLogPath);
+            if (!string.IsNullOrWhiteSpace(logDirectory))
+            {
+                Directory.CreateDirectory(logDirectory);
+            }
+
+            File.AppendAllText(StampEditorLogPath, entry + Environment.NewLine);
+        }
+        catch (Exception ex)
+        {
+            StampEditorDiagnostics.Insert(0, $"{DateTimeOffset.Now:O} stamps-editor-log-write-failed: {ex.Message}");
         }
     }
 
@@ -13469,6 +13827,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
 
     private void MarkGoldenBugsResearchNotRead()
     {
+        GoldenBugsExpanderHeaderText.Text = "Golden Bugs - Not read";
         GoldenBugsEditorOwnedCountText.Text = "Not read";
         GoldenBugsEditorRawBytesText.Text = "Not read";
         GoldenBugsEditorStatusText.Text = "Attach to Cemu and rescan before editing Golden Bugs.";
@@ -13505,6 +13864,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     {
         if (bytes.Count < GoldenBugsDefinitions.OwnershipByteCount)
         {
+            GoldenBugsExpanderHeaderText.Text = "Golden Bugs - Not read";
             GoldenBugsEditorOwnedCountText.Text = "Not read";
             GoldenBugsEditorRawBytesText.Text = "Not read";
             return;
@@ -13513,8 +13873,53 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         var ownershipBytes = bytes.Take(GoldenBugsDefinitions.OwnershipByteCount).ToArray();
         GoldenBugsEditorOwnedCountText.Text =
             $"{GoldenBugsEditorRows.Count(bit => bit.IsSetDetected == true)} / 24";
+        GoldenBugsExpanderHeaderText.Text =
+            $"Golden Bugs - {GoldenBugsEditorOwnedCountText.Text} collected";
         GoldenBugsEditorRawBytesText.Text = FormatByteArray(ownershipBytes);
         GoldenBugsCountText.Text = GoldenBugsEditorOwnedCountText.Text;
+    }
+
+    private void MarkStampsNotRead()
+    {
+        StampsExpanderHeaderText.Text = "Stamps - Not read";
+        StampsEditorFoundCountText.Text = "Not read";
+        StampsEditorRawBytesText.Text = "Not read";
+        StampsEditorStatusText.Text = "Attach to Cemu and rescan before editing Stamps.";
+        foreach (var stamp in StampEditorRows)
+        {
+            stamp.MarkNotRead();
+        }
+    }
+
+    private void UpdateStampEditorRows(IReadOnlyList<byte> bytes, bool preserveDirty)
+    {
+        foreach (var stamp in StampEditorRows)
+        {
+            var byteIndex = (int)(stamp.OffsetValue - StampDefinitions.FirstOffset);
+            if (byteIndex < 0 || byteIndex >= bytes.Count)
+            {
+                stamp.MarkNotRead();
+                continue;
+            }
+
+            var currentByte = bytes[byteIndex];
+            var isCollected = (currentByte & (1 << stamp.Bit)) != 0;
+            stamp.SetDetected(isCollected, currentByte, preserveDirty);
+            stamp.CanEdit = HasPlayerData;
+        }
+
+        if (bytes.Count < StampDefinitions.ByteCount)
+        {
+            StampsExpanderHeaderText.Text = "Stamps - Not read";
+            StampsEditorFoundCountText.Text = "Not read";
+            StampsEditorRawBytesText.Text = "Not read";
+            return;
+        }
+
+        StampsEditorFoundCountText.Text =
+            $"{StampEditorRows.Count(stamp => stamp.IsCollectedDetected == true)} / {StampDefinitions.MappedStampCount} mapped";
+        StampsExpanderHeaderText.Text = $"Stamps - {StampsEditorFoundCountText.Text}";
+        StampsEditorRawBytesText.Text = FormatByteArray(bytes.Take(StampDefinitions.ByteCount).ToArray());
     }
 
     private void UpdateHiddenSkillsEditorRows(IReadOnlyList<byte> bytes, bool preserveDirty)
@@ -13795,6 +14200,20 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             : (byte)(bytes[byteIndex] & ~mask);
     }
 
+    private static void SetStampBitInBytes(byte[] bytes, StampBitViewModel stamp, bool isSet)
+    {
+        var byteIndex = (int)(stamp.OffsetValue - StampDefinitions.FirstOffset);
+        if (byteIndex < 0 || byteIndex >= bytes.Length)
+        {
+            return;
+        }
+
+        var mask = (byte)(1 << stamp.Bit);
+        bytes[byteIndex] = isSet
+            ? (byte)(bytes[byteIndex] | mask)
+            : (byte)(bytes[byteIndex] & ~mask);
+    }
+
     private static int CountSetBits(uint value)
     {
         var count = 0;
@@ -13871,6 +14290,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
 
         UpdateDerivedDisplays();
         MarkGoldenBugsResearchNotRead();
+        MarkStampsNotRead();
         SetStatus("Player data could not be read. Load into gameplay and rescan.", StatusKind.Warning);
     }
 
@@ -13949,6 +14369,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
 
         GoldenBugsCountText.Text = "Not read";
         MarkGoldenBugsResearchNotRead();
+        MarkStampsNotRead();
         _candidatePreviousOffset = null;
         _candidatePreviousValue = null;
         CandidateAbsoluteAddressText.Text = "-";

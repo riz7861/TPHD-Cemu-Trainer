@@ -30,3 +30,7 @@ The editor does not expose `0 / 5`, `5 / 5`, arbitrary raw values, or destructiv
 This field controls progress toward the next Heart Container. It does not identify or grant a specific overworld Heart Piece and does not edit chest/history flags.
 
 Raw value details are visible only in Developer Mode. Back up the save before editing.
+
+## Display Conversion TODO
+
+Heart container display/conversion may be offset by +1 on some saves. In one observed save, the app showed `4.25` hearts and `4` containers while the game had three full Heart Containers plus two Heart Pieces. The current UI labels the derived value as **Estimated Heart Containers**. This needs future verification before stronger Heart Container editing is introduced.

@@ -160,6 +160,10 @@ Developer Mode exposes:
 
 The standard Collectibles tab should be used for normal editing.
 
+## Stamp Diagnostics
+
+Developer Mode exposes raw Stamp offsets, bit numbers, byte values, pending changes, verification status, and session restore controls. Normal Mode shows only the 46 confirmed mapped Stamp names and collection status.
+
 ---
 
 ## Advanced Bottle Tools

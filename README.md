@@ -34,6 +34,7 @@ TPHD Cemu Trainer allows you to edit inventory items, equipment, upgrades, colle
 
 * Poe Souls editor
 * Golden Bugs editor
+* Mapped Stamps editor
 * Heart Piece progress tracking
 
 ## Hidden Skills

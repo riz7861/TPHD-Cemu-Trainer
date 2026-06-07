@@ -364,6 +364,110 @@
             <Setter Property="Padding" Value="9" />
             <Setter Property="Foreground" Value="{DynamicResource TextBrush}" />
         </Style>
+        <Style TargetType="Expander">
+            <Setter Property="Background" Value="{DynamicResource PanelBackgroundBrush}" />
+            <Setter Property="Foreground" Value="{DynamicResource TextBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="Padding" Value="6" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="{x:Type Expander}">
+                        <Grid TextElement.Foreground="{TemplateBinding Foreground}">
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="Auto" />
+                            </Grid.RowDefinitions>
+                            <ToggleButton x:Name="HeaderSite"
+                                          Content="{TemplateBinding Header}"
+                                          ContentTemplate="{TemplateBinding HeaderTemplate}"
+                                          ContentStringFormat="{TemplateBinding HeaderStringFormat}"
+                                          Background="{DynamicResource ControlBackgroundBrush}"
+                                          Foreground="{TemplateBinding Foreground}"
+                                          BorderBrush="{TemplateBinding BorderBrush}"
+                                          IsChecked="{Binding IsExpanded, Mode=TwoWay, RelativeSource={RelativeSource TemplatedParent}}"
+                                          Focusable="False">
+                                <ToggleButton.Template>
+                                    <ControlTemplate TargetType="{x:Type ToggleButton}">
+                                        <Border x:Name="HeaderBorder"
+                                                Background="{TemplateBinding Background}"
+                                                BorderBrush="{TemplateBinding BorderBrush}"
+                                                BorderThickness="1"
+                                                Padding="7,5">
+                                            <Grid>
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="14" />
+                                                    <ColumnDefinition Width="*" />
+                                                </Grid.ColumnDefinitions>
+                                                <Path x:Name="HeaderGlyph"
+                                                      Data="M 2 1 L 8 6 L 2 11 Z"
+                                                      Fill="{DynamicResource TextBrush}"
+                                                      Width="8"
+                                                      Height="12"
+                                                      Stretch="Fill"
+                                                      HorizontalAlignment="Left"
+                                                      VerticalAlignment="Center">
+                                                    <Path.RenderTransform>
+                                                        <RotateTransform Angle="0"
+                                                                         CenterX="4"
+                                                                         CenterY="6" />
+                                                    </Path.RenderTransform>
+                                                </Path>
+                                                <ContentPresenter Grid.Column="1"
+                                                                  Content="{TemplateBinding Content}"
+                                                                  ContentTemplate="{TemplateBinding ContentTemplate}"
+                                                                  ContentStringFormat="{TemplateBinding ContentStringFormat}"
+                                                                  TextElement.Foreground="{TemplateBinding Foreground}"
+                                                                  VerticalAlignment="Center"
+                                                                  Margin="5,0,0,0" />
+                                            </Grid>
+                                        </Border>
+                                        <ControlTemplate.Triggers>
+                                            <Trigger Property="IsMouseOver" Value="True">
+                                                <Setter TargetName="HeaderBorder" Property="Background" Value="{DynamicResource ControlHoverBackgroundBrush}" />
+                                                <Setter TargetName="HeaderBorder" Property="BorderBrush" Value="{DynamicResource ControlFocusedBorderBrush}" />
+                                            </Trigger>
+                                            <Trigger Property="IsChecked" Value="True">
+                                                <Setter TargetName="HeaderGlyph" Property="RenderTransform">
+                                                    <Setter.Value>
+                                                        <RotateTransform Angle="90"
+                                                                         CenterX="4"
+                                                                         CenterY="6" />
+                                                    </Setter.Value>
+                                                </Setter>
+                                            </Trigger>
+                                            <Trigger Property="IsEnabled" Value="False">
+                                                <Setter Property="Foreground" Value="{DynamicResource DisabledTextBrush}" />
+                                                <Setter TargetName="HeaderBorder" Property="Background" Value="{DynamicResource DisabledControlBackgroundBrush}" />
+                                                <Setter TargetName="HeaderGlyph" Property="Fill" Value="{DynamicResource DisabledTextBrush}" />
+                                            </Trigger>
+                                        </ControlTemplate.Triggers>
+                                    </ControlTemplate>
+                                </ToggleButton.Template>
+                            </ToggleButton>
+                            <Border x:Name="ContentBorder"
+                                    Grid.Row="1"
+                                    Background="{TemplateBinding Background}"
+                                    BorderBrush="{TemplateBinding BorderBrush}"
+                                    BorderThickness="1,0,1,1"
+                                    Padding="{TemplateBinding Padding}"
+                                    Visibility="Collapsed">
+                                <ContentPresenter ContentSource="Content"
+                                                  TextElement.Foreground="{TemplateBinding Foreground}" />
+                            </Border>
+                        </Grid>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsExpanded" Value="True">
+                                <Setter TargetName="ContentBorder" Property="Visibility" Value="Visible" />
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter Property="Foreground" Value="{DynamicResource DisabledTextBrush}" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
         <Style TargetType="TabControl">
             <Setter Property="Background" Value="{DynamicResource AppBackgroundBrush}" />
             <Setter Property="Foreground" Value="{DynamicResource TextBrush}" />
@@ -2196,7 +2300,9 @@
 
         <DataTemplate x:Key="GoldenBugEditorRowTemplate">
             <Border BorderBrush="{DynamicResource BorderBrush}"
+                    Background="{DynamicResource PanelBackgroundBrush}"
                     BorderThickness="0,0,0,1"
+                    TextElement.Foreground="{DynamicResource TextBrush}"
                     Padding="0,4">
                 <Grid>
                     <Grid.ColumnDefinitions>
@@ -2234,6 +2340,69 @@
                     <TextBlock Grid.Column="5"
                                Text="{Binding IsDirty}"
                                Visibility="{Binding DataContext.DeveloperToolsVisibility, RelativeSource={RelativeSource AncestorType=Window}}"
+                               VerticalAlignment="Center" />
+                </Grid>
+            </Border>
+        </DataTemplate>
+
+        <DataTemplate x:Key="StampEditorRowTemplate">
+            <Border BorderBrush="{DynamicResource BorderBrush}"
+                    Background="{DynamicResource PanelBackgroundBrush}"
+                    BorderThickness="0,0,0,1"
+                    TextElement.Foreground="{DynamicResource TextBrush}"
+                    Padding="0,4">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="300" />
+                        <ColumnDefinition Width="130" />
+                        <ColumnDefinition Width="110" />
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+
+                    <TextBlock Text="{Binding Name}"
+                               TextTrimming="CharacterEllipsis"
+                               ToolTip="{Binding Name}"
+                               VerticalAlignment="Center" />
+                    <TextBlock Grid.Column="1"
+                               Text="{Binding CurrentStatus}"
+                               Margin="8,0"
+                               VerticalAlignment="Center" />
+                    <CheckBox Grid.Column="2"
+                              IsChecked="{Binding IsCollectedDesired, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                              IsEnabled="{Binding CanEdit}"
+                              HorizontalAlignment="Center"
+                              VerticalAlignment="Center" />
+                    <TextBlock Grid.Column="3"
+                               Text="{Binding Offset}"
+                               FontFamily="Consolas"
+                               Visibility="{Binding DataContext.DeveloperToolsVisibility, RelativeSource={RelativeSource AncestorType=Window}}"
+                               Margin="8,0"
+                               VerticalAlignment="Center" />
+                    <TextBlock Grid.Column="4"
+                               Text="{Binding Bit}"
+                               Visibility="{Binding DataContext.DeveloperToolsVisibility, RelativeSource={RelativeSource AncestorType=Window}}"
+                               Margin="8,0"
+                               VerticalAlignment="Center" />
+                    <TextBlock Grid.Column="5"
+                               Text="{Binding CurrentRawByte}"
+                               FontFamily="Consolas"
+                               Visibility="{Binding DataContext.DeveloperToolsVisibility, RelativeSource={RelativeSource AncestorType=Window}}"
+                               Margin="8,0"
+                               VerticalAlignment="Center" />
+                    <TextBlock Grid.Column="6"
+                               Text="{Binding IsDirty}"
+                               Visibility="{Binding DataContext.DeveloperToolsVisibility, RelativeSource={RelativeSource AncestorType=Window}}"
+                               Margin="8,0"
+                               VerticalAlignment="Center" />
+                    <TextBlock Grid.Column="7"
+                               Text="{Binding LastWriteStatus}"
+                               Visibility="{Binding DataContext.DeveloperToolsVisibility, RelativeSource={RelativeSource AncestorType=Window}}"
+                               TextTrimming="CharacterEllipsis"
+                               Margin="8,0"
                                VerticalAlignment="Center" />
                 </Grid>
             </Border>
@@ -2599,7 +2768,7 @@
                                         <ColumnDefinition Width="180" />
                                         <ColumnDefinition Width="140" />
                                     </Grid.ColumnDefinitions>
-                                    <TextBlock Text="Heart containers" VerticalAlignment="Center" />
+                                    <TextBlock Text="Estimated Heart Containers" VerticalAlignment="Center" />
                                     <TextBox Grid.Column="1"
                                              x:Name="HeartContainersText"
                                              Text="Not read"
@@ -3781,7 +3950,7 @@
                                         <ColumnDefinition Width="180" />
                                         <ColumnDefinition Width="140" />
                                     </Grid.ColumnDefinitions>
-                                    <TextBlock Text="Heart containers" VerticalAlignment="Center" />
+                                    <TextBlock Text="Estimated Heart Containers" VerticalAlignment="Center" />
                                     <TextBox Grid.Column="1"
                                              x:Name="CollectiblesHeartContainersText"
                                              Text="Not read"
@@ -3808,8 +3977,14 @@
                         </GroupBox>
                     </UniformGrid>
 
-                    <GroupBox Header="Golden Bugs">
-                        <StackPanel>
+                    <Expander IsExpanded="False"
+                              Margin="0,3">
+                        <Expander.Header>
+                            <TextBlock x:Name="GoldenBugsExpanderHeaderText"
+                                       Text="Golden Bugs - Not read"
+                                       FontWeight="SemiBold" />
+                        </Expander.Header>
+                        <StackPanel Margin="6">
                             <Border BorderBrush="{DynamicResource WarningBorderBrush}"
                                     BorderThickness="1"
                                     Background="{DynamicResource WarningBackgroundBrush}"
@@ -3940,7 +4115,157 @@
                                 </ScrollViewer>
                             </Expander>
                         </StackPanel>
-                    </GroupBox>
+                    </Expander>
+
+                    <Expander IsExpanded="False"
+                              Margin="0,3">
+                        <Expander.Header>
+                            <TextBlock x:Name="StampsExpanderHeaderText"
+                                       Text="Stamps - Not read"
+                                       FontWeight="SemiBold" />
+                        </Expander.Header>
+                        <StackPanel Margin="6">
+                            <TextBlock TextWrapping="Wrap"
+                                       Foreground="{DynamicResource SecondaryTextBrush}"
+                                       Visibility="{Binding NormalModeVisibility}"
+                                       Margin="0,0,0,8"
+                                       Text="Edit mapped Stamp collection status. Back up your save before editing." />
+                            <TextBlock TextWrapping="Wrap"
+                                       Foreground="{DynamicResource SecondaryTextBrush}"
+                                       Visibility="{Binding DeveloperToolsVisibility}"
+                                       Margin="0,0,0,8"
+                                       Text="Confirmed Stamp bitfield range: 0xAF5-0xAFB. Writes preserve unchanged bits and verify immediate, 250ms, and 1000ms readbacks." />
+
+                            <Grid Margin="0,0,0,8">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="150" />
+                                    <ColumnDefinition Width="120" />
+                                    <ColumnDefinition Width="Auto" />
+                                    <ColumnDefinition Width="Auto" />
+                                    <ColumnDefinition Width="*" />
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Text="Mapped Stamps Found"
+                                           VerticalAlignment="Center" />
+                                <TextBox Grid.Column="1"
+                                         x:Name="StampsEditorFoundCountText"
+                                         Text="Not read"
+                                         IsReadOnly="True"
+                                         Background="{DynamicResource ReadOnlyBackgroundBrush}" />
+                                <TextBlock Grid.Column="2"
+                                           Text="Raw 0xAF5-0xAFB"
+                                           Visibility="{Binding DeveloperToolsVisibility}"
+                                           VerticalAlignment="Center"
+                                           Margin="12,0,0,0" />
+                                <TextBox Grid.Column="3"
+                                         x:Name="StampsEditorRawBytesText"
+                                         Text="Not read"
+                                         Visibility="{Binding DeveloperToolsVisibility}"
+                                         IsReadOnly="True"
+                                         FontFamily="Consolas"
+                                         Background="{DynamicResource ReadOnlyBackgroundBrush}" />
+                            </Grid>
+
+                            <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
+                                <Button Content="Refresh Stamps"
+                                        Click="RefreshStamps_Click" />
+                                <Button Content="Apply Changes"
+                                        Click="ApplyStampChanges_Click"
+                                        Margin="6,0,0,0" />
+                                <Button Content="Collect All Stamps"
+                                        Click="CollectAllStamps_Click"
+                                        Margin="6,0,0,0" />
+                                <Button Content="Clear All Stamps"
+                                        Click="ClearAllStamps_Click"
+                                        Margin="6,0,0,0" />
+                                <Button Content="Restore Previous Stamp State"
+                                        Click="RestoreStampState_Click"
+                                        Visibility="{Binding DeveloperToolsVisibility}"
+                                        Margin="6,0,0,0" />
+                            </StackPanel>
+
+                            <TextBox x:Name="StampsEditorStatusText"
+                                     Text="Attach to Cemu and rescan to read Stamps."
+                                     IsReadOnly="True"
+                                     Background="{DynamicResource ReadOnlyBackgroundBrush}"
+                                     Margin="0,0,0,8" />
+
+                            <Grid Margin="0,0,0,4">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="300" />
+                                    <ColumnDefinition Width="130" />
+                                    <ColumnDefinition Width="110" />
+                                    <ColumnDefinition Width="Auto" />
+                                    <ColumnDefinition Width="Auto" />
+                                    <ColumnDefinition Width="Auto" />
+                                    <ColumnDefinition Width="Auto" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Text="Stamp" FontWeight="SemiBold" />
+                                <TextBlock Grid.Column="1"
+                                           Text="Current Status"
+                                           Margin="8,0"
+                                           FontWeight="SemiBold" />
+                                <TextBlock Grid.Column="2"
+                                           Text="Set Collected"
+                                           FontWeight="SemiBold" />
+                                <TextBlock Grid.Column="3"
+                                           Text="Offset"
+                                           Visibility="{Binding DeveloperToolsVisibility}"
+                                           Margin="8,0"
+                                           FontWeight="SemiBold" />
+                                <TextBlock Grid.Column="4"
+                                           Text="Bit"
+                                           Visibility="{Binding DeveloperToolsVisibility}"
+                                           Margin="8,0"
+                                           FontWeight="SemiBold" />
+                                <TextBlock Grid.Column="5"
+                                           Text="Raw Byte"
+                                           Visibility="{Binding DeveloperToolsVisibility}"
+                                           Margin="8,0"
+                                           FontWeight="SemiBold" />
+                                <TextBlock Grid.Column="6"
+                                           Text="Pending"
+                                           Visibility="{Binding DeveloperToolsVisibility}"
+                                           Margin="8,0"
+                                           FontWeight="SemiBold" />
+                                <TextBlock Grid.Column="7"
+                                           Text="Verification"
+                                           Visibility="{Binding DeveloperToolsVisibility}"
+                                           Margin="8,0"
+                                           FontWeight="SemiBold" />
+                            </Grid>
+
+                            <ScrollViewer Height="320"
+                                          VerticalScrollBarVisibility="Auto"
+                                          HorizontalScrollBarVisibility="Auto"
+                                          Background="{DynamicResource PanelBackgroundBrush}">
+                                <ItemsControl ItemsSource="{Binding StampEditorRows}"
+                                              ItemTemplate="{StaticResource StampEditorRowTemplate}" />
+                            </ScrollViewer>
+
+                            <Expander Header="Stamp Editor Diagnostics"
+                                      IsExpanded="False"
+                                      Visibility="{Binding DeveloperToolsVisibility}"
+                                      Margin="0,8,0,0">
+                                <ScrollViewer Height="140"
+                                              VerticalScrollBarVisibility="Auto"
+                                              HorizontalScrollBarVisibility="Auto"
+                                              Background="{DynamicResource ReadOnlyBackgroundBrush}">
+                                    <ItemsControl ItemsSource="{Binding StampEditorDiagnostics}">
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate>
+                                                <TextBlock Text="{Binding}"
+                                                           FontFamily="Consolas"
+                                                           FontSize="11"
+                                                           TextWrapping="NoWrap"
+                                                           Margin="0,0,0,4" />
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+                                </ScrollViewer>
+                            </Expander>
+                        </StackPanel>
+                    </Expander>
 
                     <GroupBox Header="Advanced / Golden Bugs Research"
                               Visibility="{Binding DeveloperToolsVisibility}">

@@ -143,9 +143,19 @@ Edit collected Golden Bugs.
 
 The trainer supports all 24 bugs.
 
+Golden Bugs are shown in an expandable section so the Collectibles tab stays compact.
+
 Note:
 
 Agitha reward progression may still require speaking to Agitha in-game.
+
+### Stamps
+
+Collect or clear mapped Stamps from the Collectibles tab.
+
+Stamps are shown in an expandable section. The trainer currently exposes 46 confirmed mapped Stamps; public lists describe 50 total, and the remaining four are still being researched.
+
+Always back up your save before editing Stamps.
 
 ---
 
