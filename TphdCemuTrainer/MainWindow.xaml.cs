@@ -15,6 +15,7 @@ using Microsoft.Win32;
 using TphdCemuTrainer.Cheats;
 using TphdCemuTrainer.Memory;
 using TphdCemuTrainer.Research;
+using TphdCemuTrainer.Updates;
 using TphdCemuTrainer.ViewModels;
 
 namespace TphdCemuTrainer;
@@ -48,6 +49,8 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     private bool _isDarkMode;
     private bool _isDeveloperMode;
     private AboutWindow? _aboutWindow;
+    private readonly GitHubUpdateService _updateService = new();
+    private bool _isManualUpdateCheckRunning;
     private bool _suppressQuestSpecialItemExclusivity;
     private HeartProgressOption _selectedHeartProgressOption = null!;
     private bool _suppressHiddenSkillDependencyEnforcement;
@@ -325,6 +328,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         SetDeveloperMode(LoadDeveloperModePreference(), persist: false);
         RefreshResearchReports();
         RefreshResearchLogViewer();
+        _ = CheckForUpdatesOnStartupAsync();
     }
 
     private void InventoryOwnershipItem_PropertyChanged(object? sender, PropertyChangedEventArgs e)
@@ -950,6 +954,45 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             MessageBoxImage.Warning);
     }
 
+    private async void CheckForUpdatesMenuItem_Click(object sender, RoutedEventArgs e)
+    {
+        if (_isManualUpdateCheckRunning)
+        {
+            return;
+        }
+
+        _isManualUpdateCheckRunning = true;
+        CheckForUpdatesMenuItem.IsEnabled = false;
+        SetStatus("Checking for updates...", StatusKind.Neutral);
+
+        try
+        {
+            var result = await _updateService.CheckForUpdatesAsync(ApplicationVersion);
+            ShowUpdateCheckResult(result);
+
+            var statusMessage = result.State switch
+            {
+                UpdateCheckState.UpdateAvailable => $"Version {result.LatestVersionText} is available.",
+                UpdateCheckState.Current => "You're up to date.",
+                _ => "Unable to check for updates right now."
+            };
+
+            SetStatus(
+                statusMessage,
+                result.State == UpdateCheckState.UpdateAvailable ? StatusKind.Warning : StatusKind.Neutral);
+        }
+        catch (Exception)
+        {
+            ShowUpdateCheckResult(UpdateCheckResult.Unavailable(ApplicationVersion));
+            SetStatus("Unable to check for updates right now.", StatusKind.Neutral);
+        }
+        finally
+        {
+            CheckForUpdatesMenuItem.IsEnabled = true;
+            _isManualUpdateCheckRunning = false;
+        }
+    }
+
     private void AboutMenuItem_Click(object sender, RoutedEventArgs e)
     {
         if (_aboutWindow is { IsVisible: true } existingWindow)
@@ -995,6 +1038,36 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         }
 
         return assembly.GetName().Version?.ToString(3) ?? "1.0.0";
+    }
+
+    private void ShowUpdateCheckResult(UpdateCheckResult result)
+    {
+        var updateWindow = new UpdateCheckWindow(result, Resources)
+        {
+            Owner = this
+        };
+
+        updateWindow.ShowDialog();
+    }
+
+    private async Task CheckForUpdatesOnStartupAsync()
+    {
+        try
+        {
+            var result = await _updateService.CheckForUpdatesAsync(ApplicationVersion);
+            if (result.State != UpdateCheckState.UpdateAvailable)
+            {
+                return;
+            }
+
+            SetStatus(
+                $"Version {result.LatestVersionText} is available. Use Help > Check for Updates to view it.",
+                StatusKind.Warning);
+        }
+        catch (Exception)
+        {
+            // Startup update checks must never interrupt the trainer.
+        }
     }
 
     private void OpenDeveloperToolMenuItem_Click(object sender, RoutedEventArgs e)

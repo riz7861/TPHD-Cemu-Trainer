@@ -2466,6 +2466,9 @@
                           Click="OpenDeveloperToolMenuItem_Click" />
             </MenuItem>
             <MenuItem Header="_Help">
+                <MenuItem x:Name="CheckForUpdatesMenuItem"
+                          Header="Check for Updates"
+                          Click="CheckForUpdatesMenuItem_Click" />
                 <MenuItem Header="About / Credits"
                           Click="AboutMenuItem_Click" />
                 <MenuItem Header="README / Documentation"
