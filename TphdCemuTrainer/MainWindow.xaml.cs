@@ -13,6 +13,7 @@ using System.Windows.Media;
 using System.Windows.Threading;
 using Microsoft.Win32;
 using TphdCemuTrainer.Cheats;
+using TphdCemuTrainer.Diagnostics;
 using TphdCemuTrainer.Memory;
 using TphdCemuTrainer.Research;
 using TphdCemuTrainer.Updates;
@@ -7244,26 +7245,11 @@ public partial class MainWindow : Window, INotifyPropertyChanged
 
     private void AppendInventoryRemovalLogEntry(string entry)
     {
-        InventoryRemovalDiagnostics.Insert(0, entry);
-        while (InventoryRemovalDiagnostics.Count > 100)
-        {
-            InventoryRemovalDiagnostics.RemoveAt(InventoryRemovalDiagnostics.Count - 1);
-        }
-
-        try
-        {
-            var logDirectory = Path.GetDirectoryName(InventoryRemovalLogPath);
-            if (!string.IsNullOrWhiteSpace(logDirectory))
-            {
-                Directory.CreateDirectory(logDirectory);
-            }
-
-            File.AppendAllText(InventoryRemovalLogPath, entry + Environment.NewLine);
-        }
-        catch (Exception ex)
-        {
-            InventoryRemovalDiagnostics.Insert(0, $"{DateTimeOffset.Now:O} inventory-removal-log-write-failed: {ex.Message}");
-        }
+        DiagnosticLogService.AppendEntry(
+            InventoryRemovalDiagnostics,
+            InventoryRemovalLogPath,
+            entry,
+            "inventory-removal-log-write-failed");
     }
 
     private void AppendInventoryCheckboxTestingDiagnostic(
@@ -7305,26 +7291,11 @@ public partial class MainWindow : Window, INotifyPropertyChanged
 
     private void AppendInventoryCheckboxTestingLogEntry(string entry)
     {
-        InventoryCheckboxTestingDiagnostics.Insert(0, entry);
-        while (InventoryCheckboxTestingDiagnostics.Count > 100)
-        {
-            InventoryCheckboxTestingDiagnostics.RemoveAt(InventoryCheckboxTestingDiagnostics.Count - 1);
-        }
-
-        try
-        {
-            var logDirectory = Path.GetDirectoryName(InventoryCheckboxTestingLogPath);
-            if (!string.IsNullOrWhiteSpace(logDirectory))
-            {
-                Directory.CreateDirectory(logDirectory);
-            }
-
-            File.AppendAllText(InventoryCheckboxTestingLogPath, entry + Environment.NewLine);
-        }
-        catch (Exception ex)
-        {
-            InventoryCheckboxTestingDiagnostics.Insert(0, $"{DateTimeOffset.Now:O} inventory-checkbox-testing-log-write-failed: {ex.Message}");
-        }
+        DiagnosticLogService.AppendEntry(
+            InventoryCheckboxTestingDiagnostics,
+            InventoryCheckboxTestingLogPath,
+            entry,
+            "inventory-checkbox-testing-log-write-failed");
     }
 
     private void AppendBottleEditorDiagnostic(
@@ -7350,26 +7321,11 @@ public partial class MainWindow : Window, INotifyPropertyChanged
 
     private void AppendBottleEditorLogEntry(string entry)
     {
-        BottleEditorDiagnostics.Insert(0, entry);
-        while (BottleEditorDiagnostics.Count > 100)
-        {
-            BottleEditorDiagnostics.RemoveAt(BottleEditorDiagnostics.Count - 1);
-        }
-
-        try
-        {
-            var logDirectory = Path.GetDirectoryName(BottleEditorLogPath);
-            if (!string.IsNullOrWhiteSpace(logDirectory))
-            {
-                Directory.CreateDirectory(logDirectory);
-            }
-
-            File.AppendAllText(BottleEditorLogPath, entry + Environment.NewLine);
-        }
-        catch (Exception ex)
-        {
-            BottleEditorDiagnostics.Insert(0, $"{DateTimeOffset.Now:O} bottle-editor-log-write-failed: {ex.Message}");
-        }
+        DiagnosticLogService.AppendEntry(
+            BottleEditorDiagnostics,
+            BottleEditorLogPath,
+            entry,
+            "bottle-editor-log-write-failed");
     }
 
     private void AppendBombSlotEditorDiagnostic(
@@ -7395,26 +7351,11 @@ public partial class MainWindow : Window, INotifyPropertyChanged
 
     private void AppendBombSlotEditorLogEntry(string entry)
     {
-        BombSlotEditorDiagnostics.Insert(0, entry);
-        while (BombSlotEditorDiagnostics.Count > 100)
-        {
-            BombSlotEditorDiagnostics.RemoveAt(BombSlotEditorDiagnostics.Count - 1);
-        }
-
-        try
-        {
-            var logDirectory = Path.GetDirectoryName(BombSlotEditorLogPath);
-            if (!string.IsNullOrWhiteSpace(logDirectory))
-            {
-                Directory.CreateDirectory(logDirectory);
-            }
-
-            File.AppendAllText(BombSlotEditorLogPath, entry + Environment.NewLine);
-        }
-        catch (Exception ex)
-        {
-            BombSlotEditorDiagnostics.Insert(0, $"{DateTimeOffset.Now:O} bomb-slot-editor-log-write-failed: {ex.Message}");
-        }
+        DiagnosticLogService.AppendEntry(
+            BombSlotEditorDiagnostics,
+            BombSlotEditorLogPath,
+            entry,
+            "bomb-slot-editor-log-write-failed");
     }
 
     private void AppendQuestSpecialEditorDiagnostic(
@@ -7433,26 +7374,11 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             $"requested={FormatEquipmentByte(requestedValue)} readback={FormatEquipmentByte(readbackValue)} " +
             $"status=\"{status}\"";
 
-        QuestSpecialEditorDiagnostics.Insert(0, entry);
-        while (QuestSpecialEditorDiagnostics.Count > 100)
-        {
-            QuestSpecialEditorDiagnostics.RemoveAt(QuestSpecialEditorDiagnostics.Count - 1);
-        }
-
-        try
-        {
-            var logDirectory = Path.GetDirectoryName(QuestSpecialEditorLogPath);
-            if (!string.IsNullOrWhiteSpace(logDirectory))
-            {
-                Directory.CreateDirectory(logDirectory);
-            }
-
-            File.AppendAllText(QuestSpecialEditorLogPath, entry + Environment.NewLine);
-        }
-        catch (Exception ex)
-        {
-            QuestSpecialEditorDiagnostics.Insert(0, $"{DateTimeOffset.Now:O} quest-special-editor-log-write-failed: {ex.Message}");
-        }
+        DiagnosticLogService.AppendEntry(
+            QuestSpecialEditorDiagnostics,
+            QuestSpecialEditorLogPath,
+            entry,
+            "quest-special-editor-log-write-failed");
     }
 
     private void AppendInventoryStateDiagnostic(string state)
@@ -7509,50 +7435,20 @@ public partial class MainWindow : Window, INotifyPropertyChanged
 
     private void AppendInventoryLogEntry(string entry)
     {
-        InventoryDiagnostics.Insert(0, entry);
-        while (InventoryDiagnostics.Count > 100)
-        {
-            InventoryDiagnostics.RemoveAt(InventoryDiagnostics.Count - 1);
-        }
-
-        try
-        {
-            var logDirectory = Path.GetDirectoryName(InventoryLogPath);
-            if (!string.IsNullOrWhiteSpace(logDirectory))
-            {
-                Directory.CreateDirectory(logDirectory);
-            }
-
-            File.AppendAllText(InventoryLogPath, entry + Environment.NewLine);
-        }
-        catch (Exception ex)
-        {
-            InventoryDiagnostics.Insert(0, $"{DateTimeOffset.Now:O} inventory-log-write-failed: {ex.Message}");
-        }
+        DiagnosticLogService.AppendEntry(
+            InventoryDiagnostics,
+            InventoryLogPath,
+            entry,
+            "inventory-log-write-failed");
     }
 
     private void AppendInventoryOwnershipLogEntry(string entry)
     {
-        InventoryOwnershipDiagnostics.Insert(0, entry);
-        while (InventoryOwnershipDiagnostics.Count > 100)
-        {
-            InventoryOwnershipDiagnostics.RemoveAt(InventoryOwnershipDiagnostics.Count - 1);
-        }
-
-        try
-        {
-            var logDirectory = Path.GetDirectoryName(InventoryOwnershipLogPath);
-            if (!string.IsNullOrWhiteSpace(logDirectory))
-            {
-                Directory.CreateDirectory(logDirectory);
-            }
-
-            File.AppendAllText(InventoryOwnershipLogPath, entry + Environment.NewLine);
-        }
-        catch (Exception ex)
-        {
-            InventoryOwnershipDiagnostics.Insert(0, $"{DateTimeOffset.Now:O} inventory-ownership-log-write-failed: {ex.Message}");
-        }
+        DiagnosticLogService.AppendEntry(
+            InventoryOwnershipDiagnostics,
+            InventoryOwnershipLogPath,
+            entry,
+            "inventory-ownership-log-write-failed");
     }
 
     private void AppendEquipmentDiagnostic(
@@ -7594,26 +7490,11 @@ public partial class MainWindow : Window, INotifyPropertyChanged
 
     private void AppendEquipmentLogEntry(string entry)
     {
-        EquipmentDiagnostics.Insert(0, entry);
-        while (EquipmentDiagnostics.Count > 100)
-        {
-            EquipmentDiagnostics.RemoveAt(EquipmentDiagnostics.Count - 1);
-        }
-
-        try
-        {
-            var logDirectory = Path.GetDirectoryName(EquipmentLogPath);
-            if (!string.IsNullOrWhiteSpace(logDirectory))
-            {
-                Directory.CreateDirectory(logDirectory);
-            }
-
-            File.AppendAllText(EquipmentLogPath, entry + Environment.NewLine);
-        }
-        catch (Exception ex)
-        {
-            EquipmentDiagnostics.Insert(0, $"{DateTimeOffset.Now:O} equipment-log-write-failed: {ex.Message}");
-        }
+        DiagnosticLogService.AppendEntry(
+            EquipmentDiagnostics,
+            EquipmentLogPath,
+            entry,
+            "equipment-log-write-failed");
     }
 
     private void AppendCollectiblesDiagnostic(
@@ -7638,26 +7519,11 @@ public partial class MainWindow : Window, INotifyPropertyChanged
 
     private void AppendCollectiblesLogEntry(string entry)
     {
-        CollectiblesDiagnostics.Insert(0, entry);
-        while (CollectiblesDiagnostics.Count > 100)
-        {
-            CollectiblesDiagnostics.RemoveAt(CollectiblesDiagnostics.Count - 1);
-        }
-
-        try
-        {
-            var logDirectory = Path.GetDirectoryName(CollectiblesLogPath);
-            if (!string.IsNullOrWhiteSpace(logDirectory))
-            {
-                Directory.CreateDirectory(logDirectory);
-            }
-
-            File.AppendAllText(CollectiblesLogPath, entry + Environment.NewLine);
-        }
-        catch (Exception ex)
-        {
-            CollectiblesDiagnostics.Insert(0, $"{DateTimeOffset.Now:O} collectibles-log-write-failed: {ex.Message}");
-        }
+        DiagnosticLogService.AppendEntry(
+            CollectiblesDiagnostics,
+            CollectiblesLogPath,
+            entry,
+            "collectibles-log-write-failed");
     }
 
     private void AppendProgressionDiagnostic()
@@ -7674,19 +7540,9 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             $"equipment-equipped-bytes=\"{_progressionState.EquipmentEquippedBytesText}\" " +
             $"status=\"{StatusText.Text}\"";
 
-        try
+        if (!DiagnosticLogService.TryAppendFileLine(ProgressionLogPath, entry, out var errorMessage))
         {
-            var logDirectory = Path.GetDirectoryName(ProgressionLogPath);
-            if (!string.IsNullOrWhiteSpace(logDirectory))
-            {
-                Directory.CreateDirectory(logDirectory);
-            }
-
-            File.AppendAllText(ProgressionLogPath, entry + Environment.NewLine);
-        }
-        catch (Exception ex)
-        {
-            EquipmentDiagnostics.Insert(0, $"{DateTimeOffset.Now:O} progression-log-write-failed: {ex.Message}");
+            EquipmentDiagnostics.Insert(0, $"{DateTimeOffset.Now:O} progression-log-write-failed: {errorMessage}");
         }
     }
 
@@ -7705,19 +7561,9 @@ public partial class MainWindow : Window, INotifyPropertyChanged
               $"cached-region-valid={scanResult.CachedRegionValidated} " +
               $"match-region={FormatRegion(scanResult.MatchRegion)}";
 
-        try
+        if (!DiagnosticLogService.TryAppendFileLine(ScanLogPath, entry, out var errorMessage))
         {
-            var logDirectory = Path.GetDirectoryName(ScanLogPath);
-            if (!string.IsNullOrWhiteSpace(logDirectory))
-            {
-                Directory.CreateDirectory(logDirectory);
-            }
-
-            File.AppendAllText(ScanLogPath, entry + Environment.NewLine);
-        }
-        catch (Exception ex)
-        {
-            ScanDiagnosticsText.Text = $"Scan log write failed: {ex.Message}";
+            ScanDiagnosticsText.Text = $"Scan log write failed: {errorMessage}";
         }
     }
 
@@ -10576,19 +10422,9 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             $"start=0x{_researchRangeSnapshotStart:X} length=0x{currentBytes.Length:X} " +
             $"changed={changedCount} changes=\"{string.Join("; ", changedRows)}\"";
 
-        try
+        if (!DiagnosticLogService.TryAppendFileLine(ResearchLogPath, entry, out var errorMessage))
         {
-            var logDirectory = Path.GetDirectoryName(ResearchLogPath);
-            if (!string.IsNullOrWhiteSpace(logDirectory))
-            {
-                Directory.CreateDirectory(logDirectory);
-            }
-
-            File.AppendAllText(ResearchLogPath, entry + Environment.NewLine);
-        }
-        catch (Exception ex)
-        {
-            ResearchRangeStatusText.Text = $"Research log write failed: {ex.Message}";
+            ResearchRangeStatusText.Text = $"Research log write failed: {errorMessage}";
         }
     }
 
@@ -10596,19 +10432,9 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     {
         var entry = $"{DateTimeOffset.Now:O} {details}";
 
-        try
+        if (!DiagnosticLogService.TryAppendFileLine(GoldenBugsResearchLogPath, entry, out var errorMessage))
         {
-            var logDirectory = Path.GetDirectoryName(GoldenBugsResearchLogPath);
-            if (!string.IsNullOrWhiteSpace(logDirectory))
-            {
-                Directory.CreateDirectory(logDirectory);
-            }
-
-            File.AppendAllText(GoldenBugsResearchLogPath, entry + Environment.NewLine);
-        }
-        catch (Exception ex)
-        {
-            GoldenBugsResearchStatusText.Text = $"Golden Bugs research log write failed: {ex.Message}";
+            GoldenBugsResearchStatusText.Text = $"Golden Bugs research log write failed: {errorMessage}";
         }
     }
 
@@ -10616,19 +10442,9 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     {
         var entry = $"{DateTimeOffset.Now:O} {details}";
 
-        try
+        if (!DiagnosticLogService.TryAppendFileLine(QuestItemsResearchLogPath, entry, out var errorMessage))
         {
-            var logDirectory = Path.GetDirectoryName(QuestItemsResearchLogPath);
-            if (!string.IsNullOrWhiteSpace(logDirectory))
-            {
-                Directory.CreateDirectory(logDirectory);
-            }
-
-            File.AppendAllText(QuestItemsResearchLogPath, entry + Environment.NewLine);
-        }
-        catch (Exception ex)
-        {
-            QuestItemsResearchStatusText.Text = $"Quest Items research log write failed: {ex.Message}";
+            QuestItemsResearchStatusText.Text = $"Quest Items research log write failed: {errorMessage}";
         }
     }
 
@@ -10636,19 +10452,9 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     {
         var entry = $"{DateTimeOffset.Now:O} {details}";
 
-        try
+        if (!DiagnosticLogService.TryAppendFileLine(HiddenSkillsResearchLogPath, entry, out var errorMessage))
         {
-            var logDirectory = Path.GetDirectoryName(HiddenSkillsResearchLogPath);
-            if (!string.IsNullOrWhiteSpace(logDirectory))
-            {
-                Directory.CreateDirectory(logDirectory);
-            }
-
-            File.AppendAllText(HiddenSkillsResearchLogPath, entry + Environment.NewLine);
-        }
-        catch (Exception ex)
-        {
-            HiddenSkillsResearchStatusText.Text = $"Hidden Skills research log write failed: {ex.Message}";
+            HiddenSkillsResearchStatusText.Text = $"Hidden Skills research log write failed: {errorMessage}";
         }
     }
 
@@ -10656,19 +10462,9 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     {
         var entry = $"{DateTimeOffset.Now:O} {details}";
 
-        try
+        if (!DiagnosticLogService.TryAppendFileLine(HiddenSkillsBitTestingLogPath, entry, out var errorMessage))
         {
-            var logDirectory = Path.GetDirectoryName(HiddenSkillsBitTestingLogPath);
-            if (!string.IsNullOrWhiteSpace(logDirectory))
-            {
-                Directory.CreateDirectory(logDirectory);
-            }
-
-            File.AppendAllText(HiddenSkillsBitTestingLogPath, entry + Environment.NewLine);
-        }
-        catch (Exception ex)
-        {
-            HiddenSkillsBitStatusText.Text = $"Hidden Skills bit testing log write failed: {ex.Message}";
+            HiddenSkillsBitStatusText.Text = $"Hidden Skills bit testing log write failed: {errorMessage}";
         }
     }
 
@@ -10676,19 +10472,9 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     {
         var entry = $"{DateTimeOffset.Now:O} {details}";
 
-        try
+        if (!DiagnosticLogService.TryAppendFileLine(HiddenSkillsLiveWatchLogPath, entry, out var errorMessage))
         {
-            var logDirectory = Path.GetDirectoryName(HiddenSkillsLiveWatchLogPath);
-            if (!string.IsNullOrWhiteSpace(logDirectory))
-            {
-                Directory.CreateDirectory(logDirectory);
-            }
-
-            File.AppendAllText(HiddenSkillsLiveWatchLogPath, entry + Environment.NewLine);
-        }
-        catch (Exception ex)
-        {
-            HiddenSkillsLiveWatchStatusText.Text = $"Hidden Skills live watch log write failed: {ex.Message}";
+            HiddenSkillsLiveWatchStatusText.Text = $"Hidden Skills live watch log write failed: {errorMessage}";
         }
     }
 
@@ -12533,26 +12319,19 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     private void AppendLiveCaptureLog(string details)
     {
         var entry = $"{DateTimeOffset.Now:O} {details}";
-        try
+        if (DiagnosticLogService.TryAppendFileLine(LiveCaptureLogPath, entry, out var errorMessage))
         {
-            var logDirectory = Path.GetDirectoryName(LiveCaptureLogPath);
-            if (!string.IsNullOrWhiteSpace(logDirectory))
-            {
-                Directory.CreateDirectory(logDirectory);
-            }
-
-            File.AppendAllText(LiveCaptureLogPath, entry + Environment.NewLine);
             if (IsLoaded && string.Equals(GetResearchLogCategory(), "Live Capture", StringComparison.OrdinalIgnoreCase))
             {
                 ResearchLogViewerLines.Add($"{Path.GetFileName(LiveCaptureLogPath)} | {entry}");
                 ScrollResearchLogsToEnd();
             }
         }
-        catch (Exception ex)
+        else
         {
             if (IsLoaded)
             {
-                LiveCaptureStatusText.Text = $"Live Capture log write failed: {ex.Message}";
+                LiveCaptureStatusText.Text = $"Live Capture log write failed: {errorMessage}";
             }
         }
     }
@@ -12745,26 +12524,11 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             $"immediate=\"{FormatNullableByteArray(immediateBytes)}\" read250ms=\"{FormatNullableByteArray(delayed250Bytes)}\" " +
             $"read1000ms=\"{FormatNullableByteArray(delayed1000Bytes)}\" status=\"{status}\"";
 
-        GoldenBugsEditorDiagnostics.Insert(0, entry);
-        while (GoldenBugsEditorDiagnostics.Count > 100)
-        {
-            GoldenBugsEditorDiagnostics.RemoveAt(GoldenBugsEditorDiagnostics.Count - 1);
-        }
-
-        try
-        {
-            var logDirectory = Path.GetDirectoryName(GoldenBugsEditorLogPath);
-            if (!string.IsNullOrWhiteSpace(logDirectory))
-            {
-                Directory.CreateDirectory(logDirectory);
-            }
-
-            File.AppendAllText(GoldenBugsEditorLogPath, entry + Environment.NewLine);
-        }
-        catch (Exception ex)
-        {
-            GoldenBugsEditorDiagnostics.Insert(0, $"{DateTimeOffset.Now:O} golden-bugs-editor-log-write-failed: {ex.Message}");
-        }
+        DiagnosticLogService.AppendEntry(
+            GoldenBugsEditorDiagnostics,
+            GoldenBugsEditorLogPath,
+            entry,
+            "golden-bugs-editor-log-write-failed");
     }
 
     private void AppendHiddenSkillsEditorDiagnostic(
@@ -12782,76 +12546,31 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             $"immediate=\"{FormatNullableByteArray(immediateBytes)}\" read250ms=\"{FormatNullableByteArray(delayed250Bytes)}\" " +
             $"read1000ms=\"{FormatNullableByteArray(delayed1000Bytes)}\" status=\"{status}\"";
 
-        HiddenSkillsEditorDiagnostics.Insert(0, entry);
-        while (HiddenSkillsEditorDiagnostics.Count > 100)
-        {
-            HiddenSkillsEditorDiagnostics.RemoveAt(HiddenSkillsEditorDiagnostics.Count - 1);
-        }
-
-        try
-        {
-            var logDirectory = Path.GetDirectoryName(HiddenSkillsEditorLogPath);
-            if (!string.IsNullOrWhiteSpace(logDirectory))
-            {
-                Directory.CreateDirectory(logDirectory);
-            }
-
-            File.AppendAllText(HiddenSkillsEditorLogPath, entry + Environment.NewLine);
-        }
-        catch (Exception ex)
-        {
-            HiddenSkillsEditorDiagnostics.Insert(0, $"{DateTimeOffset.Now:O} hidden-skills-editor-log-write-failed: {ex.Message}");
-        }
+        DiagnosticLogService.AppendEntry(
+            HiddenSkillsEditorDiagnostics,
+            HiddenSkillsEditorLogPath,
+            entry,
+            "hidden-skills-editor-log-write-failed");
     }
 
     private void AppendHiddenSkillsEditorStatusDiagnostic(string details)
     {
         var entry = $"{DateTimeOffset.Now:O} {details}";
 
-        HiddenSkillsEditorDiagnostics.Insert(0, entry);
-        while (HiddenSkillsEditorDiagnostics.Count > 100)
-        {
-            HiddenSkillsEditorDiagnostics.RemoveAt(HiddenSkillsEditorDiagnostics.Count - 1);
-        }
-
-        try
-        {
-            var logDirectory = Path.GetDirectoryName(HiddenSkillsEditorLogPath);
-            if (!string.IsNullOrWhiteSpace(logDirectory))
-            {
-                Directory.CreateDirectory(logDirectory);
-            }
-
-            File.AppendAllText(HiddenSkillsEditorLogPath, entry + Environment.NewLine);
-        }
-        catch (Exception ex)
-        {
-            HiddenSkillsEditorDiagnostics.Insert(0, $"{DateTimeOffset.Now:O} hidden-skills-editor-log-write-failed: {ex.Message}");
-        }
+        DiagnosticLogService.AppendEntry(
+            HiddenSkillsEditorDiagnostics,
+            HiddenSkillsEditorLogPath,
+            entry,
+            "hidden-skills-editor-log-write-failed");
     }
 
     private void AppendGoldenBugsBitfieldTestingLog(string entry)
     {
-        GoldenBugsBitfieldDiagnostics.Insert(0, entry);
-        while (GoldenBugsBitfieldDiagnostics.Count > 100)
-        {
-            GoldenBugsBitfieldDiagnostics.RemoveAt(GoldenBugsBitfieldDiagnostics.Count - 1);
-        }
-
-        try
-        {
-            var logDirectory = Path.GetDirectoryName(GoldenBugsBitfieldTestingLogPath);
-            if (!string.IsNullOrWhiteSpace(logDirectory))
-            {
-                Directory.CreateDirectory(logDirectory);
-            }
-
-            File.AppendAllText(GoldenBugsBitfieldTestingLogPath, entry + Environment.NewLine);
-        }
-        catch (Exception ex)
-        {
-            GoldenBugsBitfieldDiagnostics.Insert(0, $"{DateTimeOffset.Now:O} golden-bugs-bitfield-log-write-failed: {ex.Message}");
-        }
+        DiagnosticLogService.AppendEntry(
+            GoldenBugsBitfieldDiagnostics,
+            GoldenBugsBitfieldTestingLogPath,
+            entry,
+            "golden-bugs-bitfield-log-write-failed");
     }
 
     private void AppendCandidateTestingLog(
@@ -12868,19 +12587,9 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             $"previous={FormatCandidateLogByte(previousValue)} requested={FormatCandidateLogByte(requestedValue)} " +
             $"readback={FormatCandidateLogByte(readbackValue)} status=\"{status}\"";
 
-        try
+        if (!DiagnosticLogService.TryAppendFileLine(CandidateTestingLogPath, entry, out var errorMessage))
         {
-            var logDirectory = Path.GetDirectoryName(CandidateTestingLogPath);
-            if (!string.IsNullOrWhiteSpace(logDirectory))
-            {
-                Directory.CreateDirectory(logDirectory);
-            }
-
-            File.AppendAllText(CandidateTestingLogPath, entry + Environment.NewLine);
-        }
-        catch (Exception ex)
-        {
-            CandidateStatusText.Text = $"Candidate log write failed: {ex.Message}";
+            CandidateStatusText.Text = $"Candidate log write failed: {errorMessage}";
         }
     }
 
