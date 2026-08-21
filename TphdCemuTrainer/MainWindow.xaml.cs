@@ -2622,31 +2622,18 @@ public partial class MainWindow : Window, INotifyPropertyChanged
                 return;
             }
 
-            await Task.Delay(250);
-            if (TryReadCandidateByteAt(offset, absoluteAddress, out var delayed250Value, out _))
-            {
-                delayed250Readback = delayed250Value;
-                HiddenSkillsBit250ReadbackText.Text = FormatResearchByte(delayed250Value);
-            }
-            else
-            {
-                HiddenSkillsBit250ReadbackText.Text = "Read failed";
-            }
+            var delayedReadbacks = await MemoryWriteVerificationService.ReadDelayedByteReadbacksAsync(
+                (out byte value) => TryReadCandidateByteAt(offset, absoluteAddress, out value, out _));
+            delayed250Readback = delayedReadbacks.Read250Ms;
+            delayed1000Readback = delayedReadbacks.Read1000Ms;
+            HiddenSkillsBit250ReadbackText.Text = delayed250Readback.HasValue
+                ? FormatResearchByte(delayed250Readback.Value)
+                : "Read failed";
+            HiddenSkillsBit1000ReadbackText.Text = delayed1000Readback.HasValue
+                ? FormatResearchByte(delayed1000Readback.Value)
+                : "Read failed";
 
-            await Task.Delay(750);
-            if (TryReadCandidateByteAt(offset, absoluteAddress, out var delayed1000Value, out _))
-            {
-                delayed1000Readback = delayed1000Value;
-                HiddenSkillsBit1000ReadbackText.Text = FormatResearchByte(delayed1000Value);
-            }
-            else
-            {
-                HiddenSkillsBit1000ReadbackText.Text = "Read failed";
-            }
-
-            var delayedMismatch =
-                delayed250Readback.HasValue && delayed250Readback.Value != desiredValue ||
-                delayed1000Readback.HasValue && delayed1000Readback.Value != desiredValue;
+            var delayedMismatch = delayedReadbacks.HasMismatch(desiredValue);
             status = delayedMismatch ? "delayed-mismatch" : "verified";
             HiddenSkillsBitCurrentByteText.Text = FormatResearchByte(delayed1000Readback ?? immediateValue);
             HiddenSkillsBitCurrentStateText.Text = IsBitSet(delayed1000Readback ?? immediateValue, bit) ? "Set" : "Clear";
@@ -6391,31 +6378,17 @@ public partial class MainWindow : Window, INotifyPropertyChanged
                 return false;
             }
 
-            await Task.Delay(250);
-            if (InventoryMemoryService.TryReadSlot(
+            var delayedReadbacks = await MemoryWriteVerificationService.ReadDelayedByteReadbacksAsync(
+                (out byte value) => InventoryMemoryService.TryReadSlot(
                     memory,
                     _playerBaseAddress.Value,
                     slotIndex,
-                    out var delayed250Value,
-                    out _))
-            {
-                delayed250Readback = delayed250Value;
-            }
+                    out value,
+                    out _));
+            delayed250Readback = delayedReadbacks.Read250Ms;
+            delayed1000Readback = delayedReadbacks.Read1000Ms;
 
-            await Task.Delay(750);
-            if (InventoryMemoryService.TryReadSlot(
-                    memory,
-                    _playerBaseAddress.Value,
-                    slotIndex,
-                    out var delayed1000Value,
-                    out _))
-            {
-                delayed1000Readback = delayed1000Value;
-            }
-
-            var reverted =
-                delayed250Readback.HasValue && delayed250Readback.Value != desiredValue ||
-                delayed1000Readback.HasValue && delayed1000Readback.Value != desiredValue;
+            var reverted = delayedReadbacks.HasMismatch(desiredValue);
             if (reverted)
             {
                 diagnosticStatus = "reverted-by-game";
@@ -6534,31 +6507,17 @@ public partial class MainWindow : Window, INotifyPropertyChanged
                 return false;
             }
 
-            await Task.Delay(250);
-            if (InventoryMemoryService.TryReadSlot(
+            var delayedReadbacks = await MemoryWriteVerificationService.ReadDelayedByteReadbacksAsync(
+                (out byte value) => InventoryMemoryService.TryReadSlot(
                     memory,
                     _playerBaseAddress.Value,
                     slot.InventorySlotIndex,
-                    out var delayed250Value,
-                    out _))
-            {
-                delayed250Readback = delayed250Value;
-            }
+                    out value,
+                    out _));
+            delayed250Readback = delayedReadbacks.Read250Ms;
+            delayed1000Readback = delayedReadbacks.Read1000Ms;
 
-            await Task.Delay(750);
-            if (InventoryMemoryService.TryReadSlot(
-                    memory,
-                    _playerBaseAddress.Value,
-                    slot.InventorySlotIndex,
-                    out var delayed1000Value,
-                    out _))
-            {
-                delayed1000Readback = delayed1000Value;
-            }
-
-            var reverted =
-                delayed250Readback.HasValue && delayed250Readback.Value != desiredValue ||
-                delayed1000Readback.HasValue && delayed1000Readback.Value != desiredValue;
+            var reverted = delayedReadbacks.HasMismatch(desiredValue);
             if (reverted)
             {
                 diagnosticStatus = "reverted-by-game";
@@ -6704,33 +6663,18 @@ public partial class MainWindow : Window, INotifyPropertyChanged
                 return false;
             }
 
-            await Task.Delay(250);
-            if (InventoryMemoryService.TryReadByte(
+            var delayedReadbacks = await MemoryWriteVerificationService.ReadDelayedByteReadbacksAsync(
+                (out byte value) => InventoryMemoryService.TryReadByte(
                     memory,
                     _playerBaseAddress.Value,
                     slot.OffsetValue,
                     $"Bomb Slot {slot.SlotNumber}",
-                    out var delayed250Value,
-                    out _))
-            {
-                delayed250Readback = delayed250Value;
-            }
+                    out value,
+                    out _));
+            delayed250Readback = delayedReadbacks.Read250Ms;
+            delayed1000Readback = delayedReadbacks.Read1000Ms;
 
-            await Task.Delay(750);
-            if (InventoryMemoryService.TryReadByte(
-                    memory,
-                    _playerBaseAddress.Value,
-                    slot.OffsetValue,
-                    $"Bomb Slot {slot.SlotNumber}",
-                    out var delayed1000Value,
-                    out _))
-            {
-                delayed1000Readback = delayed1000Value;
-            }
-
-            var verificationFailed =
-                delayed250Readback.HasValue && delayed250Readback.Value != desiredValue ||
-                delayed1000Readback.HasValue && delayed1000Readback.Value != desiredValue;
+            var verificationFailed = delayedReadbacks.HasMismatch(desiredValue);
             if (verificationFailed)
             {
                 diagnosticStatus = "verification-failed";
@@ -6853,33 +6797,19 @@ public partial class MainWindow : Window, INotifyPropertyChanged
                     TimeSpan.FromMilliseconds(50))
                 : Task.CompletedTask;
 
-            await Task.Delay(250);
-            if (InventoryMemoryService.TryReadSlot(
+            var delayedReadbacks = await MemoryWriteVerificationService.ReadDelayedByteReadbacksAsync(
+                (out byte value) => InventoryMemoryService.TryReadSlot(
                     memory,
                     playerBaseAddress,
                     slotIndex,
-                    out var delayed250ItemId,
-                    out _))
-            {
-                delayed250Readback = delayed250ItemId;
-            }
-
-            await Task.Delay(750);
-            if (InventoryMemoryService.TryReadSlot(
-                    memory,
-                    playerBaseAddress,
-                    slotIndex,
-                    out var delayed1000ItemId,
-                    out _))
-            {
-                delayed1000Readback = delayed1000ItemId;
-            }
+                    out value,
+                    out _));
+            delayed250Readback = delayedReadbacks.Read250Ms;
+            delayed1000Readback = delayedReadbacks.Read1000Ms;
 
             await holdTask;
 
-            var laterReverted =
-                delayed250Readback.HasValue && delayed250Readback.Value != expectedValue ||
-                delayed1000Readback.HasValue && delayed1000Readback.Value != expectedValue;
+            var laterReverted = delayedReadbacks.HasMismatch(expectedValue);
 
             if (laterReverted)
             {
@@ -6988,29 +6918,16 @@ public partial class MainWindow : Window, INotifyPropertyChanged
                 return false;
             }
 
-            await Task.Delay(250);
-            if (InventoryMemoryService.TryReadByte(
+            var delayedReadbacks = await MemoryWriteVerificationService.ReadDelayedByteReadbacksAsync(
+                (out byte value) => InventoryMemoryService.TryReadByte(
                     memory,
                     playerBaseAddress,
                     offsetValue,
                     item.Name,
-                    out var delayed250Value,
-                    out _))
-            {
-                delayed250Readback = delayed250Value;
-            }
-
-            await Task.Delay(750);
-            if (InventoryMemoryService.TryReadByte(
-                    memory,
-                    playerBaseAddress,
-                    offsetValue,
-                    item.Name,
-                    out var delayed1000Value,
-                    out _))
-            {
-                delayed1000Readback = delayed1000Value;
-            }
+                    out value,
+                    out _));
+            delayed250Readback = delayedReadbacks.Read250Ms;
+            delayed1000Readback = delayedReadbacks.Read1000Ms;
 
             var laterReverted =
                 delayed250Readback.HasValue && !DoesFlagMatch(delayed250Readback.Value, item.Definition.Mask, desiredValue) ||
@@ -7111,29 +7028,16 @@ public partial class MainWindow : Window, INotifyPropertyChanged
                 return false;
             }
 
-            await Task.Delay(250);
-            if (EquipmentMemoryService.TryReadByte(
+            var delayedReadbacks = await MemoryWriteVerificationService.ReadDelayedByteReadbacksAsync(
+                (out byte value) => EquipmentMemoryService.TryReadByte(
                     memory,
                     playerBaseAddress,
                     flag.OffsetValue,
                     flag.Name,
-                    out var delayed250Value,
-                    out _))
-            {
-                delayed250Readback = delayed250Value;
-            }
-
-            await Task.Delay(750);
-            if (EquipmentMemoryService.TryReadByte(
-                    memory,
-                    playerBaseAddress,
-                    flag.OffsetValue,
-                    flag.Name,
-                    out var delayed1000Value,
-                    out _))
-            {
-                delayed1000Readback = delayed1000Value;
-            }
+                    out value,
+                    out _));
+            delayed250Readback = delayedReadbacks.Read250Ms;
+            delayed1000Readback = delayedReadbacks.Read1000Ms;
 
             var laterReverted =
                 delayed250Readback.HasValue && !DoesFlagMatch(delayed250Readback.Value, flag.Definition.Mask, desiredValue) ||
@@ -8108,8 +8012,11 @@ public partial class MainWindow : Window, INotifyPropertyChanged
 
         try
         {
-            if (!memory.TryReadBytes(absoluteAddress, GoldenBugsDefinitions.OwnershipByteCount, out var currentBytes, out var currentBytesRead) ||
-                currentBytesRead != GoldenBugsDefinitions.OwnershipByteCount)
+            if (!MemoryWriteVerificationService.TryReadExactBytes(
+                    memory,
+                    absoluteAddress,
+                    GoldenBugsDefinitions.OwnershipByteCount,
+                    out var currentBytes))
             {
                 status = "before-read-failed";
                 GoldenBugsEditorStatusText.Text = "Could not read Golden Bugs before writing.";
@@ -8149,8 +8056,11 @@ public partial class MainWindow : Window, INotifyPropertyChanged
                 }
             }
 
-            if (!memory.TryReadBytes(absoluteAddress, GoldenBugsDefinitions.OwnershipByteCount, out immediateBytes, out var immediateRead) ||
-                immediateRead != GoldenBugsDefinitions.OwnershipByteCount)
+            if (!MemoryWriteVerificationService.TryReadExactBytes(
+                    memory,
+                    absoluteAddress,
+                    GoldenBugsDefinitions.OwnershipByteCount,
+                    out immediateBytes))
             {
                 status = "immediate-read-failed";
                 SetStatus("Golden Bugs immediate verification failed.", StatusKind.Warning);
@@ -8164,23 +8074,16 @@ public partial class MainWindow : Window, INotifyPropertyChanged
                 return false;
             }
 
-            await Task.Delay(250);
-            if (memory.TryReadBytes(absoluteAddress, GoldenBugsDefinitions.OwnershipByteCount, out var read250, out var read250Count) &&
-                read250Count == GoldenBugsDefinitions.OwnershipByteCount)
-            {
-                delayed250Bytes = read250;
-            }
+            var delayedReadbacks = await MemoryWriteVerificationService.ReadDelayedBytesReadbacksAsync(
+                (out byte[] bytes) => MemoryWriteVerificationService.TryReadExactBytes(
+                    memory,
+                    absoluteAddress,
+                    GoldenBugsDefinitions.OwnershipByteCount,
+                    out bytes));
+            delayed250Bytes = delayedReadbacks.Read250Ms;
+            delayed1000Bytes = delayedReadbacks.Read1000Ms;
 
-            await Task.Delay(750);
-            if (memory.TryReadBytes(absoluteAddress, GoldenBugsDefinitions.OwnershipByteCount, out var read1000, out var read1000Count) &&
-                read1000Count == GoldenBugsDefinitions.OwnershipByteCount)
-            {
-                delayed1000Bytes = read1000;
-            }
-
-            var delayedMismatch =
-                delayed250Bytes is not null && !desiredBytes.SequenceEqual(delayed250Bytes) ||
-                delayed1000Bytes is not null && !desiredBytes.SequenceEqual(delayed1000Bytes);
+            var delayedMismatch = delayedReadbacks.HasMismatch(desiredBytes);
             status = delayedMismatch ? "delayed-mismatch" : "verified";
             if (delayedMismatch)
             {
@@ -8231,8 +8134,11 @@ public partial class MainWindow : Window, INotifyPropertyChanged
 
         try
         {
-            if (!memory.TryReadBytes(absoluteAddress, HiddenSkillsDefinitions.OwnershipByteCount, out var currentBytes, out var currentBytesRead) ||
-                currentBytesRead != HiddenSkillsDefinitions.OwnershipByteCount)
+            if (!MemoryWriteVerificationService.TryReadExactBytes(
+                    memory,
+                    absoluteAddress,
+                    HiddenSkillsDefinitions.OwnershipByteCount,
+                    out var currentBytes))
             {
                 status = "before-read-failed";
                 HiddenSkillsEditorStatusText.Text = "Could not read Hidden Skills before writing.";
@@ -8275,8 +8181,11 @@ public partial class MainWindow : Window, INotifyPropertyChanged
                 }
             }
 
-            if (!memory.TryReadBytes(absoluteAddress, HiddenSkillsDefinitions.OwnershipByteCount, out immediateBytes, out var immediateRead) ||
-                immediateRead != HiddenSkillsDefinitions.OwnershipByteCount)
+            if (!MemoryWriteVerificationService.TryReadExactBytes(
+                    memory,
+                    absoluteAddress,
+                    HiddenSkillsDefinitions.OwnershipByteCount,
+                    out immediateBytes))
             {
                 status = "immediate-read-failed";
                 SetStatus("Hidden Skills immediate verification failed.", StatusKind.Warning);
@@ -8292,23 +8201,16 @@ public partial class MainWindow : Window, INotifyPropertyChanged
                 return false;
             }
 
-            await Task.Delay(250);
-            if (memory.TryReadBytes(absoluteAddress, HiddenSkillsDefinitions.OwnershipByteCount, out var read250, out var read250Count) &&
-                read250Count == HiddenSkillsDefinitions.OwnershipByteCount)
-            {
-                delayed250Bytes = read250;
-            }
+            var delayedReadbacks = await MemoryWriteVerificationService.ReadDelayedBytesReadbacksAsync(
+                (out byte[] bytes) => MemoryWriteVerificationService.TryReadExactBytes(
+                    memory,
+                    absoluteAddress,
+                    HiddenSkillsDefinitions.OwnershipByteCount,
+                    out bytes));
+            delayed250Bytes = delayedReadbacks.Read250Ms;
+            delayed1000Bytes = delayedReadbacks.Read1000Ms;
 
-            await Task.Delay(750);
-            if (memory.TryReadBytes(absoluteAddress, HiddenSkillsDefinitions.OwnershipByteCount, out var read1000, out var read1000Count) &&
-                read1000Count == HiddenSkillsDefinitions.OwnershipByteCount)
-            {
-                delayed1000Bytes = read1000;
-            }
-
-            var delayedMismatch =
-                delayed250Bytes is not null && !desiredBytes.SequenceEqual(delayed250Bytes) ||
-                delayed1000Bytes is not null && !desiredBytes.SequenceEqual(delayed1000Bytes);
+            var delayedMismatch = delayedReadbacks.HasMismatch(desiredBytes);
             status = delayedMismatch ? "delayed-mismatch" : "verified";
             SetHiddenSkillsRowWriteStatuses(
                 desiredBytes,
@@ -8355,8 +8257,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
 
         try
         {
-            if (!memory.TryReadBytes(absoluteAddress, 1, out var beforeBytes, out var beforeBytesRead) ||
-                beforeBytesRead != 1)
+            if (!MemoryWriteVerificationService.TryReadExactBytes(memory, absoluteAddress, 1, out var beforeBytes))
             {
                 status = "before-read-failed";
                 bit.LastWriteStatus = "Before read failed.";
@@ -8379,8 +8280,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
                 return false;
             }
 
-            if (!memory.TryReadBytes(absoluteAddress, 1, out var immediateBytes, out var immediateBytesRead) ||
-                immediateBytesRead != 1)
+            if (!MemoryWriteVerificationService.TryReadExactBytes(memory, absoluteAddress, 1, out var immediateBytes))
             {
                 status = "immediate-read-failed";
                 bit.LastWriteStatus = "Immediate read failed.";
@@ -8397,23 +8297,22 @@ public partial class MainWindow : Window, INotifyPropertyChanged
                 return false;
             }
 
-            await Task.Delay(250);
-            if (memory.TryReadBytes(absoluteAddress, 1, out var delayed250Bytes, out var delayed250BytesRead) &&
-                delayed250BytesRead == 1)
-            {
-                delayed250Readback = delayed250Bytes[0];
-            }
+            var delayedReadbacks = await MemoryWriteVerificationService.ReadDelayedByteReadbacksAsync(
+                (out byte value) =>
+                {
+                    if (MemoryWriteVerificationService.TryReadExactBytes(memory, absoluteAddress, 1, out var bytes))
+                    {
+                        value = bytes[0];
+                        return true;
+                    }
 
-            await Task.Delay(750);
-            if (memory.TryReadBytes(absoluteAddress, 1, out var delayed1000Bytes, out var delayed1000BytesRead) &&
-                delayed1000BytesRead == 1)
-            {
-                delayed1000Readback = delayed1000Bytes[0];
-            }
+                    value = 0;
+                    return false;
+                });
+            delayed250Readback = delayedReadbacks.Read250Ms;
+            delayed1000Readback = delayedReadbacks.Read1000Ms;
 
-            var reverted =
-                delayed250Readback.HasValue && delayed250Readback.Value != afterByte.Value ||
-                delayed1000Readback.HasValue && delayed1000Readback.Value != afterByte.Value;
+            var reverted = delayedReadbacks.HasMismatch(afterByte.Value);
             if (reverted)
             {
                 status = "reverted-or-changed";
@@ -8463,8 +8362,11 @@ public partial class MainWindow : Window, INotifyPropertyChanged
 
         try
         {
-            if (!memory.TryReadBytes(absoluteAddress, GoldenBugsDefinitions.ByteCount, out var currentBytes, out var currentBytesRead) ||
-                currentBytesRead != GoldenBugsDefinitions.ByteCount)
+            if (!MemoryWriteVerificationService.TryReadExactBytes(
+                    memory,
+                    absoluteAddress,
+                    GoldenBugsDefinitions.ByteCount,
+                    out var currentBytes))
             {
                 status = "before-read-failed";
                 GoldenBugsBitfieldStatusText.Text = "Could not read Golden Bugs bitfield before restore.";
@@ -8481,8 +8383,11 @@ public partial class MainWindow : Window, INotifyPropertyChanged
                 return false;
             }
 
-            if (!memory.TryReadBytes(absoluteAddress, GoldenBugsDefinitions.ByteCount, out immediateBytes, out var immediateRead) ||
-                immediateRead != GoldenBugsDefinitions.ByteCount)
+            if (!MemoryWriteVerificationService.TryReadExactBytes(
+                    memory,
+                    absoluteAddress,
+                    GoldenBugsDefinitions.ByteCount,
+                    out immediateBytes))
             {
                 status = "restore-immediate-read-failed";
                 SetStatus("Golden Bugs bitfield restore immediate verification failed.", StatusKind.Warning);
@@ -8496,23 +8401,16 @@ public partial class MainWindow : Window, INotifyPropertyChanged
                 return false;
             }
 
-            await Task.Delay(250);
-            if (memory.TryReadBytes(absoluteAddress, GoldenBugsDefinitions.ByteCount, out var read250, out var read250Count) &&
-                read250Count == GoldenBugsDefinitions.ByteCount)
-            {
-                delayed250Bytes = read250;
-            }
+            var delayedReadbacks = await MemoryWriteVerificationService.ReadDelayedBytesReadbacksAsync(
+                (out byte[] bytes) => MemoryWriteVerificationService.TryReadExactBytes(
+                    memory,
+                    absoluteAddress,
+                    GoldenBugsDefinitions.ByteCount,
+                    out bytes));
+            delayed250Bytes = delayedReadbacks.Read250Ms;
+            delayed1000Bytes = delayedReadbacks.Read1000Ms;
 
-            await Task.Delay(750);
-            if (memory.TryReadBytes(absoluteAddress, GoldenBugsDefinitions.ByteCount, out var read1000, out var read1000Count) &&
-                read1000Count == GoldenBugsDefinitions.ByteCount)
-            {
-                delayed1000Bytes = read1000;
-            }
-
-            var reverted =
-                delayed250Bytes is not null && !snapshot.SequenceEqual(delayed250Bytes) ||
-                delayed1000Bytes is not null && !snapshot.SequenceEqual(delayed1000Bytes);
+            var reverted = delayedReadbacks.HasMismatch(snapshot);
             status = reverted ? "restore-delayed-mismatch" : "restore-verified";
             if (reverted)
             {

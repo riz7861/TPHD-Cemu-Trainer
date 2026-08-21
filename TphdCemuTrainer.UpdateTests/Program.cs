@@ -1,7 +1,8 @@
 using System.Net;
+using TphdCemuTrainer.Memory;
 using TphdCemuTrainer.Updates;
 
-var tests = new (string Name, Func<Task> Run)[]
+var updateTests = new (string Name, Func<Task> Run)[]
 {
     ("installed 1.0.0, latest 1.0.0 is current", InstalledCurrent),
     ("installed 1.0.0, latest 1.0.1 has update", PatchUpdateAvailable),
@@ -15,13 +16,31 @@ var tests = new (string Name, Func<Task> Run)[]
     ("drafts and prereleases are ignored", DraftsAndPrereleasesIgnored)
 };
 
-foreach (var test in tests)
+foreach (var test in updateTests)
 {
     await test.Run();
     Console.WriteLine($"PASS {test.Name}");
 }
 
-Console.WriteLine($"All {tests.Length} update tests passed.");
+Console.WriteLine($"All {updateTests.Length} update tests passed.");
+
+var memoryVerificationTests = new (string Name, Action Run)[]
+{
+    ("byte delayed readback ignores missing delayed reads", ByteDelayedReadbackIgnoresMissingReads),
+    ("byte delayed readback detects 250ms mismatch", ByteDelayedReadbackDetects250MsMismatch),
+    ("byte delayed readback detects 1000ms mismatch", ByteDelayedReadbackDetects1000MsMismatch),
+    ("byte-array delayed readback ignores missing delayed reads", ByteArrayDelayedReadbackIgnoresMissingReads),
+    ("byte-array delayed readback detects mismatch", ByteArrayDelayedReadbackDetectsMismatch),
+    ("verification timings remain 250ms and 1000ms", VerificationTimingsRemainExpected)
+};
+
+foreach (var test in memoryVerificationTests)
+{
+    test.Run();
+    Console.WriteLine($"PASS {test.Name}");
+}
+
+Console.WriteLine($"All {memoryVerificationTests.Length} memory verification tests passed.");
 
 static async Task InstalledCurrent()
 {
@@ -99,6 +118,47 @@ static async Task DraftsAndPrereleasesIgnored()
     AssertEqual("1.0.0", result.LatestVersionText);
 }
 
+static void ByteDelayedReadbackIgnoresMissingReads()
+{
+    AssertFalse(
+        MemoryWriteVerificationService.HasByteDelayedMismatch(0x42, null, null),
+        "Missing delayed byte readbacks should not count as mismatches.");
+}
+
+static void ByteDelayedReadbackDetects250MsMismatch()
+{
+    AssertTrue(
+        MemoryWriteVerificationService.HasByteDelayedMismatch(0x42, 0x41, 0x42),
+        "A 250ms delayed byte mismatch should be detected.");
+}
+
+static void ByteDelayedReadbackDetects1000MsMismatch()
+{
+    AssertTrue(
+        MemoryWriteVerificationService.HasByteDelayedMismatch(0x42, 0x42, 0x41),
+        "A 1000ms delayed byte mismatch should be detected.");
+}
+
+static void ByteArrayDelayedReadbackIgnoresMissingReads()
+{
+    AssertFalse(
+        MemoryWriteVerificationService.HasBytesDelayedMismatch([0x01, 0x02], null, null),
+        "Missing delayed byte-array readbacks should not count as mismatches.");
+}
+
+static void ByteArrayDelayedReadbackDetectsMismatch()
+{
+    AssertTrue(
+        MemoryWriteVerificationService.HasBytesDelayedMismatch([0x01, 0x02], [0x01, 0x03], [0x01, 0x02]),
+        "A delayed byte-array mismatch should be detected.");
+}
+
+static void VerificationTimingsRemainExpected()
+{
+    AssertEqual(250, MemoryWriteVerificationService.FirstDelayedReadbackMilliseconds);
+    AssertEqual(1000, MemoryWriteVerificationService.FinalDelayedReadbackMilliseconds);
+}
+
 static async Task<UpdateCheckResult> CheckAsync(string installedVersion, string responseJson)
 {
     var handler = new FakeHttpMessageHandler((_, _) =>
@@ -152,6 +212,14 @@ static void AssertEqual<T>(T expected, T actual)
 static void AssertTrue(bool condition, string message)
 {
     if (!condition)
+    {
+        throw new InvalidOperationException(message);
+    }
+}
+
+static void AssertFalse(bool condition, string message)
+{
+    if (condition)
     {
         throw new InvalidOperationException(message);
     }
