@@ -4,7 +4,7 @@
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         mc:Ignorable="d"
-        Title="TPHD Cemu Trainer v1.0"
+        Title="{Binding ApplicationTitle, RelativeSource={RelativeSource Self}}"
         Height="760"
         MinHeight="680"
         Width="1120"
@@ -2466,7 +2466,7 @@
                           Click="OpenDeveloperToolMenuItem_Click" />
             </MenuItem>
             <MenuItem Header="_Help">
-                <MenuItem Header="About"
+                <MenuItem Header="About / Credits"
                           Click="AboutMenuItem_Click" />
                 <MenuItem Header="README / Documentation"
                           Click="OpenDocumentationMenuItem_Click" />
@@ -2542,7 +2542,7 @@
                 <StackPanel Grid.Column="2"
                             VerticalAlignment="Center">
                     <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
-                        <TextBlock Text="TPHD Cemu Trainer v1.0"
+                        <TextBlock Text="{Binding ApplicationTitle}"
                                    FontWeight="SemiBold"
                                    VerticalAlignment="Center"
                                    Margin="0,0,16,0" />
@@ -2736,25 +2736,6 @@
                                        Text="Choose the value you want, then select Set. If player data is not found, load into gameplay and rescan." />
                         </GroupBox>
 
-                        <GroupBox Header="About">
-                            <StackPanel>
-                                <TextBlock Text="TPHD Cemu Trainer v1.0"
-                                           FontWeight="SemiBold"
-                                           Margin="0,0,0,4" />
-                                <TextBlock Text="For The Legend of Zelda: Twilight Princess HD on Cemu."
-                                           TextWrapping="Wrap"
-                                           Foreground="{DynamicResource SecondaryTextBrush}"
-                                           Margin="0,0,0,4" />
-                                <TextBlock Text="Back up your save before using this trainer."
-                                           TextWrapping="Wrap"
-                                           Foreground="{DynamicResource WarningTextBrush}"
-                                           FontWeight="SemiBold"
-                                           Margin="0,0,0,4" />
-                                <TextBlock Text="Advanced tools are available in Developer Mode."
-                                           TextWrapping="Wrap"
-                                           Foreground="{DynamicResource SecondaryTextBrush}" />
-                            </StackPanel>
-                        </GroupBox>
                     </UniformGrid>
                 </ScrollViewer>
             </TabItem>

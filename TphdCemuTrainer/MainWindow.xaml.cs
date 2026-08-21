@@ -47,6 +47,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     private bool _equipmentInitialized;
     private bool _isDarkMode;
     private bool _isDeveloperMode;
+    private AboutWindow? _aboutWindow;
     private bool _suppressQuestSpecialItemExclusivity;
     private HeartProgressOption _selectedHeartProgressOption = null!;
     private bool _suppressHiddenSkillDependencyEnforcement;
@@ -507,6 +508,10 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         set => SetMainProperty(ref _selectedHeartProgressOption, value);
     }
 
+    public string ApplicationVersion { get; } = GetApplicationVersion();
+
+    public string ApplicationTitle => $"TPHD Cemu Trainer v{ApplicationVersion}";
+
     public CapacitySelectorViewModel WalletCapacity => _capacities[CheatCatalog.WalletCapacityId];
 
     public CapacitySelectorViewModel QuiverCapacity => _capacities[CheatCatalog.QuiverCapacityId];
@@ -947,21 +952,49 @@ public partial class MainWindow : Window, INotifyPropertyChanged
 
     private void AboutMenuItem_Click(object sender, RoutedEventArgs e)
     {
-        var version = Assembly.GetExecutingAssembly().GetName().Version?.ToString(3) ?? "1.0.0";
-        MessageBox.Show(
-            this,
-            $"""
-            TPHD Cemu Trainer v{version}
+        if (_aboutWindow is { IsVisible: true } existingWindow)
+        {
+            existingWindow.Activate();
+            return;
+        }
 
-            External WPF trainer for The Legend of Zelda: Twilight Princess HD running in Cemu.
+        var aboutWindow = new AboutWindow(ApplicationTitle, Resources)
+        {
+            Owner = this
+        };
 
-            Uses external process-memory reads and writes. It does not modify Cemu or game files.
+        _aboutWindow = aboutWindow;
+        SetStatus("Opened About / Credits.", StatusKind.Neutral);
 
-            Cheat Engine table research credited to toto621.
-            """,
-            "About TPHD Cemu Trainer",
-            MessageBoxButton.OK,
-            MessageBoxImage.Information);
+        try
+        {
+            aboutWindow.ShowDialog();
+        }
+        finally
+        {
+            if (ReferenceEquals(_aboutWindow, aboutWindow))
+            {
+                _aboutWindow = null;
+            }
+        }
+    }
+
+    private static string GetApplicationVersion()
+    {
+        var assembly = Assembly.GetExecutingAssembly();
+        var informationalVersion = assembly
+            .GetCustomAttribute<AssemblyInformationalVersionAttribute>()?
+            .InformationalVersion;
+
+        if (!string.IsNullOrWhiteSpace(informationalVersion))
+        {
+            var metadataIndex = informationalVersion.IndexOf('+', StringComparison.Ordinal);
+            return metadataIndex > 0
+                ? informationalVersion[..metadataIndex]
+                : informationalVersion;
+        }
+
+        return assembly.GetName().Version?.ToString(3) ?? "1.0.0";
     }
 
     private void OpenDeveloperToolMenuItem_Click(object sender, RoutedEventArgs e)
