@@ -1,46 +1,75 @@
 using System.Net;
 using TphdCemuTrainer.Memory;
+using TphdCemuTrainer.Research;
 using TphdCemuTrainer.Updates;
 
-var updateTests = new (string Name, Func<Task> Run)[]
+try
 {
-    ("installed 1.0.0, latest 1.0.0 is current", InstalledCurrent),
-    ("installed 1.0.0, latest 1.0.1 has update", PatchUpdateAvailable),
-    ("installed 1.9.0, latest 1.10.0 has update", NumericVersionComparison),
-    ("installed 2.0.0, latest 1.9.0 is current", InstalledNewerThanLatest),
-    ("v-prefixed tags parse", VPrefixedTagParsing),
-    ("malformed version tag is unavailable", MalformedVersionTag),
-    ("malformed GitHub response is unavailable", MalformedGitHubResponse),
-    ("network failure is unavailable", NetworkFailure),
-    ("timeout is unavailable", TimeoutFailure),
-    ("drafts and prereleases are ignored", DraftsAndPrereleasesIgnored)
-};
+    var updateTests = new (string Name, Func<Task> Run)[]
+    {
+        ("installed 1.0.0, latest 1.0.0 is current", InstalledCurrent),
+        ("installed 1.0.0, latest 1.0.1 has update", PatchUpdateAvailable),
+        ("installed 1.9.0, latest 1.10.0 has update", NumericVersionComparison),
+        ("installed 2.0.0, latest 1.9.0 is current", InstalledNewerThanLatest),
+        ("v-prefixed tags parse", VPrefixedTagParsing),
+        ("malformed version tag is unavailable", MalformedVersionTag),
+        ("malformed GitHub response is unavailable", MalformedGitHubResponse),
+        ("network failure is unavailable", NetworkFailure),
+        ("timeout is unavailable", TimeoutFailure),
+        ("drafts and prereleases are ignored", DraftsAndPrereleasesIgnored)
+    };
 
-foreach (var test in updateTests)
-{
-    await test.Run();
-    Console.WriteLine($"PASS {test.Name}");
+    foreach (var test in updateTests)
+    {
+        await test.Run();
+        Console.WriteLine($"PASS {test.Name}");
+    }
+
+    Console.WriteLine($"All {updateTests.Length} update tests passed.");
+
+    var memoryVerificationTests = new (string Name, Action Run)[]
+    {
+        ("byte delayed readback ignores missing delayed reads", ByteDelayedReadbackIgnoresMissingReads),
+        ("byte delayed readback detects 250ms mismatch", ByteDelayedReadbackDetects250MsMismatch),
+        ("byte delayed readback detects 1000ms mismatch", ByteDelayedReadbackDetects1000MsMismatch),
+        ("byte-array delayed readback ignores missing delayed reads", ByteArrayDelayedReadbackIgnoresMissingReads),
+        ("byte-array delayed readback detects mismatch", ByteArrayDelayedReadbackDetectsMismatch),
+        ("verification timings remain 250ms and 1000ms", VerificationTimingsRemainExpected)
+    };
+
+    foreach (var test in memoryVerificationTests)
+    {
+        test.Run();
+        Console.WriteLine($"PASS {test.Name}");
+    }
+
+    Console.WriteLine($"All {memoryVerificationTests.Length} memory verification tests passed.");
+
+    var researchExportTests = new (string Name, Action Run)[]
+    {
+        ("quest capture JSON format remains stable", QuestCaptureJsonFormatRemainsStable),
+        ("quest research CSV format remains stable", QuestResearchCsvFormatRemainsStable),
+        ("research CSV escaping and filename sanitizing remain stable", ResearchCsvEscapingAndFileNameSanitizingRemainStable)
+    };
+
+    foreach (var test in researchExportTests)
+    {
+        test.Run();
+        Console.WriteLine($"PASS {test.Name}");
+    }
+
+    Console.WriteLine($"All {researchExportTests.Length} research export tests passed.");
+    return 0;
 }
-
-Console.WriteLine($"All {updateTests.Length} update tests passed.");
-
-var memoryVerificationTests = new (string Name, Action Run)[]
+catch (Exception exception)
 {
-    ("byte delayed readback ignores missing delayed reads", ByteDelayedReadbackIgnoresMissingReads),
-    ("byte delayed readback detects 250ms mismatch", ByteDelayedReadbackDetects250MsMismatch),
-    ("byte delayed readback detects 1000ms mismatch", ByteDelayedReadbackDetects1000MsMismatch),
-    ("byte-array delayed readback ignores missing delayed reads", ByteArrayDelayedReadbackIgnoresMissingReads),
-    ("byte-array delayed readback detects mismatch", ByteArrayDelayedReadbackDetectsMismatch),
-    ("verification timings remain 250ms and 1000ms", VerificationTimingsRemainExpected)
-};
-
-foreach (var test in memoryVerificationTests)
-{
-    test.Run();
-    Console.WriteLine($"PASS {test.Name}");
+    Console.Error.WriteLine("Test harness failed.");
+    Console.Error.WriteLine($"Exception type: {exception.GetType().FullName}");
+    Console.Error.WriteLine($"Message: {exception.Message}");
+    Console.Error.WriteLine("Stack trace:");
+    Console.Error.WriteLine(exception.StackTrace);
+    return 1;
 }
-
-Console.WriteLine($"All {memoryVerificationTests.Length} memory verification tests passed.");
 
 static async Task InstalledCurrent()
 {
@@ -159,6 +188,95 @@ static void VerificationTimingsRemainExpected()
     AssertEqual(1000, MemoryWriteVerificationService.FinalDelayedReadbackMilliseconds);
 }
 
+static void QuestCaptureJsonFormatRemainsStable()
+{
+    var capture = new QuestItemsCaptureDocument(
+        new DateTimeOffset(2026, 6, 3, 22, 30, 0, TimeSpan.Zero),
+        "Forest Temple",
+        0x200,
+        0x400,
+        ["0xFF", "0x25"],
+        "note",
+        "Forest Temple",
+        "1.0.0");
+
+    var json = ResearchExportService.SerializeJson(capture);
+    var expected = string.Join(
+        Environment.NewLine,
+        [
+            "{",
+            "  \"Timestamp\": \"2026-06-03T22:30:00+00:00\",",
+            "  \"Label\": \"Forest Temple\",",
+            "  \"StartOffset\": 512,",
+            "  \"Length\": 1024,",
+            "  \"RawBytes\": [",
+            "    \"0xFF\",",
+            "    \"0x25\"",
+            "  ],",
+            "  \"Notes\": \"note\",",
+            "  \"CaptureType\": \"Forest Temple\",",
+            "  \"AppVersion\": \"1.0.0\"",
+            "}"
+        ]);
+
+    AssertEqual(expected, json);
+}
+
+static void QuestResearchCsvFormatRemainsStable()
+{
+    var export = new QuestItemsResearchExport(
+        new DateTimeOffset(2026, 6, 3, 22, 45, 0, TimeSpan.Zero),
+        "Forest",
+        "Goron",
+        0x200,
+        0x400,
+        null,
+        0x200,
+        0x400,
+        null,
+        "",
+        1,
+        1,
+        [
+            new QuestItemsResearchExportRow(
+                "0x200",
+                0x01,
+                0x02,
+                "00000001",
+                "00000010",
+                "bit 0",
+                1,
+                true,
+                8,
+                "Group A")
+        ]);
+
+    AssertSequenceEqual(
+        [
+            "Field,Value",
+            "\"Capture A\",\"Forest\"",
+            "\"Capture B\",\"Goron\"",
+            "\"Capture A Start Offset\",\"0x200\"",
+            "\"Capture A Length\",\"0x400\"",
+            "\"Capture B Start Offset\",\"0x200\"",
+            "\"Capture B Length\",\"0x400\"",
+            "\"Changed Byte Count\",\"1\"",
+            "\"Changed Bit Count\",\"1\"",
+            "\"Range Warning\",\"\"",
+            "",
+            "Offset,Capture A Value,Capture B Value,Capture A Binary,Capture B Binary,Changed Bits,Changed Bit Count,Changed,Candidate Score,Candidate Group",
+            "\"0x200\",\"1\",\"2\",\"00000001\",\"00000010\",\"bit 0\",\"1\",\"True\",\"8\",\"Group A\""
+        ],
+        ResearchExportService.CreateQuestItemsResearchCsvLines(export).ToArray());
+}
+
+static void ResearchCsvEscapingAndFileNameSanitizingRemainStable()
+{
+    AssertEqual("\"A \"\"quoted\"\" value\"", ResearchExportService.Csv("A \"quoted\" value"));
+    AssertEqual("Forest-Temple", ResearchExportService.SanitizeFileName("Forest Temple"));
+    AssertEqual("capture", ResearchExportService.SanitizeFileName(""));
+}
+
 static async Task<UpdateCheckResult> CheckAsync(string installedVersion, string responseJson)
 {
     var handler = new FakeHttpMessageHandler((_, _) =>
@@ -206,6 +324,22 @@ static void AssertEqual<T>(T expected, T actual)
     if (!EqualityComparer<T>.Default.Equals(expected, actual))
     {
         throw new InvalidOperationException($"Expected {expected}, got {actual}.");
+    }
+}
+
+static void AssertSequenceEqual<T>(IReadOnlyList<T> expected, IReadOnlyList<T> actual)
+{
+    if (expected.Count != actual.Count)
+    {
+        throw new InvalidOperationException($"Expected {expected.Count} rows, got {actual.Count} rows.");
+    }
+
+    for (var index = 0; index < expected.Count; index++)
+    {
+        if (!EqualityComparer<T>.Default.Equals(expected[index], actual[index]))
+        {
+            throw new InvalidOperationException($"Expected row {index} to be {expected[index]}, got {actual[index]}.");
+        }
     }
 }
 

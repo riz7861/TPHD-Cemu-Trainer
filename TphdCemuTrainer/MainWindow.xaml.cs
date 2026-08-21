@@ -179,11 +179,6 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         new(0x221, 0x22D, "scene-noise", "known scene/location/runtime noise")
     ];
 
-    private static readonly JsonSerializerOptions ExportJsonOptions = new()
-    {
-        WriteIndented = true
-    };
-
     public MainWindow()
     {
         _selectedHeartProgressOption = HeartProgressOptions[0];
@@ -1483,8 +1478,8 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             var baseName = $"{_lastGoldenBugsResearchExport.Timestamp:yyyyMMdd_HHmmss}_golden-bugs-research";
             var jsonPath = Path.Combine(ResearchSnapshotStore.ExportDirectory, baseName + ".json");
             var csvPath = Path.Combine(ResearchSnapshotStore.ExportDirectory, baseName + ".csv");
-            File.WriteAllText(jsonPath, JsonSerializer.Serialize(_lastGoldenBugsResearchExport, ExportJsonOptions));
-            File.WriteAllLines(csvPath, CreateGoldenBugsResearchCsvLines(_lastGoldenBugsResearchExport.Rows));
+            ResearchExportService.WriteJson(jsonPath, _lastGoldenBugsResearchExport);
+            ResearchExportService.WriteCsvLines(csvPath, ResearchExportService.CreateGoldenBugsResearchCsvLines(_lastGoldenBugsResearchExport.Rows));
 
             GoldenBugsResearchStatusText.Text =
                 $"Exported {Path.GetFileName(jsonPath)} and {Path.GetFileName(csvPath)}.";
@@ -1821,7 +1816,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             }
 
             var reportPath = Path.Combine(ResearchSnapshotStore.ExportDirectory, "quest-items-report.json");
-            File.WriteAllText(reportPath, JsonSerializer.Serialize(_lastQuestItemsResearchExport, ExportJsonOptions));
+            ResearchExportService.WriteJson(reportPath, _lastQuestItemsResearchExport);
             var namedReportPath = WriteQuestItemsNamedJsonReport();
             QuestItemsResearchStatusText.Text =
                 $"Exported Quest Items JSON report to logs/research and {Path.GetFileName(namedReportPath)}.";
@@ -1849,7 +1844,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             Directory.CreateDirectory(ResearchSnapshotStore.ExportDirectory);
             Directory.CreateDirectory(QuestSearchDirectory);
             var csvPath = Path.Combine(ResearchSnapshotStore.ExportDirectory, "quest-items-report.csv");
-            File.WriteAllLines(csvPath, CreateQuestItemsResearchCsvLines(_lastQuestItemsResearchExport));
+            ResearchExportService.WriteCsvLines(csvPath, ResearchExportService.CreateQuestItemsResearchCsvLines(_lastQuestItemsResearchExport));
             var namedCsvPath = WriteQuestItemsNamedCsvReport();
             QuestItemsResearchStatusText.Text =
                 $"Exported Quest Items CSV report to logs/research and {Path.GetFileName(namedCsvPath)}.";
@@ -2084,7 +2079,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             }
 
             var reportPath = Path.Combine(ResearchSnapshotStore.ExportDirectory, "hidden-skills-report.json");
-            File.WriteAllText(reportPath, JsonSerializer.Serialize(_lastHiddenSkillsResearchExport, ExportJsonOptions));
+            ResearchExportService.WriteJson(reportPath, _lastHiddenSkillsResearchExport);
             HiddenSkillsResearchStatusText.Text = "Exported Hidden Skills JSON files to logs/research.";
             AppendHiddenSkillsResearchLog($"action=export-json report=\"{reportPath}\" rows={_lastHiddenSkillsResearchExport.Rows.Count}");
             SetStatus("Hidden Skills JSON exported.", StatusKind.Connected);
@@ -2109,7 +2104,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         {
             Directory.CreateDirectory(ResearchSnapshotStore.ExportDirectory);
             var csvPath = Path.Combine(ResearchSnapshotStore.ExportDirectory, "hidden-skills-report.csv");
-            File.WriteAllLines(csvPath, CreateHiddenSkillsResearchCsvLines(_lastHiddenSkillsResearchExport.Rows));
+            ResearchExportService.WriteCsvLines(csvPath, ResearchExportService.CreateHiddenSkillsResearchCsvLines(_lastHiddenSkillsResearchExport.Rows));
             HiddenSkillsResearchStatusText.Text = "Exported Hidden Skills CSV report to logs/research.";
             AppendHiddenSkillsResearchLog($"action=export-csv csv=\"{csvPath}\" rows={_lastHiddenSkillsResearchExport.Rows.Count}");
             SetStatus("Hidden Skills CSV exported.", StatusKind.Connected);
@@ -2163,8 +2158,8 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             var export = CreateHiddenSkillsCandidateGroupsExport();
             var jsonPath = Path.Combine(ResearchSnapshotStore.ExportDirectory, "hidden-skills-candidate-groups.json");
             var csvPath = Path.Combine(ResearchSnapshotStore.ExportDirectory, "hidden-skills-candidate-groups.csv");
-            File.WriteAllText(jsonPath, JsonSerializer.Serialize(export, ExportJsonOptions));
-            File.WriteAllLines(csvPath, CreateHiddenSkillsCandidateGroupsCsvLines(export.Groups));
+            ResearchExportService.WriteJson(jsonPath, export);
+            ResearchExportService.WriteCsvLines(csvPath, ResearchExportService.CreateHiddenSkillsCandidateGroupsCsvLines(export.Groups));
             HiddenSkillsResearchStatusText.Text =
                 $"Exported Hidden Skills candidate groups: {Path.GetFileName(jsonPath)} and {Path.GetFileName(csvPath)}.";
             AppendHiddenSkillsResearchLog(
@@ -2268,8 +2263,8 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             Directory.CreateDirectory(ResearchSnapshotStore.ExportDirectory);
             var jsonPath = Path.Combine(ResearchSnapshotStore.ExportDirectory, "hidden-skills-multi-capture-ranking.json");
             var csvPath = Path.Combine(ResearchSnapshotStore.ExportDirectory, "hidden-skills-multi-capture-ranking.csv");
-            File.WriteAllText(jsonPath, JsonSerializer.Serialize(_lastHiddenSkillsMultiCaptureExport, ExportJsonOptions));
-            File.WriteAllLines(csvPath, CreateHiddenSkillsMultiCaptureCsvLines(_lastHiddenSkillsMultiCaptureExport.Candidates));
+            ResearchExportService.WriteJson(jsonPath, _lastHiddenSkillsMultiCaptureExport);
+            ResearchExportService.WriteCsvLines(csvPath, ResearchExportService.CreateHiddenSkillsMultiCaptureCsvLines(_lastHiddenSkillsMultiCaptureExport.Candidates));
 
             HiddenSkillsMultiCaptureStatusText.Text =
                 $"Exported Hidden Skills multi-capture ranking: {Path.GetFileName(jsonPath)} and {Path.GetFileName(csvPath)}.";
@@ -2418,8 +2413,8 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             Directory.CreateDirectory(ResearchSnapshotStore.ExportDirectory);
             var jsonPath = Path.Combine(ResearchSnapshotStore.ExportDirectory, "hidden-skills-region-analysis.json");
             var csvPath = Path.Combine(ResearchSnapshotStore.ExportDirectory, "hidden-skills-region-analysis.csv");
-            File.WriteAllText(jsonPath, JsonSerializer.Serialize(_lastHiddenSkillsRegionAnalysisExport, ExportJsonOptions));
-            File.WriteAllLines(csvPath, CreateHiddenSkillsRegionAnalysisCsvLines(_lastHiddenSkillsRegionAnalysisExport.Rows));
+            ResearchExportService.WriteJson(jsonPath, _lastHiddenSkillsRegionAnalysisExport);
+            ResearchExportService.WriteCsvLines(csvPath, ResearchExportService.CreateHiddenSkillsRegionAnalysisCsvLines(_lastHiddenSkillsRegionAnalysisExport.Rows));
             HiddenSkillsRegionStatusText.Text =
                 $"Exported Hidden Skills region analysis: {Path.GetFileName(jsonPath)} and {Path.GetFileName(csvPath)}.";
             AppendHiddenSkillsResearchLog(
@@ -2482,8 +2477,8 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             var export = CreateHiddenSkillsLiveWatchExport();
             var jsonPath = Path.Combine(ResearchSnapshotStore.ExportDirectory, "hidden-skills-live-watch.json");
             var csvPath = Path.Combine(ResearchSnapshotStore.ExportDirectory, "hidden-skills-live-watch.csv");
-            File.WriteAllText(jsonPath, JsonSerializer.Serialize(export, ExportJsonOptions));
-            File.WriteAllLines(csvPath, CreateHiddenSkillsLiveWatchCsvLines(export));
+            ResearchExportService.WriteJson(jsonPath, export);
+            ResearchExportService.WriteCsvLines(csvPath, ResearchExportService.CreateHiddenSkillsLiveWatchCsvLines(export));
             HiddenSkillsLiveWatchStatusText.Text =
                 $"Exported Hidden Skills live watch: {Path.GetFileName(jsonPath)} and {Path.GetFileName(csvPath)}.";
             AppendHiddenSkillsLiveWatchLog(
@@ -2984,8 +2979,8 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             var jsonPath = Path.Combine(ResearchSnapshotStore.ExportDirectory, baseName + ".json");
             var csvPath = Path.Combine(ResearchSnapshotStore.ExportDirectory, baseName + ".csv");
 
-            File.WriteAllText(jsonPath, JsonSerializer.Serialize(report, ExportJsonOptions));
-            File.WriteAllLines(csvPath, CreateGoldenBugsBitfieldReportCsvLines(report.Rows));
+            ResearchExportService.WriteJson(jsonPath, report);
+            ResearchExportService.WriteCsvLines(csvPath, ResearchExportService.CreateGoldenBugsBitfieldReportCsvLines(report.Rows));
 
             GoldenBugsBitfieldStatusText.Text =
                 $"Exported {Path.GetFileName(jsonPath)} and {Path.GetFileName(csvPath)}.";
@@ -3923,12 +3918,12 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             var timestamp = DateTimeOffset.Now;
             var safeLabel = string.IsNullOrWhiteSpace(_liveCaptureLabel)
                 ? "session"
-                : SanitizeFileName(_liveCaptureLabel);
+                : ResearchExportService.SanitizeFileName(_liveCaptureLabel);
             var path = Path.Combine(
                 ResearchSnapshotStore.ExportDirectory,
                 $"live-capture-session_{timestamp:yyyyMMdd_HHmmss}_{safeLabel}.json");
             var export = CreateLiveCaptureSessionExport(timestamp);
-            File.WriteAllText(path, JsonSerializer.Serialize(export, ExportJsonOptions));
+            ResearchExportService.WriteJson(path, export);
             LiveCaptureStatusText.Text = $"Exported Live Capture session: {Path.GetFileName(path)}.";
             AppendLiveCaptureLog($"action=export path=\"{path}\" tracked={_liveCaptureTrackedAddresses.Count}");
             RefreshResearchReports();
@@ -8876,33 +8871,14 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             var jsonPath = Path.Combine(ResearchSnapshotStore.ExportDirectory, "inventory-mapping.json");
             var csvPath = Path.Combine(ResearchSnapshotStore.ExportDirectory, "inventory-mapping.csv");
 
-            File.WriteAllText(jsonPath, JsonSerializer.Serialize(export, ExportJsonOptions));
-            File.WriteAllLines(csvPath, CreateInventoryMappingCsvLines(rows));
+            ResearchExportService.WriteJson(jsonPath, export);
+            ResearchExportService.WriteCsvLines(csvPath, ResearchExportService.CreateInventoryMappingCsvLines(rows));
 
             SetStatus("Inventory mapping exported to logs/research.", StatusKind.Connected);
         }
         catch (Exception ex)
         {
             SetStatus($"Inventory mapping export failed: {ex.Message}", StatusKind.Warning);
-        }
-    }
-
-    private static IEnumerable<string> CreateInventoryMappingCsvLines(IEnumerable<InventoryMappingExportRow> rows)
-    {
-        yield return "Slot,Offset,Raw Value,Decoded Item,Detected Visual Group,Research Group,Row Note,Column Note,Notes";
-        foreach (var row in rows)
-        {
-            yield return string.Join(
-                ",",
-                Csv(row.SlotNumber.ToString(CultureInfo.InvariantCulture)),
-                Csv(row.Offset),
-                Csv(row.RawValue.ToString(CultureInfo.InvariantCulture)),
-                Csv(row.DecodedItem),
-                Csv(row.DetectedVisualGroup),
-                Csv(row.ResearchGroup),
-                Csv(row.RowNote),
-                Csv(row.ColumnNote),
-                Csv(row.Notes));
         }
     }
 
@@ -8928,26 +8904,6 @@ public partial class MainWindow : Window, INotifyPropertyChanged
                 row.BitIndex,
                 row.CandidateBugIndexValue,
                 row.CandidateBugName)).ToList());
-    }
-
-    private static IEnumerable<string> CreateGoldenBugsResearchCsvLines(IEnumerable<GoldenBugsResearchExportRow> rows)
-    {
-        yield return "Offset,Before Byte,After Byte,Before Binary,After Binary,Changed Bits,Byte Index,Bit Index,Candidate Bug Index,Candidate Bug Name";
-        foreach (var row in rows)
-        {
-            yield return string.Join(
-                ",",
-                Csv(row.Offset),
-                Csv(row.BeforeValue.ToString(CultureInfo.InvariantCulture)),
-                Csv(row.AfterValue.ToString(CultureInfo.InvariantCulture)),
-                Csv(row.BeforeBinary),
-                Csv(row.AfterBinary),
-                Csv(row.ChangedBits),
-                Csv(row.ByteIndex.ToString(CultureInfo.InvariantCulture)),
-                Csv(row.BitIndex.ToString(CultureInfo.InvariantCulture)),
-                Csv(row.CandidateBugIndex.ToString(CultureInfo.InvariantCulture)),
-                Csv(row.CandidateBugName));
-        }
     }
 
     private QuestItemsResearchExport CreateQuestItemsResearchExport(int changedByteCount, int changedBitCount)
@@ -8976,37 +8932,6 @@ public partial class MainWindow : Window, INotifyPropertyChanged
                 row.IsChanged,
                 row.CandidateScore,
                 row.CandidateGroup)).ToList());
-    }
-
-    private static IEnumerable<string> CreateQuestItemsResearchCsvLines(QuestItemsResearchExport export)
-    {
-        yield return "Field,Value";
-        yield return string.Join(",", Csv("Capture A"), Csv(export.CaptureALabel));
-        yield return string.Join(",", Csv("Capture B"), Csv(export.CaptureBLabel));
-        yield return string.Join(",", Csv("Capture A Start Offset"), Csv($"0x{export.CaptureAStartOffset:X}"));
-        yield return string.Join(",", Csv("Capture A Length"), Csv($"0x{export.CaptureALength:X}"));
-        yield return string.Join(",", Csv("Capture B Start Offset"), Csv($"0x{export.CaptureBStartOffset:X}"));
-        yield return string.Join(",", Csv("Capture B Length"), Csv($"0x{export.CaptureBLength:X}"));
-        yield return string.Join(",", Csv("Changed Byte Count"), Csv(export.ChangedByteCount.ToString(CultureInfo.InvariantCulture)));
-        yield return string.Join(",", Csv("Changed Bit Count"), Csv(export.ChangedBitCount.ToString(CultureInfo.InvariantCulture)));
-        yield return string.Join(",", Csv("Range Warning"), Csv(export.RangeWarning));
-        yield return string.Empty;
-        yield return "Offset,Capture A Value,Capture B Value,Capture A Binary,Capture B Binary,Changed Bits,Changed Bit Count,Changed,Candidate Score,Candidate Group";
-        foreach (var row in export.Rows)
-        {
-            yield return string.Join(
-                ",",
-                Csv(row.Offset),
-                Csv(row.BeforeValue.ToString(CultureInfo.InvariantCulture)),
-                Csv(row.AfterValue.ToString(CultureInfo.InvariantCulture)),
-                Csv(row.BeforeBinary),
-                Csv(row.AfterBinary),
-                Csv(row.ChangedBits),
-                Csv(row.ChangedBitCount.ToString(CultureInfo.InvariantCulture)),
-                Csv(row.Changed.ToString(CultureInfo.InvariantCulture)),
-                Csv(row.CandidateScore.ToString(CultureInfo.InvariantCulture)),
-                Csv(row.CandidateGroup));
-        }
     }
 
     private static void AssignQuestItemsCandidateGroups(IReadOnlyList<QuestItemsResearchRowViewModel> rows)
@@ -9296,8 +9221,8 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             _lastQuestItemsCandidateRankingExport = CreateQuestItemsCandidateRankingExport();
             var jsonPath = Path.Combine(QuestSearchDirectory, "quest-candidate-ranking.json");
             var csvPath = Path.Combine(QuestSearchDirectory, "quest-candidate-ranking.csv");
-            File.WriteAllText(jsonPath, JsonSerializer.Serialize(_lastQuestItemsCandidateRankingExport, ExportJsonOptions));
-            File.WriteAllLines(csvPath, CreateQuestItemsCandidateRankingCsvLines(_lastQuestItemsCandidateRankingExport));
+            ResearchExportService.WriteJson(jsonPath, _lastQuestItemsCandidateRankingExport);
+            ResearchExportService.WriteCsvLines(csvPath, ResearchExportService.CreateQuestItemsCandidateRankingCsvLines(_lastQuestItemsCandidateRankingExport));
             QuestItemsResearchStatusText.Text =
                 $"Exported Quest Items candidate ranking: {Path.GetFileName(jsonPath)} and {Path.GetFileName(csvPath)}.";
             AppendQuestItemsResearchLog(
@@ -9326,8 +9251,8 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             _lastQuestItemsCandidateGroupsExport = CreateQuestItemsCandidateGroupsExport();
             var jsonPath = Path.Combine(QuestSearchDirectory, "quest-candidate-groups.json");
             var csvPath = Path.Combine(QuestSearchDirectory, "quest-candidate-groups.csv");
-            File.WriteAllText(jsonPath, JsonSerializer.Serialize(_lastQuestItemsCandidateGroupsExport, ExportJsonOptions));
-            File.WriteAllLines(csvPath, CreateQuestItemsCandidateGroupsCsvLines(_lastQuestItemsCandidateGroupsExport));
+            ResearchExportService.WriteJson(jsonPath, _lastQuestItemsCandidateGroupsExport);
+            ResearchExportService.WriteCsvLines(csvPath, ResearchExportService.CreateQuestItemsCandidateGroupsCsvLines(_lastQuestItemsCandidateGroupsExport));
             QuestItemsResearchStatusText.Text =
                 $"Exported Quest Items candidate groups: {Path.GetFileName(jsonPath)} and {Path.GetFileName(csvPath)}.";
             AppendQuestItemsResearchLog(
@@ -9338,40 +9263,6 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         {
             QuestItemsResearchStatusText.Text = $"Quest Items candidate groups export failed: {ex.Message}";
             SetStatus("Quest Items candidate groups export failed.", StatusKind.Warning);
-        }
-    }
-
-    private static IEnumerable<string> CreateQuestItemsCandidateRankingCsvLines(QuestItemsCandidateRankingExport export)
-    {
-        yield return "Offset,Capture A Value,Capture B Value,Changed Bits,Changed Bit Count,Score,Confidence,Group,Reasons";
-        foreach (var row in export.Rows)
-        {
-            yield return string.Join(
-                ",",
-                Csv(row.Offset),
-                Csv(row.CaptureAValue),
-                Csv(row.CaptureBValue),
-                Csv(row.ChangedBits),
-                Csv(row.ChangedBitCount.ToString(CultureInfo.InvariantCulture)),
-                Csv(row.CandidateScore.ToString(CultureInfo.InvariantCulture)),
-                Csv(row.Confidence),
-                Csv(row.GroupName),
-                Csv(row.Reasons));
-        }
-    }
-
-    private static IEnumerable<string> CreateQuestItemsCandidateGroupsCsvLines(QuestItemsCandidateGroupsExport export)
-    {
-        yield return "Group,Offset Range,Count,Highest Candidate Score,Reasons";
-        foreach (var group in export.Groups)
-        {
-            yield return string.Join(
-                ",",
-                Csv(group.GroupName),
-                Csv(group.OffsetRange),
-                Csv(group.Count.ToString(CultureInfo.InvariantCulture)),
-                Csv(group.HighestCandidateScore.ToString(CultureInfo.InvariantCulture)),
-                Csv(group.Reasons));
         }
     }
 
@@ -9670,8 +9561,8 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             _lastQuestItemsMultiCaptureAnalysisExport = CreateQuestItemsMultiCaptureAnalysisExport();
             var jsonPath = Path.Combine(QuestSearchDirectory, "quest-multi-capture-analysis.json");
             var csvPath = Path.Combine(QuestSearchDirectory, "quest-multi-capture-analysis.csv");
-            File.WriteAllText(jsonPath, JsonSerializer.Serialize(_lastQuestItemsMultiCaptureAnalysisExport, ExportJsonOptions));
-            File.WriteAllLines(csvPath, CreateQuestItemsMultiCaptureAnalysisCsvLines(_lastQuestItemsMultiCaptureAnalysisExport));
+            ResearchExportService.WriteJson(jsonPath, _lastQuestItemsMultiCaptureAnalysisExport);
+            ResearchExportService.WriteCsvLines(csvPath, ResearchExportService.CreateQuestItemsMultiCaptureAnalysisCsvLines(_lastQuestItemsMultiCaptureAnalysisExport));
             QuestItemsResearchStatusText.Text =
                 $"Exported Quest Items multi-capture analysis: {Path.GetFileName(jsonPath)} and {Path.GetFileName(csvPath)}.";
             AppendQuestItemsResearchLog(
@@ -9682,23 +9573,6 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         {
             QuestItemsResearchStatusText.Text = $"Quest Items multi-capture export failed: {ex.Message}";
             SetStatus("Quest Items multi-capture export failed.", StatusKind.Warning);
-        }
-    }
-
-    private static IEnumerable<string> CreateQuestItemsMultiCaptureAnalysisCsvLines(
-        QuestItemsMultiCaptureAnalysisExport export)
-    {
-        yield return "Offset,Value Progression,Appearances,Score,Confidence,Reasons";
-        foreach (var row in export.Rows)
-        {
-            yield return string.Join(
-                ",",
-                Csv(row.Offset),
-                Csv(row.ValueProgression),
-                Csv(row.AppearanceCount.ToString(CultureInfo.InvariantCulture)),
-                Csv(row.CandidateScore.ToString(CultureInfo.InvariantCulture)),
-                Csv(row.Confidence),
-                Csv(row.Reasons));
         }
     }
 
@@ -9820,31 +9694,6 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             CreateHiddenSkillsCandidateGroupExports());
     }
 
-    private static IEnumerable<string> CreateHiddenSkillsResearchCsvLines(IEnumerable<HiddenSkillsResearchExportRow> rows)
-    {
-        yield return "Offset,Before Byte,After Byte,Before Binary,After Binary,Changed Bits,Changed Bit Count,Changed,Single Bit,Persisted,Clustered,Candidate Score,Highlights,Pinned,Group";
-        foreach (var row in rows)
-        {
-            yield return string.Join(
-                ",",
-                Csv(row.Offset),
-                Csv(row.BeforeValue.ToString(CultureInfo.InvariantCulture)),
-                Csv(row.AfterValue.ToString(CultureInfo.InvariantCulture)),
-                Csv(row.BeforeBinary),
-                Csv(row.AfterBinary),
-                Csv(row.ChangedBits),
-                Csv(row.ChangedBitCount.ToString(CultureInfo.InvariantCulture)),
-                Csv(row.Changed.ToString()),
-                Csv(row.SingleBitChange.ToString()),
-                Csv(row.PersistedChange.ToString()),
-                Csv(row.ClusteredChange.ToString()),
-                Csv(row.CandidateScore.ToString(CultureInfo.InvariantCulture)),
-                Csv(row.Highlights),
-                Csv(row.Pinned.ToString()),
-                Csv(row.GroupName));
-        }
-    }
-
     private HiddenSkillsCandidateGroupsExport CreateHiddenSkillsCandidateGroupsExport()
     {
         return new HiddenSkillsCandidateGroupsExport(
@@ -9872,118 +9721,6 @@ public partial class MainWindow : Window, INotifyPropertyChanged
                 row.IsPinned)).ToList())).ToList();
     }
 
-    private static IEnumerable<string> CreateHiddenSkillsCandidateGroupsCsvLines(IEnumerable<HiddenSkillsCandidateGroupExport> groups)
-    {
-        yield return "Group,Offsets,Count,Highest Score,Reasons,Row Offset,Before Value,After Value,Changed Bits,Candidate Score,Highlights,Pinned";
-        foreach (var group in groups)
-        {
-            foreach (var row in group.Rows)
-            {
-                yield return string.Join(
-                    ",",
-                    Csv(group.Name),
-                    Csv(group.Offsets),
-                    Csv(group.Count.ToString(CultureInfo.InvariantCulture)),
-                    Csv(group.HighestScore.ToString(CultureInfo.InvariantCulture)),
-                    Csv(group.Reasons),
-                    Csv(row.Offset),
-                    Csv(row.BeforeValue.ToString(CultureInfo.InvariantCulture)),
-                    Csv(row.AfterValue.ToString(CultureInfo.InvariantCulture)),
-                    Csv(row.ChangedBits),
-                    Csv(row.CandidateScore.ToString(CultureInfo.InvariantCulture)),
-                    Csv(row.Highlights),
-                Csv(row.Pinned.ToString()));
-            }
-        }
-    }
-
-    private static IEnumerable<string> CreateHiddenSkillsMultiCaptureCsvLines(IEnumerable<HiddenSkillsMultiCaptureExportRow> rows)
-    {
-        yield return "Rank,Offset,Kind,Bit,Values A-F,Known Skill Counts,Score,Monotonic,Only Increases,Progression Match,Flags,Notes";
-        foreach (var row in rows)
-        {
-            yield return string.Join(
-                ",",
-                Csv(row.Rank.ToString(CultureInfo.InvariantCulture)),
-                Csv(row.Offset),
-                Csv(row.Kind),
-                Csv(row.Bit),
-                Csv(row.Values),
-                Csv(row.SkillCounts),
-                Csv(row.Score.ToString(CultureInfo.InvariantCulture)),
-                Csv(row.IsMonotonic.ToString(CultureInfo.InvariantCulture)),
-                Csv(row.OnlyIncreases.ToString(CultureInfo.InvariantCulture)),
-                Csv(row.ProgressionMatch.ToString(CultureInfo.InvariantCulture)),
-                Csv(row.Flags),
-                Csv(row.Notes));
-        }
-    }
-
-    private static IEnumerable<string> CreateHiddenSkillsRegionAnalysisCsvLines(IEnumerable<HiddenSkillsRegionAnalysisExportRow> rows)
-    {
-        yield return "Rank,Region,Changed Bytes,Changed Bits,Density %,Largest Change,Candidate Score,Single Bit Region,Highlights";
-        foreach (var row in rows)
-        {
-            yield return string.Join(
-                ",",
-                Csv(row.Rank.ToString(CultureInfo.InvariantCulture)),
-                Csv(row.Region),
-                Csv(row.ChangedBytes.ToString(CultureInfo.InvariantCulture)),
-                Csv(row.ChangedBits.ToString(CultureInfo.InvariantCulture)),
-                Csv(row.Density.ToString("0.0", CultureInfo.InvariantCulture)),
-                Csv(row.LargestChange.ToString(CultureInfo.InvariantCulture)),
-                Csv(row.CandidateScore.ToString(CultureInfo.InvariantCulture)),
-                Csv(row.SingleBitRegion.ToString(CultureInfo.InvariantCulture)),
-                Csv(row.Highlights));
-        }
-    }
-
-    private static IEnumerable<string> CreateHiddenSkillsLiveWatchCsvLines(HiddenSkillsLiveWatchExport export)
-    {
-        yield return "Type,Timestamp,Label,Offset,Before,After,Binary Before,Binary After,Changed Bits,Changed Bit Count,Change Count,Single Bit,Repeated,Monotonic,Highlights";
-        foreach (var marker in export.Events.OrderBy(marker => marker.Timestamp))
-        {
-            yield return string.Join(
-                ",",
-                Csv("Event"),
-                Csv(marker.Timestamp.ToString("O", CultureInfo.InvariantCulture)),
-                Csv(marker.Label),
-                Csv(string.Empty),
-                Csv(string.Empty),
-                Csv(string.Empty),
-                Csv(string.Empty),
-                Csv(string.Empty),
-                Csv(string.Empty),
-                Csv(string.Empty),
-                Csv(string.Empty),
-                Csv(string.Empty),
-                Csv(string.Empty),
-                Csv(string.Empty),
-                Csv(string.Empty));
-        }
-
-        foreach (var row in export.Rows.OrderBy(row => row.Timestamp))
-        {
-            yield return string.Join(
-                ",",
-                Csv("Change"),
-                Csv(row.Timestamp.ToString("O", CultureInfo.InvariantCulture)),
-                Csv(string.Empty),
-                Csv(row.Offset),
-                Csv(row.BeforeValue.ToString(CultureInfo.InvariantCulture)),
-                Csv(row.AfterValue.ToString(CultureInfo.InvariantCulture)),
-                Csv(row.BeforeBinary),
-                Csv(row.AfterBinary),
-                Csv(row.ChangedBits),
-                Csv(row.ChangedBitCount.ToString(CultureInfo.InvariantCulture)),
-                Csv(row.ChangeCount.ToString(CultureInfo.InvariantCulture)),
-                Csv(row.SingleBitChange.ToString(CultureInfo.InvariantCulture)),
-                Csv(row.RepeatedChange.ToString(CultureInfo.InvariantCulture)),
-                Csv(row.MonotonicChange.ToString(CultureInfo.InvariantCulture)),
-                Csv(row.Highlights));
-        }
-    }
-
     private GoldenBugsBitfieldReport CreateGoldenBugsBitfieldReport()
     {
         return new GoldenBugsBitfieldReport(
@@ -10002,41 +9739,6 @@ public partial class MainWindow : Window, INotifyPropertyChanged
                 bit.AssignedBugName ?? string.Empty,
                 bit.Notes,
                 bit.LastWriteStatus)).ToList());
-    }
-
-    private static IEnumerable<string> CreateGoldenBugsBitfieldReportCsvLines(IEnumerable<GoldenBugsBitfieldReportRow> rows)
-    {
-        yield return "Offset,Bit,Current State,Desired,Confirmed Bug Name,Mapping Status,Assigned Bug Name,Notes,Last Write Status";
-        foreach (var row in rows)
-        {
-            yield return string.Join(
-                ",",
-                Csv(row.Offset),
-                Csv(row.Bit.ToString(CultureInfo.InvariantCulture)),
-                Csv(row.CurrentState),
-                Csv(row.Desired.ToString(CultureInfo.InvariantCulture)),
-                Csv(row.ConfirmedBugName),
-                Csv(row.MappingStatus),
-                Csv(row.AssignedBugName),
-                Csv(row.Notes),
-                Csv(row.LastWriteStatus));
-        }
-    }
-
-    private static string Csv(string value)
-    {
-        return "\"" + value.Replace("\"", "\"\"", StringComparison.Ordinal) + "\"";
-    }
-
-    private static string SanitizeFileName(string value)
-    {
-        var fileName = string.IsNullOrWhiteSpace(value) ? "capture" : value.Trim();
-        foreach (var invalidCharacter in Path.GetInvalidFileNameChars())
-        {
-            fileName = fileName.Replace(invalidCharacter, '-');
-        }
-
-        return fileName.Replace(' ', '-');
     }
 
     private static List<string> InferOwnershipDiscoveryItemGains(OwnershipDiscoveryExport export)
@@ -10267,7 +9969,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
 
     private static void AddJsonEntry<T>(ZipArchive archive, string entryName, T value)
     {
-        AddTextEntry(archive, entryName, JsonSerializer.Serialize(value, ExportJsonOptions));
+        AddTextEntry(archive, entryName, ResearchExportService.SerializeJson(value));
     }
 
     private static void AddTextEntry(ZipArchive archive, string entryName, string content)
@@ -10490,7 +10192,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             var capture = CreateQuestItemsCaptureDocument(timestamp, label, startOffset, bytes, notes);
             var fileName = CreateQuestItemsCaptureFileName(timestamp, label);
             var path = Path.Combine(QuestSearchDirectory, fileName);
-            File.WriteAllText(path, JsonSerializer.Serialize(capture, ExportJsonOptions));
+            ResearchExportService.WriteJson(path, capture);
             return path;
         }
         catch (Exception ex)
@@ -10592,9 +10294,8 @@ public partial class MainWindow : Window, INotifyPropertyChanged
 
         try
         {
-            var loaded = JsonSerializer.Deserialize<QuestItemsCaptureDocument>(
-                File.ReadAllText(filePath),
-                ExportJsonOptions);
+            var loaded = ResearchExportService.DeserializeJson<QuestItemsCaptureDocument>(
+                File.ReadAllText(filePath));
             if (loaded is null)
             {
                 QuestItemsResearchStatusText.Text = "Selected Quest Items capture could not be read.";
@@ -10650,13 +10351,13 @@ public partial class MainWindow : Window, INotifyPropertyChanged
 
     private static string CreateQuestItemsCaptureFileName(DateTimeOffset timestamp, string label)
     {
-        return $"quest-capture_{timestamp:yyyyMMdd_HHmmss}_{SanitizeFileName(label)}.json";
+        return $"quest-capture_{timestamp:yyyyMMdd_HHmmss}_{ResearchExportService.SanitizeFileName(label)}.json";
     }
 
     private string CreateQuestItemsReportBaseName()
     {
         var timestamp = _lastQuestItemsResearchExport?.Timestamp ?? DateTimeOffset.Now;
-        return $"quest-report_{timestamp:yyyyMMdd_HHmmss}_{SanitizeFileName(GetQuestItemsCaptureALabel())}_vs_{SanitizeFileName(GetQuestItemsCaptureBLabel())}";
+        return $"quest-report_{timestamp:yyyyMMdd_HHmmss}_{ResearchExportService.SanitizeFileName(GetQuestItemsCaptureALabel())}_vs_{ResearchExportService.SanitizeFileName(GetQuestItemsCaptureBLabel())}";
     }
 
     private string WriteQuestItemsNamedJsonReport()
@@ -10668,7 +10369,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
 
         Directory.CreateDirectory(QuestSearchDirectory);
         var path = Path.Combine(QuestSearchDirectory, CreateQuestItemsReportBaseName() + ".json");
-        File.WriteAllText(path, JsonSerializer.Serialize(_lastQuestItemsResearchExport, ExportJsonOptions));
+        ResearchExportService.WriteJson(path, _lastQuestItemsResearchExport);
         return path;
     }
 
@@ -10681,7 +10382,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
 
         Directory.CreateDirectory(QuestSearchDirectory);
         var path = Path.Combine(QuestSearchDirectory, CreateQuestItemsReportBaseName() + ".csv");
-        File.WriteAllLines(path, CreateQuestItemsResearchCsvLines(_lastQuestItemsResearchExport));
+        ResearchExportService.WriteCsvLines(path, ResearchExportService.CreateQuestItemsResearchCsvLines(_lastQuestItemsResearchExport));
         return path;
     }
 
@@ -10728,7 +10429,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
                 bytes,
                 GetQuestItemsCaptureNotes());
             var path = Path.Combine(ResearchSnapshotStore.ExportDirectory, fileName);
-            File.WriteAllText(path, JsonSerializer.Serialize(snapshot, ExportJsonOptions));
+            ResearchExportService.WriteJson(path, snapshot);
         }
         catch (Exception ex)
         {
@@ -10756,7 +10457,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
                 bytes.Length,
                 bytes.Select(value => $"0x{value:X2}").ToList(),
                 label);
-            File.WriteAllText(path, JsonSerializer.Serialize(capture, ExportJsonOptions));
+            ResearchExportService.WriteJson(path, capture);
             return path;
         }
         catch (Exception ex)
@@ -10791,9 +10492,8 @@ public partial class MainWindow : Window, INotifyPropertyChanged
 
         try
         {
-            var loaded = JsonSerializer.Deserialize<HiddenSkillsCaptureDocument>(
-                File.ReadAllText(dialog.FileName),
-                ExportJsonOptions);
+            var loaded = ResearchExportService.DeserializeJson<HiddenSkillsCaptureDocument>(
+                File.ReadAllText(dialog.FileName));
             if (loaded is null)
             {
                 HiddenSkillsResearchStatusText.Text = "Selected Hidden Skills capture could not be read.";
@@ -10861,7 +10561,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     {
         var suffix = string.IsNullOrWhiteSpace(label)
             ? string.Empty
-            : "_" + SanitizeFileName(label);
+            : "_" + ResearchExportService.SanitizeFileName(label);
         return $"hidden-skills-{kind}_{timestamp:yyyyMMdd_HHmmss}{suffix}.json";
     }
 
@@ -10882,7 +10582,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
                 bytes.Select(value => $"0x{value:X2}").ToList(),
                 label);
             var path = Path.Combine(ResearchSnapshotStore.ExportDirectory, fileName);
-            File.WriteAllText(path, JsonSerializer.Serialize(snapshot, ExportJsonOptions));
+            ResearchExportService.WriteJson(path, snapshot);
         }
         catch (Exception ex)
         {
@@ -10921,9 +10621,8 @@ public partial class MainWindow : Window, INotifyPropertyChanged
 
         try
         {
-            var loaded = JsonSerializer.Deserialize<HiddenSkillsCaptureDocument>(
-                File.ReadAllText(dialog.FileName),
-                ExportJsonOptions);
+            var loaded = ResearchExportService.DeserializeJson<HiddenSkillsCaptureDocument>(
+                File.ReadAllText(dialog.FileName));
             if (loaded is null)
             {
                 HiddenSkillsMultiCaptureStatusText.Text = "Selected Hidden Skills capture could not be read.";
@@ -11242,9 +10941,8 @@ public partial class MainWindow : Window, INotifyPropertyChanged
 
         try
         {
-            var loaded = JsonSerializer.Deserialize<HiddenSkillsCaptureDocument>(
-                File.ReadAllText(dialog.FileName),
-                ExportJsonOptions);
+            var loaded = ResearchExportService.DeserializeJson<HiddenSkillsCaptureDocument>(
+                File.ReadAllText(dialog.FileName));
             if (loaded is null)
             {
                 error = "Selected Hidden Skills capture could not be read.";
@@ -11938,18 +11636,18 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             Directory.CreateDirectory(ResearchSnapshotStore.ExportDirectory);
             var label = string.IsNullOrWhiteSpace(_lastResearchWorkspaceSnapshotExport.Label)
                 ? "snapshot-diff"
-                : SanitizeFileName(_lastResearchWorkspaceSnapshotExport.Label);
+                : ResearchExportService.SanitizeFileName(_lastResearchWorkspaceSnapshotExport.Label);
             var extension = json ? ".json" : ".csv";
             var path = Path.Combine(
                 ResearchSnapshotStore.ExportDirectory,
                 $"snapshot-diff_{_lastResearchWorkspaceSnapshotExport.Timestamp:yyyyMMdd_HHmmss}_{label}{extension}");
             if (json)
             {
-                File.WriteAllText(path, JsonSerializer.Serialize(_lastResearchWorkspaceSnapshotExport, ExportJsonOptions));
+                ResearchExportService.WriteJson(path, _lastResearchWorkspaceSnapshotExport);
             }
             else
             {
-                File.WriteAllLines(path, CreateResearchWorkspaceSnapshotCsvLines(_lastResearchWorkspaceSnapshotExport));
+                ResearchExportService.WriteCsvLines(path, ResearchExportService.CreateResearchWorkspaceSnapshotCsvLines(_lastResearchWorkspaceSnapshotExport));
             }
 
             ResearchWorkspaceSnapshotStatusText.Text = $"Exported {Path.GetFileName(path)}.";
@@ -12311,32 +12009,6 @@ public partial class MainWindow : Window, INotifyPropertyChanged
 
         filters.Add($"Candidate Score >= {LiveCaptureScoreThresholdText.Text.Trim()}");
         return filters;
-    }
-
-    private static IEnumerable<string> CreateResearchWorkspaceSnapshotCsvLines(ResearchWorkspaceSnapshotExport export)
-    {
-        yield return "Field,Value";
-        yield return string.Join(",", Csv("Label"), Csv(export.Label));
-        yield return string.Join(",", Csv("Start Offset"), Csv($"0x{export.StartOffset:X}"));
-        yield return string.Join(",", Csv("Length"), Csv($"0x{export.Length:X}"));
-        yield return string.Join(",", Csv("Changed Bytes"), Csv(export.ChangedByteCount.ToString(CultureInfo.InvariantCulture)));
-        yield return string.Join(",", Csv("Changed Bits"), Csv(export.ChangedBitCount.ToString(CultureInfo.InvariantCulture)));
-        yield return string.Empty;
-        yield return "Offset,Before Value,After Value,Before Binary,After Binary,Changed Bits,Changed Bit Count,Candidate Score,Candidate Group";
-        foreach (var row in export.Rows)
-        {
-            yield return string.Join(
-                ",",
-                Csv(row.Offset),
-                Csv($"0x{row.BeforeValue:X2}"),
-                Csv($"0x{row.AfterValue:X2}"),
-                Csv(row.BeforeBinary),
-                Csv(row.AfterBinary),
-                Csv(row.ChangedBits),
-                Csv(row.ChangedBitCount.ToString(CultureInfo.InvariantCulture)),
-                Csv(row.CandidateScore.ToString(CultureInfo.InvariantCulture)),
-                Csv(row.CandidateGroup));
-        }
     }
 
     private HiddenSkillsLiveWatchExport CreateHiddenSkillsLiveWatchExport()
@@ -13861,491 +13533,6 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     }
 
     private readonly record struct OwnershipDiscoveryRangePreset(string Label, uint StartOffset, int Length);
-
-    private sealed record InventoryMappingExport(
-        DateTimeOffset Timestamp,
-        IReadOnlyList<InventoryMappingExportRow> Rows);
-
-    private sealed record InventoryMappingExportRow(
-        int SlotNumber,
-        string Offset,
-        byte RawValue,
-        string DecodedItem,
-        string DetectedVisualGroup,
-        string ResearchGroup,
-        string RowNote,
-        string ColumnNote,
-        string Notes);
-
-    private sealed record GoldenBugsResearchExport(
-        DateTimeOffset Timestamp,
-        uint StartOffset,
-        int Length,
-        DateTimeOffset? BeforeCapturedAt,
-        DateTimeOffset? AfterCapturedAt,
-        int ChangedByteCount,
-        int ChangedBitCount,
-        IReadOnlyList<string> CandidateBugReference,
-        IReadOnlyList<GoldenBugsResearchExportRow> Rows);
-
-    private sealed record GoldenBugsResearchExportRow(
-        string Offset,
-        byte BeforeValue,
-        byte AfterValue,
-        string BeforeBinary,
-        string AfterBinary,
-        string ChangedBits,
-        int ByteIndex,
-        int BitIndex,
-        int CandidateBugIndex,
-        string CandidateBugName);
-
-    private sealed record QuestItemsCaptureDocument(
-        DateTimeOffset Timestamp,
-        string Label,
-        uint StartOffset,
-        int Length,
-        IReadOnlyList<string> RawBytes,
-        string Notes,
-        string CaptureType,
-        string AppVersion);
-
-    private sealed record QuestItemsLoadedCapture(
-        string Path,
-        QuestItemsCaptureDocument Document,
-        byte[] Bytes);
-
-    private sealed record QuestItemsResearchExport(
-        DateTimeOffset Timestamp,
-        string CaptureALabel,
-        string CaptureBLabel,
-        uint CaptureAStartOffset,
-        int CaptureALength,
-        DateTimeOffset? CaptureACapturedAt,
-        uint CaptureBStartOffset,
-        int CaptureBLength,
-        DateTimeOffset? CaptureBCapturedAt,
-        string RangeWarning,
-        int ChangedByteCount,
-        int ChangedBitCount,
-        IReadOnlyList<QuestItemsResearchExportRow> Rows);
-
-    private sealed record QuestItemsResearchExportRow(
-        string Offset,
-        byte BeforeValue,
-        byte AfterValue,
-        string BeforeBinary,
-        string AfterBinary,
-        string ChangedBits,
-        int ChangedBitCount,
-        bool Changed,
-        int CandidateScore,
-        string CandidateGroup);
-
-    private sealed record QuestItemsCandidateRankingExport(
-        DateTimeOffset Timestamp,
-        string CaptureALabel,
-        string CaptureBLabel,
-        IReadOnlyList<QuestItemsCandidateRankingExportRow> Rows);
-
-    private sealed record QuestItemsCandidateRankingExportRow(
-        string Offset,
-        string CaptureAValue,
-        string CaptureBValue,
-        string ChangedBits,
-        int ChangedBitCount,
-        int CandidateScore,
-        string Confidence,
-        string GroupName,
-        string Reasons);
-
-    private sealed record QuestItemsCandidateGroupsExport(
-        DateTimeOffset Timestamp,
-        string CaptureALabel,
-        string CaptureBLabel,
-        IReadOnlyList<QuestItemsCandidateGroupsExportRow> Groups);
-
-    private sealed record QuestItemsCandidateGroupsExportRow(
-        string GroupName,
-        string OffsetRange,
-        int Count,
-        int HighestCandidateScore,
-        string Reasons);
-
-    private sealed record QuestItemsMultiCaptureAnalysisExport(
-        DateTimeOffset Timestamp,
-        IReadOnlyList<QuestItemsMultiCaptureExportCapture> Captures,
-        IReadOnlyList<QuestItemsMultiCaptureAnalysisExportRow> Rows);
-
-    private sealed record QuestItemsMultiCaptureExportCapture(
-        string Label,
-        string CaptureType,
-        DateTimeOffset Timestamp,
-        uint StartOffset,
-        int Length,
-        string FileName);
-
-    private sealed record QuestItemsMultiCaptureAnalysisExportRow(
-        string Offset,
-        string ValueProgression,
-        int AppearanceCount,
-        int CandidateScore,
-        string Confidence,
-        string Reasons);
-
-    private sealed record SupportSnapshotDocument(
-        string ApplicationVersion,
-        DateTimeOffset Timestamp,
-        string ProcessName,
-        bool IsAttached,
-        string Pid,
-        string PlayerBaseAddress,
-        string ConnectionStatus,
-        bool HasPlayerData,
-        bool InventoryInitialized,
-        bool EquipmentInitialized,
-        string OwnershipEditsState,
-        bool DarkModeEnabled,
-        string AobPattern,
-        IReadOnlyList<SupportSnapshotCapacity> Capacities,
-        IReadOnlyList<SupportSnapshotValue> Values,
-        IReadOnlyList<string> IncludedLogFiles,
-        IReadOnlyList<string> SkippedLogFiles);
-
-    private sealed record SupportSnapshotCapacity(
-        string Name,
-        string CurrentStoredValue,
-        string SelectedCapacity);
-
-    private sealed record SupportSnapshotValue(
-        string Name,
-        string Offset,
-        string CurrentValue,
-        string TargetValue,
-        bool Locked);
-
-    private sealed record HiddenSkillsCaptureDocument(
-        DateTimeOffset Timestamp,
-        uint StartOffset,
-        int Length,
-        IReadOnlyList<string> RawBytes,
-        string Label)
-    {
-        public string LabelOrDefault => string.IsNullOrWhiteSpace(Label) ? "Unlabeled capture" : Label;
-    }
-
-    private sealed record HiddenSkillsResearchExport(
-        DateTimeOffset Timestamp,
-        uint StartOffset,
-        int Length,
-        DateTimeOffset? BeforeCapturedAt,
-        DateTimeOffset? AfterCapturedAt,
-        bool TreatAfterAsPersisted,
-        IReadOnlyList<string> KnownSkills,
-        IReadOnlyList<HiddenSkillsResearchExportRow> Rows,
-        IReadOnlyList<HiddenSkillsCandidateGroupExport> CandidateGroups);
-
-    private sealed record HiddenSkillsResearchExportRow(
-        string Offset,
-        byte BeforeValue,
-        byte AfterValue,
-        string BeforeBinary,
-        string AfterBinary,
-        string ChangedBits,
-        int ChangedBitCount,
-        bool Changed,
-        bool SingleBitChange,
-        bool PersistedChange,
-        bool ClusteredChange,
-        int CandidateScore,
-        string Highlights,
-        bool Pinned,
-        string GroupName);
-
-    private sealed record HiddenSkillsCandidateGroupsExport(
-        DateTimeOffset Timestamp,
-        uint StartOffset,
-        int Length,
-        IReadOnlyList<HiddenSkillsCandidateGroupExport> Groups);
-
-    private sealed record HiddenSkillsCandidateGroupExport(
-        string Name,
-        string Offsets,
-        int Count,
-        int HighestScore,
-        string Reasons,
-        IReadOnlyList<HiddenSkillsCandidateGroupRowExport> Rows);
-
-    private sealed record HiddenSkillsCandidateGroupRowExport(
-        string Offset,
-        byte BeforeValue,
-        byte AfterValue,
-        string ChangedBits,
-        int CandidateScore,
-        string Highlights,
-        bool Pinned);
-
-    private sealed record HiddenSkillsLoadedCapture(
-        string SlotName,
-        HiddenSkillsCaptureDocument Document,
-        byte[] Bytes,
-        string FilePath);
-
-    private sealed record HiddenSkillsMultiCaptureCandidateAnalysis(
-        uint OffsetValue,
-        string Kind,
-        string Bit,
-        string Values,
-        int Score,
-        bool IsMonotonic,
-        bool OnlyIncreases,
-        bool ProgressionMatch,
-        string Notes);
-
-    private sealed record HiddenSkillsMultiCaptureExport(
-        DateTimeOffset Timestamp,
-        uint StartOffset,
-        int Length,
-        IReadOnlyList<int> SkillCounts,
-        IReadOnlyList<HiddenSkillsMultiCaptureExportCapture> Captures,
-        IReadOnlyList<HiddenSkillsMultiCaptureExportRow> Candidates);
-
-    private sealed record HiddenSkillsMultiCaptureExportCapture(
-        string SlotName,
-        string Label,
-        DateTimeOffset Timestamp,
-        uint StartOffset,
-        int Length,
-        string FilePath);
-
-    private sealed record HiddenSkillsMultiCaptureExportRow(
-        int Rank,
-        string Offset,
-        string Kind,
-        string Bit,
-        string Values,
-        string SkillCounts,
-        int Score,
-        bool IsMonotonic,
-        bool OnlyIncreases,
-        bool ProgressionMatch,
-        string Flags,
-        string Notes);
-
-    private sealed record HiddenSkillsRegionChangedByte(
-        uint OffsetValue,
-        byte BeforeValue,
-        byte AfterValue,
-        int ChangedBitCount,
-        int AbsoluteDelta);
-
-    private sealed record HiddenSkillsRegionAnalysisCandidate(
-        uint RegionStartValue,
-        uint RegionEndValue,
-        int ChangedBytes,
-        int ChangedBits,
-        double Density,
-        int LargestChange,
-        int CandidateScore,
-        bool IsSingleBitRegion);
-
-    private sealed record HiddenSkillsRegionAnalysisExport(
-        DateTimeOffset Timestamp,
-        uint StartOffset,
-        int Length,
-        HiddenSkillsRegionAnalysisCaptureExport? CaptureA,
-        HiddenSkillsRegionAnalysisCaptureExport? CaptureB,
-        IReadOnlyList<HiddenSkillsRegionAnalysisExportRow> Rows);
-
-    private sealed record HiddenSkillsRegionAnalysisCaptureExport(
-        string SlotName,
-        string Label,
-        DateTimeOffset Timestamp,
-        uint StartOffset,
-        int Length,
-        string FilePath);
-
-    private sealed record HiddenSkillsRegionAnalysisExportRow(
-        int Rank,
-        string Region,
-        int ChangedBytes,
-        int ChangedBits,
-        double Density,
-        int LargestChange,
-        int CandidateScore,
-        bool SingleBitRegion,
-        string Highlights);
-
-    private sealed record MemoryRangeReadResult(
-        bool Success,
-        byte[] Bytes,
-        string Error);
-
-    private sealed record KnownResearchRegionHint(
-        uint StartOffset,
-        uint EndOffset,
-        string Category,
-        string Description);
-
-    private sealed class LiveCaptureTrackedAddress
-    {
-        public LiveCaptureTrackedAddress(
-            uint offsetValue,
-            byte initialValue,
-            byte previousValue,
-            byte currentValue,
-            DateTimeOffset timestamp)
-        {
-            OffsetValue = offsetValue;
-            InitialValue = initialValue;
-            PreviousValue = previousValue;
-            CurrentValue = currentValue;
-            FirstSeen = timestamp;
-            LastSeen = timestamp;
-            ChangeCount = 1;
-            Timeline.Add(new LiveCaptureTimelinePoint(timestamp, previousValue, currentValue));
-        }
-
-        public uint OffsetValue { get; }
-
-        public byte InitialValue { get; }
-
-        public byte PreviousValue { get; set; }
-
-        public byte CurrentValue { get; set; }
-
-        public int ChangeCount { get; private set; }
-
-        public DateTimeOffset FirstSeen { get; }
-
-        public DateTimeOffset LastSeen { get; set; }
-
-        public string PersistedStatus { get; set; } = "Unknown";
-
-        public List<LiveCaptureTimelinePoint> Timeline { get; } = [];
-
-        public void RecordChange(byte previousValue, byte currentValue, DateTimeOffset timestamp)
-        {
-            PreviousValue = previousValue;
-            CurrentValue = currentValue;
-            LastSeen = timestamp;
-            ChangeCount++;
-            PersistedStatus = "Unknown";
-            Timeline.Add(new LiveCaptureTimelinePoint(timestamp, previousValue, currentValue));
-            while (Timeline.Count > 24)
-            {
-                Timeline.RemoveAt(0);
-            }
-        }
-    }
-
-    private sealed record LiveCaptureTimelinePoint(
-        DateTimeOffset Timestamp,
-        byte PreviousValue,
-        byte CurrentValue);
-
-    private sealed record LiveCaptureSessionExport(
-        DateTimeOffset Timestamp,
-        string Label,
-        DateTimeOffset? StartedAt,
-        uint StartOffset,
-        int Length,
-        int SamplingRateMs,
-        IReadOnlyList<LiveCaptureTrackedAddressExport> TrackedAddresses,
-        IReadOnlyList<string> AppliedFilters,
-        IReadOnlyList<KnownResearchRegionHint> KnownRegionHints);
-
-    private sealed record LiveCaptureTrackedAddressExport(
-        string Offset,
-        byte InitialValue,
-        byte PreviousValue,
-        byte CurrentValue,
-        int ChangeCount,
-        DateTimeOffset FirstSeen,
-        DateTimeOffset LastSeen,
-        string PersistedStatus,
-        int CandidateScore,
-        string Confidence,
-        IReadOnlyList<string> Reasons,
-        IReadOnlyList<LiveCaptureTimelinePointExport> Timeline);
-
-    private sealed record LiveCaptureTimelinePointExport(
-        DateTimeOffset Timestamp,
-        byte PreviousValue,
-        byte CurrentValue);
-
-    private sealed record ResearchWorkspaceSnapshotExport(
-        DateTimeOffset Timestamp,
-        string Label,
-        uint StartOffset,
-        int Length,
-        DateTimeOffset? CaptureACapturedAt,
-        DateTimeOffset? CaptureBCapturedAt,
-        int ChangedByteCount,
-        int ChangedBitCount,
-        IReadOnlyList<QuestItemsResearchExportRow> Rows);
-
-    private sealed record HiddenSkillsLiveWatchExport(
-        DateTimeOffset Timestamp,
-        DateTimeOffset? StartedAt,
-        uint StartOffset,
-        int Length,
-        IReadOnlyList<HiddenSkillsLiveWatchExportRow> Rows,
-        IReadOnlyList<HiddenSkillsEventMarkerExport> Events);
-
-    private sealed record HiddenSkillsLiveWatchExportRow(
-        DateTimeOffset Timestamp,
-        string Offset,
-        byte BeforeValue,
-        byte AfterValue,
-        string BeforeBinary,
-        string AfterBinary,
-        string ChangedBits,
-        int ChangedBitCount,
-        int ChangeCount,
-        bool SingleBitChange,
-        bool RepeatedChange,
-        bool MonotonicChange,
-        string Highlights);
-
-    private sealed record HiddenSkillsEventMarkerExport(
-        DateTimeOffset Timestamp,
-        string Label);
-
-    private sealed record GoldenBugsBitfieldReport(
-        DateTimeOffset Timestamp,
-        DateTimeOffset? RestoreSnapshotCapturedAt,
-        IReadOnlyList<string> RestoreSnapshotBytes,
-        IReadOnlyList<GoldenBugsBitfieldReportRow> Rows);
-
-    private sealed record GoldenBugsBitfieldReportRow(
-        string Offset,
-        int Bit,
-        string CurrentState,
-        bool Desired,
-        string ConfirmedBugName,
-        string MappingStatus,
-        string AssignedBugName,
-        string Notes,
-        string LastWriteStatus);
-
-    private sealed class OwnershipCorrelationAccumulator
-    {
-        public OwnershipCorrelationAccumulator(uint offsetValue)
-        {
-            OffsetValue = offsetValue;
-        }
-
-        public uint OffsetValue { get; }
-
-        public int ChangedCount { get; set; }
-
-        public HashSet<string> AssociatedItemGains { get; } = new(StringComparer.Ordinal);
-
-        public HashSet<string> ReportNames { get; } = new(StringComparer.Ordinal);
-
-        public HashSet<string> BitChanges { get; } = new(StringComparer.Ordinal);
-    }
 
     private enum StatusKind
     {
